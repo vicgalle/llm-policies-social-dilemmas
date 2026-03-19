@@ -4,10 +4,14 @@ Code for the paper *"Cooperation and Exploitation in LLM Policy Synthesis for Se
 
 <p align="center">
   <img src="assets/framework.png" width="60%" alt="Iterative LLM policy synthesis framework"/>
+  <br>
+  <em>Iterative LLM policy synthesis framework. The LLM synthesizes a Python policy, which is validated, evaluated in N-agent self-play, and refined via sparse or dense feedback.</em>
 </p>
 
 <p align="center">
   <img src="assets/cleanup_render.png" width="25%" alt="Cleanup environment"/>
+  <br>
+  <em>Cleanup environment. Agents (colored arrows) must clean waste (brown, left) from the river so apples (green, right) can regrow.</em>
 </p>
 
 ## Overview
