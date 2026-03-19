@@ -6,6 +6,10 @@ Code for the paper *"Cooperation and Exploitation in LLM Policy Synthesis for Se
   <img src="assets/framework.png" width="60%" alt="Iterative LLM policy synthesis framework"/>
 </p>
 
+<p align="center">
+  <img src="assets/cleanup_render.png" width="25%" alt="Cleanup environment"/>
+</p>
+
 ## Overview
 
 We study **LLM policy synthesis**: using large language models to iteratively generate programmatic Python agent policies for multi-agent environments, evaluated in self-play, and refined through performance feedback. We compare **sparse feedback** (scalar reward only) vs. **dense feedback** (reward + social metrics: efficiency, equality, sustainability, peace) across two Sequential Social Dilemmas and two frontier LLMs (Claude Sonnet 4.6, Gemini 3.1 Pro).
