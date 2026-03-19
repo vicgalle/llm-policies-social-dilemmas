@@ -3,7 +3,7 @@
 Code for the paper *"Cooperation and Exploitation in LLM Policy Synthesis for Sequential Social Dilemmas"* (pre-print, work in progress).
 
 <p align="center">
-  <img src="assets/cleanup_render.png" width="25%" alt="Cleanup environment"/>
+  <img src="assets/framework.png" width="60%" alt="Iterative LLM policy synthesis framework"/>
 </p>
 
 ## Overview
