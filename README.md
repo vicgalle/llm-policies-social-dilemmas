@@ -11,7 +11,7 @@ Code for the paper *"Cooperation and Exploitation in LLM Policy Synthesis for Se
 <p align="center">
   <img src="assets/cleanup_render.png" width="25%" alt="Cleanup environment"/>
   <br>
-  <em>Cleanup environment. Agents (colored arrows) must clean waste (brown, left) from the river so apples (green, right) can regrow.</em>
+  <em>Cleanup environment. Agents (colored dots) must clean waste (brown, left) from the river so apples (green, right) can regrow.</em>
 </p>
 
 ## Overview
@@ -141,6 +141,22 @@ ssd_verifier_env.py     # Verifier wrapper for GEPA integration
 run_gepa_ssd.py         # GEPA baseline runner
 demo_env_reward_hack.py # Reward hacking attack demonstrations
 assets/                 # Environment renders
+```
+
+## Citation
+
+If you find this interesting in your research, please consider citing
+
+```
+@misc{gallego2026cooperationexploitationllmpolicy,
+      title={Cooperation and Exploitation in LLM Policy Synthesis for Sequential Social Dilemmas}, 
+      author={Víctor Gallego},
+      year={2026},
+      eprint={2603.19453},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2603.19453}, 
+}
 ```
 
 
