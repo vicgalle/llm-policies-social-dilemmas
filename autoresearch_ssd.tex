@@ -1,0 +1,264 @@
+\documentclass[10pt,twocolumn]{article}
+
+% Packages
+\usepackage[margin=0.75in]{geometry}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*}
+
+\pagestyle{plain}
+
+% Notation shortcuts
+\newcommand{\cR}{\mathcal{R}}
+\newcommand{\cM}{\mathcal{M}}
+\newcommand{\cG}{\mathcal{G}}
+\newcommand{\cC}{\mathcal{C}}
+\newcommand{\bm}{\mathbf{m}}
+
+\begin{document}
+
+\title{Automated Research for LLM Policy Synthesis\\in Sequential Social Dilemmas}
+
+\author{V\'ictor Gallego\\
+\small Komorebi AI Technologies, Madrid, Spain\\
+\small \texttt{victor.gallego@komorebi.ai}}
+\date{}
+
+\maketitle
+
+\begin{abstract}
+We apply the \emph{autoresearch} paradigm to multi-agent LLM policy synthesis. A \emph{researcher agent} $\cR$ iteratively modifies the full inner-loop codebase---system prompts, feedback construction, helper libraries, iteration logic---under which a \emph{policy-synthesizer} LLM $\cM$ generates cooperative strategies for Sequential Social Dilemmas. The researcher never modifies the environment or evaluation; everything else is fair game. This two-level architecture generalizes the manual feedback engineering of prior work into an open-ended, automated search over the \emph{design of the synthesis pipeline itself}, casting it as a form of automated mechanism design over the information structure of multi-agent coordination.
+\end{abstract}
+
+%% ============================================================
+\section{Background}
+%% ============================================================
+
+We build on the iterative LLM policy synthesis framework of Gallego~\cite{gallego2026}. An SSD is a partially observable Markov game $\cG = \langle N, \mathcal{S}, \{A_i\}_{i=1}^{N}, T, \{R_i\}_{i=1}^{N}, H \rangle$. Social outcomes are evaluated via four metrics~\cite{perolat2017}: efficiency $U$, equality $E$, sustainability $S$, and peace $P$.
+
+A frozen LLM $\cM$ acts as a policy synthesizer. Given a system prompt $p$ and a feedback prompt $q_k$, it generates a Python policy $\pi_{k+1} = \cM(p, q(\pi_k, \mathcal{F}_k^\ell))$, where $\ell$ specifies the feedback level and $\mathcal{F}_k = (\bar{r}_k, \bm_k)$ contains the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. All $N$ agents execute the same policy (homogeneous self-play). Gallego~\cite{gallego2026} compared two hand-designed feedback levels---sparse (reward-only) and dense (reward + social metrics)---and showed that dense feedback consistently improves cooperative outcomes.
+
+%% ============================================================
+\section{Two-Level Framework}
+%% ============================================================
+
+We introduce a two-level system where a \emph{researcher agent} $\cR$ optimizes the conditions under which the policy synthesizer $\cM$ operates. The key insight is that the entire inner-loop codebase---not just the feedback level---is a designable artifact.
+
+\subsection{Configuration Space}
+
+Let $\cC$ denote the space of \emph{pipeline configurations}. Each configuration $c \in \cC$ specifies the full inner-loop setup:
+\begin{equation}
+  c = (p,\, \ell,\, \phi,\, \mathcal{H},\, \iota,\, v)
+\end{equation}
+where $p$ is the system prompt, $\ell$ is the feedback template, $\phi$ is the feedback construction function, $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
+
+\begin{table}[t]
+\caption{Configuration components modifiable by the researcher. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
+\label{tab:config}
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Component & Scope & Example modifications \\
+\midrule
+$p$ & System prompt & Strategic hints, worked examples \\
+$\ell$ & Feedback template & Metric subset, framing language \\
+$\phi$ & Feedback construction & Derived metrics, per-agent stats \\
+$\mathcal{H}$ & Helper library & Pathfinding, coordination primitives \\
+$\iota$ & Iteration logic & Best-of-$n$, early stopping, $K$ \\
+$v$ & Validation & Safety checks, smoke tests \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The sparse vs.\ dense comparison of~\cite{gallego2026} corresponds to a single binary choice within the $\ell$ component. Our framework opens the full configuration space to automated search.
+
+\subsection{Inner Loop (Policy Synthesis)}
+
+Given a configuration $c$, the inner loop executes $K$ iterations of LLM policy synthesis:
+\begin{equation}
+  \pi^*_c = \textsc{InnerLoop}(\cM, \cG, c)
+\end{equation}
+following Algorithm~1 of~\cite{gallego2026}: at each iteration $k$, $\cM$ generates a policy from the system prompt $p$ and feedback constructed according to $(\ell, \phi)$, using helpers $\mathcal{H}$. The policy is validated via $v$ and evaluated in $N$-agent self-play over seeds $S$.
+
+The inner loop output is evaluated on held-out seeds via a fixed ground-truth objective:
+\begin{equation}
+  \Phi(c) = \textsc{Eval}(\pi^*_c;\; \cG,\; S_{\text{held-out}})
+  \label{eq:phi}
+\end{equation}
+where $\Phi$ maps from social outcomes to a scalar. Candidate objectives include:
+\begin{align}
+  \Phi_U &= U & \text{(efficiency)} \label{eq:eff}\\
+  \Phi_W &= \alpha U + \beta E + \gamma S + \delta P & \text{(weighted welfare)} \label{eq:welfare}\\
+  \Phi_{\min} &= \min_i R_i & \text{(Rawlsian fairness)} \label{eq:rawls}
+\end{align}
+
+\subsection{Outer Loop (Automated Research)}
+
+The researcher agent $\cR$ iteratively modifies the pipeline configuration. Following the autoresearch paradigm~\cite{karpathy2026}, $\cR$ operates on the inner-loop codebase as a modifiable artifact, proposing changes, observing outcomes, and refining. The procedure is formalized in Algorithm~\ref{alg:outer}.
+
+\begin{algorithm}[t]
+\caption{Two-Level Automated Research}
+\label{alg:outer}
+\begin{algorithmic}[1]
+\REQUIRE Game $\cG$, policy synthesizer $\cM$, researcher $\cR$, system prompt for researcher $p_\cR$, initial configuration $c_0$, outer iterations $J$, ground-truth objective $\Phi$, held-out seeds $S_{\text{held-out}}$
+\ENSURE Best configuration $c^*$, best policy $\pi^*$
+\STATE $\pi^*_0 \leftarrow \textsc{InnerLoop}(\cM, \cG, c_0)$
+\STATE $\Phi_0 \leftarrow \textsc{Eval}(\pi^*_0;\; \cG,\; S_{\text{held-out}})$
+\STATE $\textit{history} \leftarrow \{(c_0, \Phi_0, \bm_0, \varnothing)\}$
+\FOR{$j = 1, \dots, J$}
+  \STATE $c_j \leftarrow \cR\!\left(p_\cR,\; \textsc{code}(c_{j-1}),\; \textit{history}\right)$
+  \STATE \textbf{if} $\neg\,\textsc{ValidateConfig}(c_j)$ \textbf{then} retry $\leq R$ times
+  \STATE $\pi^*_j \leftarrow \textsc{InnerLoop}(\cM, \cG, c_j)$
+  \STATE $\Phi_j \leftarrow \textsc{Eval}(\pi^*_j;\; \cG,\; S_{\text{held-out}})$
+  \STATE $\Delta_j \leftarrow \textsc{Diff}(c_{j-1}, c_j)$ \hfill \textit{// code diff}
+  \STATE $\textit{history} \leftarrow \textit{history} \cup \{(c_j, \Phi_j, \bm_j, \Delta_j)\}$
+\ENDFOR
+\STATE $j^* \leftarrow \arg\max_j \Phi_j$
+\RETURN $c_{j^*},\; \pi^*_{j^*}$
+\end{algorithmic}
+\end{algorithm}
+
+At each outer iteration $j$, the researcher $\cR$ receives:
+\begin{itemize}
+  \item The \textbf{full source code} of the current configuration $c_{j-1}$ (prompts, feedback construction, helpers, iteration logic).
+  \item The \textbf{experiment history}: for each prior iteration, the code diff $\Delta_i$, ground-truth score $\Phi_i$, and social metrics vector $\bm_i$.
+  \item The \textbf{environment source code} (read-only), enabling the researcher to reason about game mechanics.
+\end{itemize}
+
+The researcher proposes a new configuration $c_j$ by generating code modifications. This mirrors the autoresearch setup, where an AI agent modifies \texttt{train.py} and observes validation loss; here, the researcher modifies the inner-loop codebase and observes social welfare.
+
+\subsection{Structural Analogy}
+
+Table~\ref{tab:analogy} formalizes the correspondence between autoresearch for LLM pretraining and our two-level system.
+
+\begin{table}[t]
+\caption{Structural analogy between autoresearch~\cite{karpathy2026} for LLM pretraining and our framework for multi-agent policy synthesis.}
+\label{tab:analogy}
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & Autoresearch & This work \\
+\midrule
+Modifiable & \texttt{train.py} & Inner-loop codebase \\
+artifact & (model + optimizer) & $(p, \ell, \phi, \mathcal{H}, \iota, v)$ \\
+\addlinespace
+Frozen & \texttt{prepare.py} & Environment $\cG$, \\
+infrastructure & (data, tokenizer, eval) & eval $\Phi$, LLM $\cM$ \\
+\addlinespace
+Metric & val\_bpb $\downarrow$ & $\Phi$ (social welfare) $\uparrow$ \\
+\addlinespace
+Budget & 5 min wall clock & $K$ iters $\times$ $|S|$ seeds \\
+\addlinespace
+Agent & AI coding agent & Researcher $\cR$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The key structural property shared by both systems: the agent modifies \emph{how learning happens} (the pipeline/training code), not the learned artifact directly (the policy/model weights). The output of each outer iteration is a \emph{reusable configuration}---transferable across policy LLMs, games, and random seeds---rather than a single policy.
+
+\subsection{Design Principles}
+
+\paragraph{Separation of concerns.}
+The researcher $\cR$ and the synthesizer $\cM$ are distinct LLM calls with distinct roles. $\cR$ reasons about \emph{what information and tools help $\cM$ write better policies}; $\cM$ reasons about \emph{what policy to write given its current context}. Using different underlying models ($\cR \neq \cM$) avoids conflation and enables cross-model experiments.
+
+\paragraph{Read-only environment.}
+The researcher can read the environment source code to understand game mechanics but cannot modify the simulator. This prevents the trivial solution of making the game easier and cleanly separates mechanism design from environment design.
+
+\paragraph{Fixed compute budget.}
+Each inner loop runs for exactly $K$ iterations with $|S|$ seeds. The researcher cannot inflate performance by running more iterations, but can change what happens \emph{within} those $K$ iterations (e.g., best-of-$n$ sampling, varying the prompt structure mid-run).
+
+\paragraph{Diff-based history.}
+The researcher sees code diffs $\Delta_j$ from previous experiments alongside their outcomes. This enables causal reasoning about which modifications drove which improvements, mirroring autoresearch's experiment logs.
+
+%% ============================================================
+\section{Connection to Automated Mechanism Design}
+%% ============================================================
+
+The two-level structure admits a mechanism design interpretation. The researcher $\cR$ acts as a \emph{mechanism designer}: it controls the information structure (what metrics to reveal, how to frame them), the action space (what helper functions are available), and the incentive structure (how feedback is presented) under which the policy synthesizer $\cM$ operates. The synthesizer acts as the \emph{agent} within the designed mechanism.
+
+This connects to the automated mechanism design literature~\cite{conitzer2002}, where a principal designs rules to induce desired behavior from self-interested agents. In our setting:
+\begin{itemize}
+  \item The \textbf{principal} is the researcher $\cR$, optimizing the ground-truth objective $\Phi$.
+  \item The \textbf{agent} is the synthesizer $\cM$, optimizing per-agent reward as instructed.
+  \item The \textbf{mechanism} is the configuration $c$: prompts, feedback, helpers, iteration logic.
+  \item The \textbf{outcome} is the social welfare of the resulting multi-agent policy $\pi^*_c$.
+\end{itemize}
+
+A key distinction from classical mechanism design: $\cM$ is not \emph{strategically} self-interested---it follows instructions---but it has \emph{bounded rationality} in the sense that its ability to synthesize effective policies depends on the information and tools provided. The researcher's task is thus closer to \emph{information design}~\cite{kamenica2011} or \emph{persuasion}: choosing what to reveal to help $\cM$ navigate the social dilemma's cooperation--defection tension.
+
+\paragraph{Goodhart risk.}
+The mechanism design framing surfaces a safety concern: can $\cR$ learn to design mechanisms that inflate $\Phi$ without genuinely improving agent behavior? For instance, the researcher might add helper functions that implicitly encode the optimal policy (reducing the synthesizer's role to a trivial wrapper), or design feedback that causes the synthesizer to overfit to the evaluation seeds. More critically, if $\cR$ has read access to the environment source, it could engineer prompt hints that guide $\cM$ toward the environment mutation attacks identified in~\cite{gallego2026}, producing policies that reward-hack through dynamics bypass while achieving high social metrics. This extends the adversarial analysis of~\cite{gallego2026} from \emph{human-prompted} to potentially \emph{self-discovered} exploitation.
+
+%% ============================================================
+\section{Experimental Plan}
+%% ============================================================
+
+\paragraph{Phase 1: Proof of concept.}
+Fix $\cG$ = Cleanup, $\cM$ = Gemini 3.1 Pro, $K=3$, $|S|=5$. Researcher $\cR$ = Claude Opus runs $J=10$ outer iterations starting from the reward-only configuration of~\cite{gallego2026}. Ground truth $\Phi = U$ (efficiency). \emph{Success criterion}: the researcher-designed configuration matches or exceeds hand-designed dense feedback ($U = 2.75$).
+
+\paragraph{Phase 2: Attribution analysis.}
+Categorize the researcher's modifications across outer iterations by component (Table~\ref{tab:config}). Ablate: freeze all components except one, re-run the outer loop. This reveals the relative importance of prompt framing, metric selection, helper functions, and iteration logic.
+
+\paragraph{Phase 3: Cross-game transfer.}
+Run the best Cleanup configuration on Gathering and vice versa. Test whether the researcher discovers game-specific or game-general improvements.
+
+\paragraph{Phase 4: Adversarial.}
+Set $\Phi = R_0$ (reward for agent 0 only; other agents play the discovered policy). Does the researcher discover pipeline configurations that produce exploitative policies without explicit adversarial prompting?
+
+\paragraph{Baselines.}
+\begin{enumerate}
+  \item \emph{Fixed sparse/dense}: the two hand-designed configurations from~\cite{gallego2026}.
+  \item \emph{GEPA}~\cite{agrawal2026}: prompt-level optimization via reflective evolution.
+  \item \emph{Random search}: sample $J$ configurations uniformly from $\cC$, take best.
+\end{enumerate}
+
+\paragraph{Cost estimate.}
+Per outer iteration: $K{=}3$ inner LLM calls + retries + $|S|{=}5$ evaluations $\approx$ 5 policy-LLM calls + 1 researcher call. With $J{=}10$ outer iterations: ${\sim}50$ policy-LLM calls + $10$ researcher calls. Full experiment (2 games $\times$ 3 seeds): ${\sim}300$ policy-LLM calls + 60 researcher calls, comparable to the base paper's total budget.
+
+%% ============================================================
+%\section{Discussion}
+%% ============================================================
+
+
+\begin{thebibliography}{9}
+
+\bibitem{gallego2026}
+V\'ictor Gallego. 2026.
+Cooperation and Exploitation in LLM Policy Synthesis for Sequential Social Dilemmas.
+In \emph{Proc.\ Adaptive and Learning Agents Workshop (ALA 2026)}.
+
+\bibitem{karpathy2026}
+Andrej Karpathy. 2026.
+autoresearch: AI agents running research on single-GPU nanochat training automatically.
+\url{https://github.com/karpathy/autoresearch}.
+
+\bibitem{perolat2017}
+Julien Perolat, Joel~Z Leibo, Vinicius Zambaldi, Charles Beattie, Karl Tuyls, and Thore Graepel. 2017.
+A multi-agent reinforcement learning model of common-pool resource appropriation.
+\emph{Advances in Neural Information Processing Systems} 30.
+
+\bibitem{conitzer2002}
+Vincent Conitzer and Tuomas Sandholm. 2002.
+Complexity of Mechanism Design.
+In \emph{Proc.\ 18th Conference on Uncertainty in Artificial Intelligence}. 103--110.
+
+\bibitem{kamenica2011}
+Emir Kamenica and Matthew Gentzkow. 2011.
+Bayesian Persuasion.
+\emph{American Economic Review} 101, 6 (2011), 2590--2615.
+
+\bibitem{agrawal2026}
+Lakshya~A Agrawal et~al. 2026.
+GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning.
+\emph{arXiv:2507.19457}.
+
+\end{thebibliography}
+
+\end{document}
