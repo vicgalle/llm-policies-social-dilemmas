@@ -6,9 +6,9 @@
 #   ./autoresearch/run_experiment.sh <tag> [feedback_mode] [model]
 #
 # Examples:
-#   ./autoresearch/run_experiment.sh mar30-test dense
-#   ./autoresearch/run_experiment.sh mar30-opus dense opus
-#   ./autoresearch/run_experiment.sh mar30-sonnet sparse sonnet
+#   ./autoresearch/run_experiment.sh mar30-test dense                                    # Opus researcher, Gemini policy LLM
+#   ./autoresearch/run_experiment.sh mar30-sonnet dense opus claude-sonnet-4-6           # Opus researcher, Sonnet policy LLM
+#   ./autoresearch/run_experiment.sh mar30-gemini sparse sonnet gemini-3.1-pro-preview   # Sonnet researcher, Gemini policy LLM
 #
 # This script:
 #   1. Creates a git branch for the experiment
@@ -18,9 +18,10 @@
 
 set -euo pipefail
 
-TAG="${1:?Usage: $0 <tag> [sparse|dense] [researcher_model]}"
+TAG="${1:?Usage: $0 <tag> [sparse|dense] [researcher_model] [policy_model]}"
 FEEDBACK="${2:-dense}"
 RESEARCHER_MODEL="${3:-opus}"  # Model for the *researcher* agent (not the policy LLM)
+POLICY_MODEL="${4:-gemini-3.1-pro-preview}"  # Model for the policy synthesizer LLM
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -31,6 +32,7 @@ echo "=== Autoresearch: SSD Policy Synthesis ==="
 echo "Tag:              ${TAG}"
 echo "Feedback:         ${FEEDBACK}"
 echo "Researcher model: ${RESEARCHER_MODEL}"
+echo "Policy model:     ${POLICY_MODEL}"
 echo "Branch:           ${BRANCH}"
 echo ""
 
@@ -68,8 +70,8 @@ PROMPT="Read autoresearch/program.md carefully. This is your research program.
 Set up a new autoresearch run:
 - Tag: ${TAG}
 - Branch: ${BRANCH} (already created and checked out)
-- Feedback mode: ${FEEDBACK} (use ./autoresearch/measure.sh ${FEEDBACK})
-- Policy LLM: gemini-3.1-pro-preview (default, configured in run_inner_loop.py)
+- Feedback mode: ${FEEDBACK} (use ./autoresearch/measure.sh ${FEEDBACK} --model ${POLICY_MODEL})
+- Policy LLM: ${POLICY_MODEL}
 - Game: Cleanup with 10 agents on large map (default)
 
 Important context:
@@ -79,7 +81,8 @@ Important context:
 - Read cleanup_env.py to understand the game mechanics.
 - Read the current pipeline/ files to understand the starting configuration.
 
-The branch is ready. Establish the baseline by running ./autoresearch/measure.sh ${FEEDBACK}, then begin the experiment loop.
+The branch is ready. Establish the baseline by running ./autoresearch/measure.sh ${FEEDBACK} --model ${POLICY_MODEL}, then begin the experiment loop.
+When running measure.sh, ALWAYS pass --model ${POLICY_MODEL} as an extra argument after the feedback mode.
 
 Remember: NEVER STOP. Run experiments continuously until I interrupt you."
 

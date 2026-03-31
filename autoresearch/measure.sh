@@ -27,11 +27,20 @@ cd "$REPO_ROOT"
 
 BASELINE_FILE="autoresearch/.baseline_efficiency"
 
-# Default args for run_inner_loop.py
-DEFAULT_ARGS="--game cleanup --model gemini-3.1-pro-preview --map large --n-agents 10"
+# Extra args from caller (e.g., --model claude-sonnet-4-6)
+EXTRA_ARGS="$*"
 
-# Use remaining args or defaults
-RUN_ARGS="${*:-$DEFAULT_ARGS}"
+# Build run args: start with defaults, then overlay extra args.
+# Extra args like --model X will override the default --model.
+DEFAULT_ARGS="--game cleanup --map large --n-agents 10"
+
+if [[ -z "$EXTRA_ARGS" ]]; then
+    # No extra args: use defaults with default model
+    RUN_ARGS="$DEFAULT_ARGS --model gemini-3.1-pro-preview"
+else
+    # Extra args provided: add defaults for anything not specified
+    RUN_ARGS="$DEFAULT_ARGS $EXTRA_ARGS"
+fi
 
 # Create unique output dir for this run
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
