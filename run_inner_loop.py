@@ -202,6 +202,7 @@ async def run_inner_loop(
                     "equality": 1.0,
                     "sustainability": 0.0,
                     "peace": 0.0,
+                    "maximin": 0.0,
                 },
             }
         eval_time = time.time() - t0
@@ -231,6 +232,7 @@ async def run_inner_loop(
             "equality": round(metrics.get("equality", 0), 4),
             "sustainability": round(metrics.get("sustainability", 0), 1),
             "peace": round(metrics.get("peace", 0), 2),
+            "maximin": round(metrics.get("maximin", 0), 2),
         })
 
         env_tmp = env_factory()
@@ -262,6 +264,7 @@ async def run_inner_loop(
             "equality": final["metrics"].get("equality", 0),
             "sustainability": final["metrics"].get("sustainability", 0),
             "peace": final["metrics"].get("peace", 0),
+            "maximin": final["metrics"].get("maximin", 0),
             "reward_avg": final["reward_avg"],
             "n_iterations": len(history),
             "wall_time_s": round(wall_time, 1),
@@ -273,6 +276,7 @@ async def run_inner_loop(
             "equality": 0.0,
             "sustainability": 0.0,
             "peace": 0.0,
+            "maximin": 0.0,
             "reward_avg": 0.0,
             "n_iterations": 0,
             "wall_time_s": round(wall_time, 1),

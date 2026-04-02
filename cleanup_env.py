@@ -785,11 +785,15 @@ class CleanupEnv:
             total_timeout_steps += sum(episode_timeouts[i])
         peace = float(n * T - total_timeout_steps) / T if T > 0 else float(n)
 
+        # Maximin (Rawlsian welfare) — minimum per-agent total return
+        maximin = float(R.min()) if len(R) > 0 else 0.0
+
         return {
             "efficiency": efficiency,
             "equality": equality,
             "sustainability": sustainability,
             "peace": peace,
+            "maximin": maximin,
         }
 
 

@@ -18,10 +18,11 @@
 
 set -euo pipefail
 
-TAG="${1:?Usage: $0 <tag> [sparse|dense] [researcher_model] [policy_model]}"
+TAG="${1:?Usage: $0 <tag> [sparse|dense] [researcher_model] [policy_model] [metric]}"
 FEEDBACK="${2:-dense}"
 RESEARCHER_MODEL="${3:-opus}"  # Model for the *researcher* agent (not the policy LLM)
 POLICY_MODEL="${4:-gemini-3.1-pro-preview}"  # Model for the policy synthesizer LLM
+METRIC="${5:-efficiency}"  # Primary metric to optimize: efficiency or maximin
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
@@ -33,6 +34,7 @@ echo "Tag:              ${TAG}"
 echo "Feedback:         ${FEEDBACK}"
 echo "Researcher model: ${RESEARCHER_MODEL}"
 echo "Policy model:     ${POLICY_MODEL}"
+echo "Metric:           ${METRIC}"
 echo "Branch:           ${BRANCH}"
 echo ""
 
@@ -70,19 +72,20 @@ PROMPT="Read autoresearch/program.md carefully. This is your research program.
 Set up a new autoresearch run:
 - Tag: ${TAG}
 - Branch: ${BRANCH} (already created and checked out)
-- Feedback mode: ${FEEDBACK} (use ./autoresearch/measure.sh ${FEEDBACK} --model ${POLICY_MODEL})
+- Feedback mode: ${FEEDBACK} (use ./autoresearch/measure.sh ${FEEDBACK} --metric ${METRIC} --model ${POLICY_MODEL})
 - Policy LLM: ${POLICY_MODEL}
+- Primary metric: ${METRIC} (higher = better)
 - Game: Cleanup with 10 agents on large map (default)
 
 Important context:
 - You are the RESEARCHER agent. You modify files in pipeline/ to improve how the POLICY LLM generates cooperative strategies.
-- The metric is EFFICIENCY (higher = better). Baseline from Gallego 2026: ~2.75.
+- The primary metric to optimize is ${METRIC} (higher = better). Baseline from Gallego 2026: efficiency ~2.75.
 - Each inner loop run takes ~5-10 minutes. Be patient.
 - Read cleanup_env.py to understand the game mechanics.
 - Read the current pipeline/ files to understand the starting configuration.
 
-The branch is ready. Establish the baseline by running ./autoresearch/measure.sh ${FEEDBACK} --model ${POLICY_MODEL}, then begin the experiment loop.
-When running measure.sh, ALWAYS pass --model ${POLICY_MODEL} as an extra argument after the feedback mode.
+The branch is ready. Establish the baseline by running ./autoresearch/measure.sh ${FEEDBACK} --metric ${METRIC} --model ${POLICY_MODEL}, then begin the experiment loop.
+When running measure.sh, ALWAYS pass --metric ${METRIC} --model ${POLICY_MODEL} as extra arguments after the feedback mode.
 
 Remember: NEVER STOP. Run experiments continuously until I interrupt you."
 

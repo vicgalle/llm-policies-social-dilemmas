@@ -3,11 +3,13 @@
 # measure.sh — Run the inner policy synthesis loop and report metrics.
 #
 # Usage:
-#   ./autoresearch/measure.sh [sparse|dense] [--game cleanup] [--model gemini-3.1-pro-preview] ...
+#   ./autoresearch/measure.sh [sparse|dense] [--metric efficiency|maximin] [--game cleanup] [--model gemini-3.1-pro-preview] ...
 #
 # Modes:
-#   sparse  (default)  — efficiency score + pass/fail only
-#   dense              — all 4 metrics + per-iteration trajectory + timing
+#   sparse  (default)  — primary metric score + pass/fail only
+#   dense              — all metrics + per-iteration trajectory + timing
+#
+# --metric: which metric to optimize (default: efficiency). Controls baseline/delta tracking.
 #
 # All extra arguments are passed to run_inner_loop.py.
 # Default: --game cleanup --model gemini-3.1-pro-preview --map large --n-agents 10
@@ -25,10 +27,30 @@ shift 2>/dev/null || true  # Remove feedback mode from args
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-BASELINE_FILE="autoresearch/.baseline_efficiency"
+# Parse measure.sh-specific flags from remaining args
+METRIC="efficiency"
+REMAINING_ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --metric)
+            METRIC="$2"
+            shift 2
+            ;;
+        *)
+            REMAINING_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+EXTRA_ARGS="${REMAINING_ARGS[*]:-}"
 
-# Extra args from caller (e.g., --model claude-sonnet-4-6)
-EXTRA_ARGS="$*"
+# Validate metric
+if [[ "$METRIC" != "efficiency" && "$METRIC" != "maximin" ]]; then
+    echo "ERROR: --metric must be 'efficiency' or 'maximin' (got '$METRIC')"
+    exit 1
+fi
+
+BASELINE_FILE="autoresearch/.baseline_${METRIC}"
 
 # Build run args: start with defaults, then overlay extra args.
 # Extra args like --model X will override the default --model.
@@ -50,6 +72,7 @@ mkdir -p "$OUTPUT_DIR"
 # --- Run inner loop ---
 echo "=== Running inner loop ==="
 echo "Args: $RUN_ARGS --output-dir $OUTPUT_DIR"
+echo "Primary metric: $METRIC"
 RUN_START=$(date +%s)
 
 RUN_OUTPUT=$(uv run run_inner_loop.py $RUN_ARGS --output-dir "$OUTPUT_DIR" 2>&1) || {
@@ -87,17 +110,25 @@ EFFICIENCY=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys
 EQUALITY=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('equality', 0))")
 SUSTAINABILITY=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('sustainability', 0))")
 PEACE=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('peace', 0))")
+MAXIMIN=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('maximin', 0))")
 REWARD_AVG=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['reward_avg'])")
 WALL_TIME=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['wall_time_s'])")
+
+# Get the primary metric value
+if [[ "$METRIC" == "efficiency" ]]; then
+    PRIMARY_VALUE="$EFFICIENCY"
+else
+    PRIMARY_VALUE="$MAXIMIN"
+fi
 
 # Compute delta from baseline
 DELTA="n/a"
 if [[ -f "$BASELINE_FILE" ]]; then
     BASELINE=$(cat "$BASELINE_FILE")
     # Use python for float arithmetic
-    DELTA=$(python3 -c "b=$BASELINE; e=$EFFICIENCY; d=e-b; print(f'+{d:.4f}' if d>=0 else f'{d:.4f}')")
+    DELTA=$(python3 -c "b=$BASELINE; e=$PRIMARY_VALUE; d=e-b; print(f'+{d:.4f}' if d>=0 else f'{d:.4f}')")
 else
-    echo "$EFFICIENCY" > "$BASELINE_FILE"
+    echo "$PRIMARY_VALUE" > "$BASELINE_FILE"
     DELTA="+0.0000"
 fi
 
@@ -105,7 +136,9 @@ fi
 echo ""
 echo "--- RESULT ---"
 echo "status:          OK"
+echo "metric:          ${METRIC}"
 echo "efficiency:      ${EFFICIENCY}"
+echo "maximin:         ${MAXIMIN}"
 echo "delta:           ${DELTA}"
 echo "reward_avg:      ${REWARD_AVG}"
 echo "run_time:        ${RUN_TIME}s"
@@ -115,6 +148,7 @@ if [[ "$FEEDBACK_MODE" == "dense" ]]; then
     echo ""
     echo "--- ALL METRICS ---"
     echo "efficiency:      ${EFFICIENCY}"
+    echo "maximin:         ${MAXIMIN}"
     echo "equality:        ${EQUALITY}"
     echo "sustainability:  ${SUSTAINABILITY}"
     echo "peace:           ${PEACE}"
@@ -126,7 +160,7 @@ if [[ "$FEEDBACK_MODE" == "dense" ]]; then
 import json, sys
 d = json.load(sys.stdin)
 for t in d.get('trajectory', []):
-    print(f\"  iter {t['iteration']}: reward={t['reward_avg']:.1f}  eff={t['efficiency']:.4f}  eq={t.get('equality',0):.3f}  sus={t.get('sustainability',0):.1f}  peace={t.get('peace',0):.2f}\")
+    print(f\"  iter {t['iteration']}: reward={t['reward_avg']:.1f}  eff={t['efficiency']:.4f}  eq={t.get('equality',0):.3f}  sus={t.get('sustainability',0):.1f}  peace={t.get('peace',0):.2f}  maximin={t.get('maximin',0):.2f}\")
 "
     echo ""
     echo "--- PIPELINE STATE ---"

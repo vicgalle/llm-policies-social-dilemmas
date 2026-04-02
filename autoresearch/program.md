@@ -1,8 +1,8 @@
 # autoresearch: LLM Policy Synthesis for Sequential Social Dilemmas
 
-You are an autonomous researcher agent $\mathcal{R}$. Your goal is to **maximize the efficiency metric** of multi-agent LLM policy synthesis for the Cleanup game by iteratively modifying the **pipeline configuration** — the prompts, feedback construction, helper functions, and iteration logic that govern how a policy-synthesizer LLM generates cooperative strategies.
+You are an autonomous researcher agent $\mathcal{R}$. Your goal is to **maximize the primary metric** (specified at launch — either **efficiency** or **maximin**) of multi-agent LLM policy synthesis for the Cleanup game by iteratively modifying the **pipeline configuration** — the prompts, feedback construction, helper functions, and iteration logic that govern how a policy-synthesizer LLM generates cooperative strategies.
 
-You work in a two-level loop: modify the pipeline → run the inner policy synthesis loop → observe the efficiency → keep or discard → repeat. You never stop.
+You work in a two-level loop: modify the pipeline → run the inner policy synthesis loop → observe the primary metric → keep or discard → repeat. You never stop.
 
 ## Context
 
@@ -22,20 +22,23 @@ You, the researcher agent $\mathcal{R}$, modify the **pipeline configuration** �
 |---|---|
 | Modifiable: `train.py` | Modifiable: `pipeline/` (prompts, feedback, helpers, config) |
 | Frozen: `prepare.py`, data, eval | Frozen: environment, evaluation, LLM weights, orchestrator |
-| Metric: val_bpb ↓ | Metric: efficiency U ↑ |
+| Metric: val_bpb ↓ | Metric: efficiency U ↑ or maximin ↑ |
 | Budget: 5 min wall clock | Budget: ~5-10 min per inner loop |
 | Agent: AI coding agent | Agent: Researcher $\mathcal{R}$ (you) |
 
-## The metric
+## The metrics
 
-**Efficiency** (U): collective apple collection rate across all agents per timestep. Higher is better. This is a standard metric from Perolat et al. (2017).
+The primary metric is specified at launch via `--metric` (default: `efficiency`). The two options are:
 
-The baseline (reward+social feedback from Gallego 2026) achieves approximately U ≈ 2.75 on the Cleanup game with 10 agents on a large map.
+**Efficiency** (U): collective apple collection rate across all agents per timestep. Higher is better. This is a standard metric from Perolat et al. (2017). Baseline: U ≈ 2.75 on the Cleanup game with 10 agents on a large map.
+
+**Maximin** (Rawlsian welfare): minimum total per-agent return across all agents. Higher is better. Inspired by Rawls' difference principle — a just policy maximizes the welfare of the worst-off agent. This metric penalizes equilibria where some agents free-ride while others bear the cost of cleaning. When optimizing maximin, you want policies that ensure *every* agent does well, not just the average.
 
 Secondary metrics to monitor (not the optimization target, but informative):
 - **Equality** (E): fairness of reward distribution (1.0 = perfect)
 - **Sustainability** (S): long-term resource availability
 - **Peace** (P): absence of aggressive beaming
+- **Efficiency** or **Maximin** (whichever is not the primary target)
 
 ## Setup
 
@@ -120,11 +123,12 @@ Here are categories of modifications to explore:
 Run the measurement script:
 
 ```bash
-./autoresearch/measure.sh [sparse|dense]
+./autoresearch/measure.sh [sparse|dense] [--metric efficiency|maximin] [--model MODEL ...]
 ```
 
-- **sparse** (default): efficiency + pass/fail
-- **dense**: all 4 metrics + per-iteration trajectory + pipeline state
+- **sparse** (default): primary metric + pass/fail
+- **dense**: all metrics + per-iteration trajectory + pipeline state
+- **--metric**: which metric to optimize (default: efficiency). Controls baseline/delta tracking.
 
 Each run takes ~5-10 minutes (K=3 inner iterations of LLM calls + evaluation). Be patient.
 
@@ -137,10 +141,10 @@ LOOP FOREVER:
 1. **Ideate**: Think about what pipeline modification to try next. Review your results.tsv, the current pipeline code, and the game mechanics. What information or tools might help the policy LLM write better cooperative policies?
 2. **Implement**: Edit files in `pipeline/`. You may change one file or multiple.
 3. **Run**: Execute `./autoresearch/measure.sh dense` (or `sparse` for quick checks).
-4. **Evaluate**: Did the inner loop succeed? Did efficiency increase?
+4. **Evaluate**: Did the inner loop succeed? Did the primary metric increase?
 5. **Decision**:
-   - If efficiency **increased** and the run succeeded: **KEEP**. Commit the pipeline changes with a descriptive message.
-   - If efficiency **stayed the same** or **decreased**, or the run **failed**: **DISCARD**. Run `git checkout -- pipeline/` to revert.
+   - If the primary metric **increased** and the run succeeded: **KEEP**. Commit the pipeline changes with a descriptive message.
+   - If the primary metric **stayed the same** or **decreased**, or the run **failed**: **DISCARD**. Run `git checkout -- pipeline/` to revert.
 6. **Log**: Record the result in `autoresearch/results.tsv`.
 7. **Go to 1**.
 
@@ -151,15 +155,16 @@ LOOP FOREVER:
 Maintain `autoresearch/results.tsv` (tab-separated):
 
 ```
-experiment	commit	efficiency	equality	sustainability	peace	reward_avg	delta_eff	run_time_s	status	description
+experiment	commit	efficiency	maximin	equality	sustainability	peace	reward_avg	delta	run_time_s	status	description
 ```
 
 - **experiment**: Sequential number (0 = baseline)
 - **commit**: Short git hash, or `-` for discarded
-- **efficiency**: The primary metric
+- **efficiency**: Collective reward rate
+- **maximin**: Minimum per-agent total return (Rawlsian welfare)
 - **equality/sustainability/peace**: Secondary metrics
 - **reward_avg**: Average per-agent reward
-- **delta_eff**: Change in efficiency from baseline
+- **delta**: Change in primary metric from baseline
 - **run_time_s**: Wall-clock time for the inner loop
 - **status**: `keep`, `discard`, or `crash`
 - **description**: What pipeline modification was tried
