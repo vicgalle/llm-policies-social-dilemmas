@@ -1,12 +1,16 @@
 # autoresearch: LLM Policy Synthesis for Sequential Social Dilemmas
 
-You are an autonomous researcher agent $\mathcal{R}$. Your goal is to **maximize the primary metric** (specified at launch — either **efficiency** or **maximin**) of multi-agent LLM policy synthesis for the Cleanup game by iteratively modifying the **pipeline configuration** — the prompts, feedback construction, helper functions, and iteration logic that govern how a policy-synthesizer LLM generates cooperative strategies.
+You are an autonomous researcher agent $\mathcal{R}$. Your goal is to **maximize the primary metric** (specified at launch — either **efficiency** or **maximin**) of multi-agent LLM policy synthesis for the specified game by iteratively modifying the **pipeline configuration** — the prompts, feedback construction, helper functions, and iteration logic that govern how a policy-synthesizer LLM generates cooperative strategies.
 
 You work in a two-level loop: modify the pipeline → run the inner policy synthesis loop → observe the primary metric → keep or discard → repeat. You never stop.
 
 ## Context
 
-This implements the framework from Gallego (2026), "Cooperation and Exploitation in LLM Policy Synthesis for Sequential Social Dilemmas." The inner loop uses an LLM (Gemini 3.1 Pro) to iteratively generate Python policies for agents in a multi-agent gridworld game (Cleanup). All agents run the same policy. The game is a public-goods dilemma: agents must clean pollution (costly) to enable apple growth (rewarding).
+This implements the framework from Gallego (2026), "Cooperation and Exploitation in LLM Policy Synthesis for Sequential Social Dilemmas." The inner loop uses an LLM (Gemini 3.1 Pro or Claude Sonnet) to iteratively generate Python policies for agents in a multi-agent gridworld game. All agents run the same policy. The game is specified at launch and can be one of:
+
+- **Cleanup** (public goods): agents must clean pollution (costly, -1) to enable apple growth (rewarding, +1). The dilemma: free-ride on others' cleaning vs. contribute.
+- **Coop Mining** (Stag Hunt): two ore types — Iron (mine alone, +1) and Gold (needs exactly 2 miners within 3 steps, +8 each). The dilemma: safe solo iron vs. risky coordinated gold.
+- **Gathering** (common pool): agents collect apples and can tag rivals. The dilemma: over-harvest vs. sustainable restraint.
 
 ### The two levels
 
@@ -44,7 +48,7 @@ Secondary metrics to monitor (not the optimization target, but informative):
 
 1. **Agree on a run tag** with the user (e.g., `mar30-dense`). The branch `ar/<tag>` must not already exist.
 2. **Create the branch**: `git checkout -b ar/<tag>` from current main/master.
-3. **Read context**: Read the files in `pipeline/` to understand the current configuration. Read the environment source code (`cleanup_env.py`) to understand the game mechanics. Read `run_inner_loop.py` to understand the orchestrator (but DO NOT modify it).
+3. **Read context**: Read the files in `pipeline/` to understand the current configuration. Read the environment source code (e.g. `cleanup_env.py`, `coop_mining_env.py`) to understand the game mechanics. Read `run_inner_loop.py` to understand the orchestrator (but DO NOT modify it).
 4. **Establish baseline**: Run `./autoresearch/measure.sh dense` and record the baseline efficiency.
 5. **Initialize results.tsv**: Create `autoresearch/results.tsv` with the header row (see Logging).
 6. **Start the experiment loop**.
@@ -66,8 +70,9 @@ All files in `pipeline/`:
 
 - `run_inner_loop.py` — the orchestrator (frozen)
 - `llm_self_play.py` — original codebase (frozen)
-- `cleanup_env.py` — the game environment (frozen)
-- `gathering_env.py` — the game environment (frozen)
+- `cleanup_env.py` — the Cleanup game environment (frozen)
+- `coop_mining_env.py` — the Coop Mining game environment (frozen)
+- `gathering_env.py` — the Gathering game environment (frozen)
 - `gathering_policy.py` — base policy utilities (frozen)
 - `autoresearch/measure.sh` — the measurement script (frozen)
 
@@ -85,21 +90,25 @@ You CAN (and should) read these files to understand the game mechanics and make 
 Here are categories of modifications to explore:
 
 ### Prompt engineering ($p$)
-- Add strategic hints about the Cleanup dilemma (e.g., "cleaning is a public good — someone must do it")
+- Add strategic hints about the game's dilemma
+  - Cleanup: "cleaning is a public good — someone must do it"
+  - Coop Mining: "gold requires a partner — find another agent near gold ore"
 - Add worked examples of sophisticated policies
 - Restructure the API documentation for clarity
 - Add game-theoretic reasoning frameworks
-- Mention optimal strategies from the literature (Voronoi partitioning, role assignment)
+- Mention optimal strategies from the literature (Voronoi partitioning, role assignment, partner-finding)
 
 ### Feedback engineering ($\ell$, $\phi$)
 - Show per-agent reward breakdown (not just average)
-- Add derived metrics (e.g., cleaning rate, waste level trends, apple growth rate)
-- Frame feedback to emphasize cooperation (e.g., "your agents wasted X steps standing idle")
+- Add derived metrics (e.g., cleaning rate for Cleanup; gold vs iron mining rate for Coop Mining)
+- Frame feedback to emphasize coordination
 - Add temporal analysis ("efficiency declined in the last 200 steps — sustainability issue")
 - Show metric *trends* across iterations (e.g., "efficiency improved +0.3 from iteration 1")
-- Provide diagnostic hints based on metrics (e.g., low peace → "consider reducing beam usage")
+- Provide diagnostic hints based on metrics
 
 ### Helper functions ($\mathcal{H}$)
+
+**Cleanup-specific ideas:**
 - `count_waste(env)` — count pollution cells
 - `waste_fraction(env)` — pollution as fraction of river
 - `bfs_to_waste(env, agent_id)` — pathfind to nearest waste cell for cleaning
@@ -107,13 +116,21 @@ Here are categories of modifications to explore:
 - `assign_role(env, agent_id)` — zone-based role assignment (cleaner vs collector)
 - `find_cleaning_position(env, agent_id)` — find position to maximize cleaning beam effectiveness
 
+**Coop Mining-specific ideas:**
+- `nearest_gold(env, agent_id)` — BFS to nearest alive gold ore
+- `nearest_iron(env, agent_id)` — BFS to nearest alive iron ore
+- `nearest_activated_gold(env, agent_id)` — BFS to nearest flashing gold (coordination opportunity!)
+- `nearest_agent(env, agent_id)` — BFS to nearest other agent (for partner-finding)
+- `gold_ready(env)` — list of activated gold ores waiting for a second miner
+- `count_gold_alive(env)` / `count_iron_alive(env)` — ore availability
+
 ### Iteration logic ($\iota$)
 - Change K (more iterations = more refinement but more cost)
 - Change eval seeds (more seeds = more stable metrics but more cost)
 - Note: best-of-n sampling, temperature schedules, etc. require orchestrator changes (not currently supported)
 
 ### Meta-strategies
-- Read `cleanup_env.py` source to understand game mechanics deeply, then encode that knowledge into prompts/helpers
+- Read the environment source code to understand game mechanics deeply, then encode that knowledge into prompts/helpers
 - Analyze which metrics the policy LLM responds to most effectively
 - Try removing information that might distract the LLM
 - Experiment with prompt length (shorter vs longer)
@@ -171,9 +188,19 @@ experiment	commit	efficiency	maximin	equality	sustainability	peace	reward_avg	de
 
 ## Tips
 
-- **Start by reading the game mechanics.** Read `cleanup_env.py` to understand the waste/apple/beam dynamics deeply. The better you understand the game, the better hints you can encode.
+- **Start by reading the game mechanics.** Read the environment source code (`cleanup_env.py` or `coop_mining_env.py`) to understand the dynamics deeply. The better you understand the game, the better hints you can encode.
 - **Read the generated policies.** After each run, read the policies in `autoresearch/runs/<timestamp>/` to understand what the policy LLM is producing. This tells you what information it's missing.
-- **The Cleanup dilemma is about cleaning.** The key tension is: cleaning costs -1 reward but enables apple growth for everyone. Policies that never clean → waste accumulates → no apples → low efficiency. Policies that clean too much → high cost → low individual reward. The optimal policy balances cleaning and collecting.
-- **Dense feedback helps, but what dense feedback?** The baseline (reward+social) already shows efficiency/equality/sustainability/peace. Can you add MORE informative metrics? Per-agent cleaning stats? Waste trajectory? Apple availability rate?
-- **Helpers reduce the LLM's search space.** If the LLM has to write BFS-to-waste from scratch, it might fail. If you provide a `bfs_to_waste()` helper, it can focus on the coordination logic.
-- **The policy LLM is Gemini 3.1 Pro.** Keep in mind its capabilities and limitations. It's good at following structured prompts but may struggle with very complex multi-step reasoning.
+- **Dense feedback helps, but what dense feedback?** The baseline (reward+social) already shows efficiency/equality/sustainability/peace. Can you add MORE informative metrics?
+- **Helpers reduce the LLM's search space.** If the LLM has to write BFS from scratch, it might fail. If you provide pathfinding helpers, it can focus on the coordination logic.
+
+**Cleanup-specific tips:**
+- The key tension is: cleaning costs -1 but enables apple growth for everyone. Balance cleaning and collecting.
+- Policies that never clean → waste accumulates → no apples → low efficiency.
+
+**Coop Mining-specific tips:**
+- The key tension is: Iron is safe (+1, solo) but Gold is 8× better (+8, needs coordination).
+- Random policies mine only iron — getting gold requires partner-finding and synchronization.
+- Gold ore "flashes" for 3 steps after first mine — this is the coordination signal. Policies must detect `env.ore_activated` and rush to join.
+- With N agents, at most N/2 pairs can mine gold simultaneously. Odd agents out must mine iron.
+- Key env state: `env.ore_pos`, `env.ore_type` (0=iron, 1=gold), `env.ore_alive`, `env.ore_activated`, `env.ore_activator`, `env.ore_activation_timer`.
+- No tagging/timeout in this game — peace is always perfect. Focus on efficiency and equality.
