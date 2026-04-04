@@ -289,17 +289,6 @@ get_opponents(env, agent_id) -> list
 # Also available: np (numpy), deque (from collections)
 ```
 
-## Key strategic considerations
-
-- **Iron is safe but low reward** (+1). Gold is 8× better (+8 each) but requires
-  finding a partner and coordinating timing.
-- **Activated gold is the coordination signal**: check `env.ore_activated` to find
-  gold that someone already started mining — rush to join within 3 steps!
-- **Partner proximity matters**: before mining gold, check if another agent is
-  nearby. If no one is close, mine iron instead.
-- **With N agents, at most N/2 pairs** can mine gold simultaneously. Unpaired
-  agents should mine iron rather than wasting time.
-
 ## Your task
 
 Write a Python function called `policy` with this exact signature:
