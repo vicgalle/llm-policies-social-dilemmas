@@ -33,6 +33,7 @@ FROZEN — Not modifiable by the researcher
 - `llm_self_play.py` — Main self-play framework (LLM calls, validation, evaluation, prompt construction). Supports both Claude (via Agent SDK) and Gemini (via google-genai).
 - `cleanup_env.py` — Cleanup game environment (public goods dilemma: clean pollution vs collect apples)
 - `gathering_env.py` — Gathering game environment (common pool resource dilemma)
+- `coop_mining_env.py` — Coop Mining game environment (Stag Hunt: coordinate to mine gold)
 - `gathering_policy.py` — Base policy utilities, BFS pathfinding, helper functions
 
 ### Pipeline (modifiable by researcher)
@@ -60,6 +61,7 @@ FROZEN — Not modifiable by the researcher
 ### Games
 - **Cleanup** (primary): 2D gridworld with river (pollution) and orchard (apples). CLEAN action removes waste (-1 cost) but enables apple growth for everyone. Public goods dilemma. 9 actions.
 - **Gathering**: 2D gridworld with apples and tagging beams. Common pool resource. 8 actions.
+- **Coop Mining**: 2D gridworld with iron ore (+1, solo) and gold ore (+8 each, needs 2 miners in 3 steps). Stag Hunt coordination game. No tagging. 8 actions.
 
 ### Metrics (Perolat et al. 2017)
 - **Efficiency (U)**: collective reward per timestep (higher = more apples collected). Default optimization target.
@@ -84,6 +86,9 @@ uv run run_inner_loop.py --game cleanup --model gemini-3.1-pro-preview --map lar
 
 # Same but with Sonnet as the policy LLM
 uv run run_inner_loop.py --game cleanup --model claude-sonnet-4-6 --map large --n-agents 10
+
+# Coop Mining (Stag Hunt)
+uv run run_inner_loop.py --game coop_mining --model gemini-3.1-pro-preview --map large --n-agents 6
 
 # Measure current pipeline (used by researcher agent)
 ./autoresearch/measure.sh dense                              # Gemini (default), optimize efficiency

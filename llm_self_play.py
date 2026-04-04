@@ -482,7 +482,24 @@ CLEANUP_CONFIG = GameConfig(
     ),
 )
 
+from coop_mining_env import Action as MiningAction, NUM_ACTIONS as NUM_MINING_ACTIONS
 
+COOP_MINING_CONFIG = GameConfig(
+    name="coop_mining",
+    system_prompt_reward=SYSTEM_PROMPT_REWARD,
+    max_action=7,
+    extra_namespace={
+        "MiningAction": MiningAction,
+        "NUM_MINING_ACTIONS": NUM_MINING_ACTIONS,
+        "IRON": 0,
+        "GOLD": 1,
+    },
+    env_hint=(
+        "Two ore types: Iron (mine alone, +1) and Gold (needs 2 miners within 3 steps, +8 each). "
+        "Action 6 = MINE (beam range 3, width 1). Gold flashes when first mined — "
+        "a second miner must hit it within 3 steps. No tagging in this game."
+    ),
+)
 
 
 # ---------------------------------------------------------------------------
