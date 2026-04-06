@@ -261,3 +261,99 @@ Maximin trajectory for the 4 maximin runs. Shows the dramatic improvement from n
 ### Key narrative
 
 > Optimizing for Rawlsian (maximin) welfare instead of utilitarian (efficiency) welfare produces qualitatively different pipeline modifications -- specifically, the researcher discovers time-based role rotation as a mechanism for fair cost sharing. Strikingly, this fairness-oriented optimization achieves comparable efficiency to direct efficiency optimization (Gemini: 3.16 vs 3.20), suggesting that in the Cleanup game, **cooperation and fairness are complementary, not competing, objectives**. The researcher independently discovers this across all runs.
+
+---
+
+## 6. Gathering (Commons Harvest) Experiments
+
+### 6.1 Design
+
+Two additional efficiency-optimizing runs on the **Gathering** game (common pool resource dilemma, 4 agents, large map), one per policy LLM. Since the Gathering game naturally produces high equality even under efficiency optimization (both runs achieved equality > 0.97), separate maximin runs were not needed.
+
+| Run | Policy LLM | Target | #Iter | Kept | Eff_0 | Eff* | Maximin_0 | Maximin* | Eq* |
+|-----|-----------|--------|-------|------|------|------|----------|---------|-----|
+| gather-exp1 | Sonnet | Eff | 3 | 3 | 0.03 | **2.52** | 0.2 | **596.6** | 0.98 |
+| gather-exp2 | Gemini | Eff | 5 | 1 | 2.42 | **2.51** | 570.6 | **582.4** | 0.98 |
+
+### 6.2 Key Observations
+
+#### Gathering vs. Cleanup: structurally different dilemmas
+
+| | **Cleanup** (public goods provision) | **Gathering** (common pool restraint) |
+|---|---|---|
+| Dilemma | Free-ride on others' cleaning | Over-harvest shared apples |
+| Cooperation = | Do the costly thing (clean) | Don't do the tempting thing (over-harvest) |
+| Baseline equality | 0.04--0.62 (highly unequal) | 0.54--0.98 (naturally fairer) |
+| Baseline maximin | -189 to -59 (negative!) | 0.2 to 571 (non-negative) |
+| Peace | Always 10.0 (cleanup-specific) | Always 4.0 (4 agents, no beaming) |
+| Need for maximin opt? | Yes -- huge fairness gap | No -- efficiency opt already fair |
+
+The most striking difference: **Cleanup requires explicit fairness mechanisms** (duty rotation, zone partitioning) to achieve equality > 0.9, while **Gathering achieves near-perfect equality (>0.97) purely from efficiency optimization**. This is because Cleanup's dilemma involves asymmetric costs (cleaners pay -1, free-riders get apples), while Gathering's dilemma is symmetric (all agents face the same apple landscape).
+
+#### Gemini baseline already strong, Sonnet needs help
+
+Gemini's default pipeline already produced eff=2.42 with eq=0.98 on Gathering -- near the ceiling. The researcher only improved efficiency by +3.8% (2.42 -> 2.51) in 5 experiments. Sonnet's baseline was catastrophic (eff=0.03) due to a BFS return-value misunderstanding, but after fixing documentation, it jumped 89x to eff=2.52 in just 2 experiments. Final values converge: both LLMs reach eff ~2.5 with eq ~0.98.
+
+#### Researcher discovers different strategies for different games
+
+| Strategy | Cleanup | Gathering |
+|----------|---------|-----------|
+| **Zone/Voronoi partitioning** | Lane-based apple zones | Voronoi partitioning by BFS distance |
+| **Waste/resource management** | Waste helpers + cleaning duty | Respawn-timer awareness (`apple_timer`) |
+| **Role differentiation** | Cleaners vs. collectors (static or rotating) | None needed -- all agents are collectors |
+| **Anti-aggression** | Peace already high | "NEVER use BEAM in self-play" |
+| **Anti-regression feedback** | "DO NOT REGRESS" when eff >= 2.5 | Trend tracking + best-iteration markers |
+| **API documentation fixes** | Waste threshold mechanics | BFS return value clarification (critical for Sonnet) |
+
+The key insight: Gathering required no role differentiation. The entire optimization was about **spatial coordination** (who collects which apples) and **temporal optimization** (respawn-aware positioning). In contrast, Cleanup required **functional coordination** (who cleans vs. who collects).
+
+### 6.3 Gathering Experiment Trajectories
+
+**gather-exp1 (Sonnet, efficiency)**
+
+| Exp | Efficiency | Maximin | Equality | Status | Description |
+|-----|-----------|---------|----------|--------|-------------|
+| 0 | 0.027 | 0.2 | 0.536 | keep | Baseline (broken BFS docs) |
+| 1 | 2.427 | 589.4 | 0.987 | keep | Fix BFS docs + zone partition hints + no beam |
+| 2 | **2.516** | **596.6** | **0.984** | keep | Apple timer docs + respawn-aware positioning |
+
+**gather-exp2 (Gemini, efficiency)**
+
+| Exp | Efficiency | Maximin | Equality | Status | Description |
+|-----|-----------|---------|----------|--------|-------------|
+| 0 | 2.416 | 570.6 | 0.978 | baseline | Default pipeline (already strong) |
+| 1 | 1.288 | 299.2 | 0.973 | discard | Apple timer + hints (iter 3 regressed via respawn farming) |
+| 2 | 2.153 | 411.6 | 0.908 | discard | Voronoi helpers (stale cached partitions) |
+| 3 | 2.386 | 526.8 | 0.962 | discard | Minimal prompt + trends (slightly below baseline) |
+| 4 | **2.508** | **582.4** | **0.977** | keep | Voronoi + apple_timer + feedback trends |
+
+### 6.4 Updated Aggregate Results
+
+#### Table: All 10 experiments across both games
+
+**Cleanup (10 agents, public goods provision)**
+
+|  | Gemini (eff) | Sonnet (eff) | Gemini (maximin) | Sonnet (maximin) |
+|---|---|---|---|---|
+| Efficiency | 3.20 +/- 0.05 | 3.12 +/- 0.02 | 3.16 +/- 0.04 | 2.57 +/- 0.36 |
+| Maximin | -- | -- | 290.0 +/- 5.8 | 179.3 +/- 20.3 |
+| Equality | 0.55 +/- 0.06 | 0.66 +/- 0.03 | 0.98 +/- 0.00 | 0.91 +/- 0.07 |
+
+**Gathering (4 agents, common pool resource)**
+
+|  | Gemini (eff) | Sonnet (eff) |
+|---|---|---|
+| Efficiency | 2.51 | 2.52 |
+| Maximin | 582.4 | 596.6 |
+| Equality | 0.98 | 0.98 |
+
+No maximin optimization runs were needed for Gathering -- efficiency optimization alone achieves near-perfect fairness (equality > 0.97, positive maximin).
+
+### 6.5 Updated Key Narrative
+
+> We test the autoresearch framework on two complementary social dilemmas from the multi-agent RL literature: **Cleanup** (public goods provision, 10 agents) and **Gathering** (common pool resource, 4 agents). The researcher agent discovers cooperative pipeline modifications in both, but the **nature of cooperation differs fundamentally**:
+>
+> - In Cleanup, the researcher discovers **role differentiation** (cleaners vs. collectors) and **duty rotation** to ensure fairness. Optimizing for maximin vs. efficiency produces qualitatively different pipelines, yet achieves comparable collective performance (Gemini: 3.16 vs 3.20).
+> - In Gathering, the researcher discovers **spatial partitioning** (Voronoi zones) and **temporal optimization** (respawn-aware positioning). No role differentiation is needed, and efficiency optimization alone achieves near-perfect equality (>0.97) -- the game's symmetric structure means **fairness emerges naturally from good coordination**.
+>
+> This contrast illuminates how the choice of optimization objective interacts with game structure: in asymmetric-cost dilemmas (Cleanup), fairness requires explicit mechanisms; in symmetric-cost dilemmas (Gathering), fairness is a free byproduct of efficiency.
