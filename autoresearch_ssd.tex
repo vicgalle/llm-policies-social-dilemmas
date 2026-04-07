@@ -7,6 +7,7 @@
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
 \usepackage{multirow}
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{enumitem}
 \setlist{nosep,leftmargin=*}
@@ -349,7 +350,14 @@ Sonnet 4.6 & $\Phi_U$ & 2.52 & 0.98 & 597 \\
 \end{table}
 
 \paragraph{Finding 1: The researcher reliably improves over hand-designed baselines.}
-All 10 runs show substantial improvement regardless of starting point. In Cleanup, the researcher exceeds the hand-designed dense feedback baseline of~\cite{gallego2026} by 16\% with Gemini ($U$: $2.75 \to 3.20$) and 128\% with Sonnet ($U$: $1.37 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($1.37$ vs.\ $2.75$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM.
+All 10 runs show substantial improvement regardless of starting point (Figure~\ref{fig:efficiency}). In Cleanup, the researcher exceeds the hand-designed dense feedback baseline of~\cite{gallego2026} by 16\% with Gemini ($U$: $2.75 \to 3.20$) and 128\% with Sonnet ($U$: $1.37 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($1.37$ vs.\ $2.75$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{autoresearch/figures/fig1_efficiency_trajectory.png}
+\caption{Efficiency ($U$) across researcher iterations for all 10 runs. \emph{Left}: Cleanup ($N{=}10$) with 8 runs across 2 LLMs $\times$ 2 objectives (solid lines = kept experiments, open circles = discarded). Dashed horizontal line: hand-designed baseline from~\cite{gallego2026}. All runs converge to $U \approx 3.1$--$3.2$ despite diverse starting points. \emph{Right}: Gathering ($N{=}4$) with 2 runs. Both LLMs converge to $U \approx 2.5$ within 2--4 iterations.}
+\label{fig:efficiency}
+\end{figure*}
 
 \paragraph{Finding 2: No efficiency--fairness tradeoff in Cleanup (Gemini).}
 Maximin-optimized Gemini pipelines sacrifice only $1\%$ efficiency ($U$: $3.16$ vs.\ $3.20$) while achieving near-perfect equality ($E$: $0.98$ vs.\ $0.55$) and transforming maximin from deeply negative baselines ($-99$ to $-84$) to $\min_i R_i = 290$. The researcher discovers that \emph{fair duty rotation}---time-based cycling of cleaning responsibilities using \texttt{agent\_id} and \texttt{env.\_step\_count}---simultaneously improves worst-off welfare \emph{and} collective output. Because cleaning is a public good, distributing the cleaning cost fairly ensures enough cleaners to sustain apple production.
@@ -449,5 +457,23 @@ Multi-agent reinforcement learning in sequential social dilemmas.
 In \emph{Proc.\ 16th Conference on Autonomous Agents and MultiAgent Systems}. 464--473.
 
 \end{thebibliography}
+
+\appendix
+
+\section{Additional Results}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{autoresearch/figures/fig2_maximin_trajectory.png}
+\caption{Maximin ($\min_i R_i$) across researcher iterations for the 4 Cleanup maximin-optimized runs. All runs transform deeply negative baselines (worst-off agents losing reward) into substantially positive values. Gemini reaches ${\sim}290$ while Sonnet reaches ${\sim}160$--$200$. The dashed line marks $\min_i R_i = 0$ (no agent loses reward overall).}
+\label{fig:maximin}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{autoresearch/figures/fig3_efficiency_equality.png}
+\caption{Final efficiency ($U$, bars) and equality ($E$, hatched bars) for all 10 runs, grouped by condition. Error bars show half-range across 2 runs. Maximin-optimized Gemini runs achieve both high efficiency and near-perfect equality, while efficiency-optimized runs show moderate equality. Gathering runs achieve high equality regardless of objective.}
+\label{fig:eff_eq}
+\end{figure}
 
 \end{document}
