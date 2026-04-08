@@ -20,7 +20,7 @@ Already written in `autoresearch_ssd.tex`. Key elements:
 
 ## Experimental Design
 
-### 10 runs total across a 2x2x2 + 2 design
+### 12 runs total across a 2x2x2 + 4 design
 
 **Cleanup game** (public goods provision, 10 agents): 8 runs
 
@@ -29,19 +29,19 @@ Already written in `autoresearch_ssd.tex`. Key elements:
 | **Efficiency** target | exp1, exp2 | exp3, exp4 |
 | **Maximin** target | exp5, exp6 | exp7, exp8 |
 
-**Gathering game** (common pool resource, 4 agents): 2 runs (efficiency only)
+**Gathering game** (common pool resource, 4 agents): 4 runs (efficiency only, 2 per LLM)
 
 |  | **Gemini 3.1 Pro** | **Claude Sonnet 4.6** |
 |---|---|---|
-| **Efficiency** target | gather-exp2 | gather-exp1 |
+| **Efficiency** target | gather-exp2, gather-exp3 | gather-exp1, gather-exp4 |
 
-No maximin runs needed for Gathering -- efficiency optimization alone achieves equality > 0.97.
+No maximin runs needed for Gathering -- efficiency optimization alone achieves equality > 0.94.
 
 ### Where to find the data
 
 - Cleanup efficiency: `/Users/victorgallego/llm-policies-social-dilemmas-exp{1,2,3-sonnet,4-sonnet}`
 - Cleanup maximin: `/Users/victorgallego/llm-policies-social-dilemmas-exp{5-rawls,6-maximin,7-sonnet-maximin,8-sonnet-maximin}`
-- Gathering efficiency: `/Users/victorgallego/llm-policies-social-dilemmas-gather-exp{1-sonnet,2-gemini}`
+- Gathering efficiency: `/Users/victorgallego/llm-policies-social-dilemmas-gather-exp{1-sonnet,2-gemini,3-gemini,4-sonnet}`
 
 Each directory has `autoresearch/results.tsv`, `autoresearch/runs/*/metrics.json`, pipeline/ files, and git history.
 
@@ -77,8 +77,10 @@ Maximin goes from deeply negative to positive. Near-perfect equality (>0.97 with
 |-----|-----------|-------|------|------|------|------|-----|
 | gather-exp1 | Sonnet | 3 | 3 | 0.03 | **2.52** | 596.6 | 0.98 |
 | gather-exp2 | Gemini | 5 | 1 | 2.42 | **2.51** | 582.4 | 0.98 |
+| gather-exp3 | Gemini | 3 | 3 | 1.66 | **2.47** | 580.8 | 0.98 |
+| gather-exp4 | Sonnet | 4 | 4 | 0.03 | **2.51** | 555.8 | 0.94 |
 
-Both converge to eff ~2.5. Equality already >0.97 with efficiency optimization -- no maximin runs needed.
+All 4 runs converge to eff ~2.5 regardless of starting point (0.03-2.42). Equality >0.94 with efficiency optimization -- no maximin runs needed.
 
 ### Aggregate Table (for paper)
 
@@ -90,13 +92,13 @@ Both converge to eff ~2.5. Equality already >0.97 with efficiency optimization -
 | Maximin | -- | -- | 290.0 +/- 5.8 | 179.3 +/- 20.3 |
 | Equality | 0.55 +/- 0.06 | 0.66 +/- 0.03 | 0.98 +/- 0.00 | 0.91 +/- 0.07 |
 
-**Gathering (4 agents)**
+**Gathering (4 agents, 2 runs per LLM)**
 
 |  | Gemini (eff) | Sonnet (eff) |
 |---|---|---|
-| Efficiency | 2.51 | 2.52 |
-| Maximin | 582.4 | 596.6 |
-| Equality | 0.98 | 0.98 |
+| Efficiency | 2.49 +/- 0.02 | 2.52 +/- 0.01 |
+| Maximin | 581.6 +/- 0.8 | 576.2 +/- 20.4 |
+| Equality | 0.98 +/- 0.00 | 0.96 +/- 0.02 |
 
 ---
 
@@ -104,7 +106,7 @@ Both converge to eff ~2.5. Equality already >0.97 with efficiency optimization -
 
 ### Finding 1: Autoresearch reliably improves social welfare
 
-All 10 runs show dramatic improvement over baselines, regardless of starting point. Final values cluster tightly (eff ~3.1-3.2 for Cleanup, ~2.5 for Gathering), suggesting the researcher reliably discovers the performance ceiling. Baselines vary enormously (0.03-2.70), but end states converge.
+All 12 runs show dramatic improvement over baselines, regardless of starting point. Final values cluster tightly (eff ~3.1-3.2 for Cleanup, ~2.5 for Gathering), suggesting the researcher reliably discovers the performance ceiling. Baselines vary enormously (0.03-2.70), but end states converge. The Gathering replication (4 runs) is especially striking: baselines range from 0.03 to 2.42, yet all converge to eff ~2.5.
 
 ### Finding 2: No efficiency-fairness tradeoff in Cleanup (with Gemini)
 
@@ -152,8 +154,10 @@ Despite independent runs, the researcher converges on similar strategies within 
 | exp8 | Cleanup | Sonnet | Max | 9 | 67% |
 | gather-exp1 | Gathering | Sonnet | Eff | 3 | 100% |
 | gather-exp2 | Gathering | Gemini | Eff | 5 | 20% |
+| gather-exp3 | Gathering | Gemini | Eff | 3 | 100% |
+| gather-exp4 | Gathering | Sonnet | Eff | 4 | 100% |
 
-Notable: exp3-sonnet ran only 4 iterations with 100% keep rate (monotonic improvement 0.38 -> 3.10). exp2 and exp5 were most exploratory (17 iterations each).
+Notable: exp3-sonnet ran only 4 iterations with 100% keep rate (monotonic improvement 0.38 -> 3.10). exp2 and exp5 were most exploratory (17 iterations each). Gathering runs are generally shorter and more efficient -- gather-exp3 and gather-exp4 both achieved 100% keep rates.
 
 ---
 
@@ -179,6 +183,7 @@ Notable: exp3-sonnet ran only 4 iterations with 100% keep rate (monotonic improv
 | Baseline equality | 0.04-0.62 | 0.54-0.98 |
 | Baseline maximin | -189 to -59 (negative) | 0.2 to 571 |
 | Maximin opt needed? | Yes -- huge fairness gap | No -- efficiency opt already fair |
+| Runs | 8 (2x2 LLMs x objectives) | 4 (2 per LLM, eff only) |
 | Key strategy | Role differentiation + rotation | Voronoi zones + respawn timing |
 | Agent count | 10 | 4 |
 
@@ -190,12 +195,12 @@ The tex file (`autoresearch_ssd.tex`) already provides:
 
 - Configuration space $\mathcal{C}$ (Table 1) -- now with empirical evidence of which components matter
 - Three objectives $\Phi_U$, $\Phi_W$, $\Phi_{\min}$ (eqs. 7-9) -- $\Phi_U$ and $\Phi_{\min}$ experimentally compared
-- Algorithm 1 (outer loop) -- executed 10 times with real results
+- Algorithm 1 (outer loop) -- executed 12 times with real results
 - Mechanism design framing (Section 3) -- researcher designs information structure differently depending on $\Phi$
 - Goodhart risk (Section 3) -- observed: over-prescription, variance gaming, iteration regression
 - Experimental plan phases:
   - **Phase 1 (proof of concept)**: DONE -- all runs exceed 2.75 baseline
-  - **Phase 3 (cross-game)**: PARTIALLY DONE -- Cleanup + Gathering with different strategies
+  - **Phase 3 (cross-game)**: DONE -- Cleanup + Gathering with 2 runs per LLM per game, different strategies confirmed
   - Phase 2 (ablation) and Phase 4 (adversarial): Not yet done
 
 ---
@@ -215,7 +220,7 @@ The tex file (`autoresearch_ssd.tex`) already provides:
 - Two objectives: $\Phi_U$ (efficiency) and $\Phi_{\min}$ (maximin)
 
 ### 3. Experiments (~1.5 pages)
-- Setup: 2x2x2 + 2 design, 10 runs total
+- Setup: 2x2x2 + 4 design, 12 runs total
 - Table 1: Aggregate results (Cleanup eff/max x Gemini/Sonnet + Gathering)
 - Finding 1: Reliable improvement from diverse baselines
 - Finding 2: No efficiency-fairness tradeoff (Gemini/Cleanup)
@@ -226,7 +231,7 @@ The tex file (`autoresearch_ssd.tex`) already provides:
 
 ### 4. Discussion (~1 page)
 - Mechanism design interpretation of findings
-- Limitations: variance, only 2 runs/condition, no MARL baselines
+- Limitations: variance, only 2 runs/condition (4 for Gathering), no MARL baselines
 - Future: adversarial objective ($\Phi = R_0$), ablation study, more games
 - Connection to cooperative AI and alignment
 
@@ -234,7 +239,7 @@ The tex file (`autoresearch_ssd.tex`) already provides:
 
 ## Figures to Create
 
-1. **Efficiency trajectory plot**: x = researcher iteration index, y = efficiency. 10 lines (colored by condition). Shows convergence from diverse baselines.
+1. **Efficiency trajectory plot**: x = researcher iteration index, y = efficiency. 12 lines (colored by condition). Shows convergence from diverse baselines.
 2. **Maximin trajectory plot**: x = researcher iteration index, y = maximin. 4 lines (Cleanup maximin runs). Shows transformation from negative to positive.
 3. **Bar chart**: Final efficiency and equality for all 10 runs, grouped by condition. Shows the efficiency-fairness relationship.
 4. **Strategy comparison table**: What the researcher discovers per game x objective.

@@ -16,6 +16,7 @@ dependencies = [
     "google-genai>=1.0",
     "gepa>=0.0.4",
     "verifiers @ git+https://github.com/PrimeIntellect-ai/verifiers.git@v0.1.11",
+    "matplotlib>=3.10.8",
 ]
 
 [tool.hatch.metadata]

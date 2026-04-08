@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate publication figures for the autoresearch workshop paper.
 
-Reads results.tsv files from all 10 experiment directories and produces:
+Reads results.tsv files from all 12 experiment directories and produces:
   - Figure 1: Efficiency trajectory (running best) across researcher iterations
   - Figure 2: Maximin trajectory for the 4 maximin-targeted runs
   - Figure 3: Final efficiency vs equality (bar chart) by condition
@@ -50,8 +50,10 @@ EXPERIMENTS = {
     "exp7":  {"dir": "llm-policies-social-dilemmas-exp7-sonnet-maximin", "game": "Cleanup", "llm": "Sonnet", "target": "max", "label": "C-Son-max-1"},
     "exp8":  {"dir": "llm-policies-social-dilemmas-exp8-sonnet-maximin", "game": "Cleanup", "llm": "Sonnet", "target": "max", "label": "C-Son-max-2"},
     # Gathering efficiency
-    "gath1": {"dir": "llm-policies-social-dilemmas-gather-exp1-sonnet", "game": "Gathering", "llm": "Sonnet", "target": "eff", "label": "G-Son-eff"},
-    "gath2": {"dir": "llm-policies-social-dilemmas-gather-exp2-gemini", "game": "Gathering", "llm": "Gemini", "target": "eff", "label": "G-Gem-eff"},
+    "gath1": {"dir": "llm-policies-social-dilemmas-gather-exp1-sonnet", "game": "Gathering", "llm": "Sonnet", "target": "eff", "label": "G-Son-eff-1"},
+    "gath2": {"dir": "llm-policies-social-dilemmas-gather-exp2-gemini", "game": "Gathering", "llm": "Gemini", "target": "eff", "label": "G-Gem-eff-1"},
+    "gath3": {"dir": "llm-policies-social-dilemmas-gather-exp3-gemini", "game": "Gathering", "llm": "Gemini", "target": "eff", "label": "G-Gem-eff-2"},
+    "gath4": {"dir": "llm-policies-social-dilemmas-gather-exp4-sonnet", "game": "Gathering", "llm": "Sonnet", "target": "eff", "label": "G-Son-eff-2"},
 }
 
 # Colors by condition group
@@ -314,7 +316,7 @@ def plot_researcher_behavior():
 
     for key in ["exp1", "exp2", "exp3", "exp4",
                 "exp5", "exp6", "exp7", "exp8",
-                "gath1", "gath2"]:
+                "gath1", "gath2", "gath3", "gath4"]:
         d = data[key]
         n = len(d["iters"]) - 1  # subtract baseline
         n_kept = sum(1 for s in d["status"] if s == "keep") - (1 if d["status"][0] in ("keep", "baseline") else 0)
