@@ -233,7 +233,7 @@ At each outer iteration $j$, the researcher $\cR$ receives:
   \item The \textbf{environment source code} (read-only), enabling the researcher to reason about game mechanics.
 \end{itemize}
 
-The researcher proposes a new configuration $c_j$ by generating code modifications. This mirrors the autoresearch setup, where an AI agent modifies \texttt{train.py} and observes validation loss; here, the researcher modifies the inner-loop codebase and observes social welfare.
+The researcher proposes a new configuration $c_j$ by generating code modifications. Concretely, $\cR$ is a coding agent (Claude Code CLI) that operates on a real software repository: it reads and edits Python source files, runs shell commands, inspects evaluation outputs, and commits changes to a dedicated git branch---the same workflow a human researcher would follow. This mirrors the autoresearch setup, where an AI coding agent modifies \texttt{train.py} and observes validation loss; here, the researcher modifies the inner-loop codebase and observes social welfare.
 
 \subsection{Structural Analogy}
 
@@ -302,7 +302,7 @@ A key distinction from classical mechanism design: $\cM$ is not \emph{strategica
 
 \subsection{Setup}
 
-We conduct 12 autonomous researcher runs across a factorial design. The researcher agent $\cR$ is Claude Opus 4.6 in all runs. Each run operates on a dedicated git branch, modifying only the pipeline files (\texttt{pipeline/}).
+We conduct 12 autonomous researcher runs across a factorial design. The researcher agent $\cR$ is Claude Opus 4.6, invoked via the Claude Code CLI as a coding agent. Each run operates on a dedicated git branch of a real Python codebase: $\cR$ edits source files in \texttt{pipeline/}, executes evaluation scripts, reads metric outputs, and iterates---without human intervention.
 
 \paragraph{Design.}
 For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $=$ 8 runs. For Gathering: $2$ policy LLMs $\times$ $1$ objective $\times$ $2$ replications $=$ 4 runs. Maximin runs are unnecessary for Gathering because efficiency optimization alone achieves equality $E > 0.94$ (the game's symmetric cost structure makes fairness a free byproduct of coordination).
