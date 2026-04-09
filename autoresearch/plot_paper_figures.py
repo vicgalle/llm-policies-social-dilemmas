@@ -558,6 +558,57 @@ def plot_combined_cleanup():
     print(f"  Saved fig_combined_cleanup")
 
 
+# ── Figure 6: Efficiency vs Equality scatter ────────────────────────────────
+def plot_efficiency_equality_scatter():
+    """Scatter plot: each run's best result as a point (U vs E), colored by condition."""
+    fig, ax = plt.subplots(figsize=(4.0, 3.2))
+
+    MARKERS = {
+        ("Cleanup", "eff"):  "o",
+        ("Cleanup", "max"):  "s",
+        ("Gathering", "eff"): "D",
+    }
+
+    legend_handles = {}
+
+    for key, d in data.items():
+        cond = (d["game"], d["llm"], d["target"])
+        color = COLORS[cond]
+        mk = MARKERS[(d["game"], d["target"])]
+
+        # Best efficiency and equality at that point
+        best_idx = int(np.argmax(d["efficiency"]))
+        best_eff = d["efficiency"][best_idx]
+        best_eq = d["equality"][best_idx]
+
+        # Legend: one entry per condition
+        target_lbl = "$\\Phi_U$" if d["target"] == "eff" else "$\\Phi_{\\min}$"
+        game_lbl = "C" if d["game"] == "Cleanup" else "G"
+        label_str = f"{d['llm']}, {target_lbl} ({game_lbl})"
+        lbl = label_str if cond not in legend_handles else None
+        if lbl:
+            legend_handles[cond] = True
+
+        ax.scatter(best_eff, best_eq, marker=mk, s=60, color=color,
+                   edgecolors="white", linewidth=0.5, label=lbl, zorder=3)
+
+    # Reference lines
+    ax.axhline(0.9, color="gray", ls=":", lw=0.6, alpha=0.4)
+    ax.text(0.3, 0.92, "$E = 0.9$", fontsize=6, color="gray", alpha=0.6)
+
+    ax.set_xlabel("Efficiency ($U$)")
+    ax.set_ylabel("Equality ($E$)")
+    ax.set_xlim(0, 3.6)
+    ax.set_ylim(-0.1, 1.1)
+    ax.legend(loc="lower right", framealpha=0.9, fontsize=6.5)
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig_scatter_eff_eq.png")
+    fig.savefig(OUT_DIR / "fig_scatter_eff_eq.svg")
+    plt.close(fig)
+    print(f"  Saved fig_scatter_eff_eq")
+
+
 # ── Main ───────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     print("Generating paper figures...")
@@ -566,4 +617,5 @@ if __name__ == "__main__":
     plot_efficiency_equality_bars()
     plot_researcher_behavior()
     plot_combined_cleanup()
+    plot_efficiency_equality_scatter()
     print(f"All figures saved to {OUT_DIR}/")
