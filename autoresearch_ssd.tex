@@ -54,7 +54,7 @@ We build on the iterative LLM policy synthesis framework of Gallego~\cite{galleg
 
 We study two SSDs that represent complementary dilemma types. \textbf{Cleanup}~\cite{hughes2018} is a \emph{public goods provision} game ($N{=}10$): a river accumulates waste while an orchard grows apples. Cleaning costs $-1$ per beam but enables apple regrowth for everyone ($+1$ per apple). The dilemma: free-ride on cleaning vs.\ contribute. \textbf{Gathering}~\cite{leibo2017,perolat2017} is a \emph{common pool resource} game ($N{=}4$): agents collect shared apples and may tag rivals to temporarily remove them. The dilemma: over-harvest and aggress vs.\ cooperate and share. The games differ in their cost structure---asymmetric provision vs.\ symmetric restraint---a distinction that drives our key findings.
 
-A frozen LLM $\cM$ acts as a policy synthesizer. Given a system prompt $p$ and a feedback prompt $q_k$, it generates a Python policy $\pi_{k+1} = \cM(p, q(\pi_k, \mathcal{F}_k^\ell))$, where $\ell$ specifies the feedback level and $\mathcal{F}_k = (\bar{r}_k, \bm_k)$ contains the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. All $N$ agents execute the same policy (homogeneous self-play). Gallego~\cite{gallego2026} compared two hand-designed feedback levels---sparse (reward-only) and dense (reward + social metrics)---and showed that dense feedback consistently improves cooperative outcomes. The dense feedback configuration achieves $U{=}2.75$ (Gemini) and $U{=}1.37$ (Sonnet) on Cleanup.
+A frozen LLM $\cM$ acts as a policy synthesizer. Given a system prompt $p$ and a feedback prompt $q_k$, it generates a Python policy $\pi_{k+1} = \cM(p, q(\pi_k, \mathcal{F}_k^\ell))$, where $\ell$ specifies the feedback level and $\mathcal{F}_k = (\bar{r}_k, \bm_k)$ contains the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. All $N$ agents execute the same policy (homogeneous self-play). Gallego~\cite{gallego2026} compared two hand-designed feedback levels---sparse (reward-only) and dense (reward + social metrics)---and showed that dense feedback consistently improves cooperative outcomes. The dense feedback configuration achieves $U{=}1.93{\pm}0.73$ (Gemini) and $U{=}0.86{\pm}0.62$ (Sonnet) on Cleanup.
 
 %% ============================================================
 \section{Two-Level Framework}
@@ -311,7 +311,7 @@ For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $
 Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}.
 
 \paragraph{Baselines.}
-The hand-designed dense feedback (reward + social metrics) configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}2.75$ with Gemini and $U{=}1.37$ with Sonnet.
+The hand-designed dense feedback (reward + social metrics) configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93{\pm}0.73$ with Gemini and $U{=}0.86{\pm}0.62$ with Sonnet (mean $\pm$ s.d.\ across 4 runs each).
 
 \paragraph{Inner loop parameters.}
 $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated over $|S|{=}5$--$12$ random seeds (researcher-configurable). The researcher ran $J{=}3$--$17$ outer iterations per run (mean: 8.3), with a keep rate of 18\%--100\% (mean: 63\%).
@@ -321,7 +321,7 @@ $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated ov
 Table~\ref{tab:results} presents the main results, showing the best configuration achieved by the researcher in each condition, compared against the hand-designed baseline of~\cite{gallego2026}.
 
 \begin{table}[t]
-\caption{Autoresearch results. Mean $\pm$ half-range across 2 runs per condition. Baseline: hand-designed dense feedback from~\cite{gallego2026}.}
+\caption{Autoresearch results. Mean $\pm$ s.d.\ across runs per condition (2 runs for autoresearch, 4 for Cleanup baselines, 2 for Gathering baselines). Baseline: unmodified pipeline with dense feedback from~\cite{gallego2026}.}
 \label{tab:results}
 \centering
 \small
@@ -330,8 +330,8 @@ Table~\ref{tab:results} presents the main results, showing the best configuratio
 Policy LLM & Target & $U$ & $E$ & $\min_i R_i$ \\
 \midrule
 \multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- Baseline}} \\
-Gemini 3.1 Pro & --- & 2.75 & 0.54 & --- \\
-Sonnet 4.6 & --- & 1.37 & 0.09 & --- \\
+Gemini 3.1 Pro & --- & 1.93{\scriptsize$\pm$0.73} & 0.17{\scriptsize$\pm$0.52} & --- \\
+Sonnet 4.6 & --- & 0.86{\scriptsize$\pm$0.62} & $-$0.02{\scriptsize$\pm$0.36} & --- \\
 \addlinespace
 \multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- Autoresearch}} \\
 \multirow{2}{*}{Gemini 3.1 Pro}
@@ -342,6 +342,10 @@ Sonnet 4.6 & --- & 1.37 & 0.09 & --- \\
   & $\Phi_U$ & \textbf{3.12}{\scriptsize$\pm$0.02} & 0.66{\scriptsize$\pm$0.03} & --- \\
   & $\Phi_{\min}$ & 2.57{\scriptsize$\pm$0.36} & \textbf{0.91}{\scriptsize$\pm$0.07} & \textbf{179}{\scriptsize$\pm$20} \\
 \midrule
+\multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- Baseline}} \\
+Gemini 3.1 Pro & --- & 2.04{\scriptsize$\pm$0.54} & 0.90{\scriptsize$\pm$0.11} & 412{\scriptsize$\pm$224} \\
+Sonnet 4.6 & --- & 0.03{\scriptsize$\pm$0.00} & 0.54{\scriptsize$\pm$0.00} & 0{\scriptsize$\pm$0} \\
+\addlinespace
 \multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- Autoresearch}} \\
 Gemini 3.1 Pro & $\Phi_U$ & 2.49{\scriptsize$\pm$0.02} & 0.98{\scriptsize$\pm$0.00} & 582{\scriptsize$\pm$1} \\
 Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize$\pm$0.01} & 0.96{\scriptsize$\pm$0.02} & 576{\scriptsize$\pm$20} \\
@@ -350,7 +354,7 @@ Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize$\pm$0.01} & 0.96{\scriptsize$\pm$0.02} 
 \end{table}
 
 \paragraph{Finding 1: The researcher reliably improves over hand-designed baselines.}
-All 12 runs show substantial improvement regardless of starting point (Figure~\ref{fig:efficiency}). In Cleanup, the researcher exceeds the hand-designed dense feedback baseline of~\cite{gallego2026} by 16\% with Gemini ($U$: $2.75 \to 3.20$) and 128\% with Sonnet ($U$: $1.37 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($1.37$ vs.\ $2.75$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM.
+All 12 runs show substantial improvement regardless of starting point (Figure~\ref{fig:efficiency}). In Cleanup, the researcher exceeds the unmodified pipeline baseline by 66\% with Gemini ($U$: $1.93 \to 3.20$) and 263\% with Sonnet ($U$: $0.86 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($0.86$ vs.\ $1.93$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM. Beyond improving the mean, the researcher also dramatically reduces variance: in Cleanup, Gemini's s.d.\ drops from $0.73$ to $0.05$ ($14\times$ reduction) and Sonnet's from $0.62$ to $0.02$ ($31\times$) under efficiency optimization. In Gathering, Gemini's s.d.\ drops from $0.54$ to $0.02$. The researcher discovers pipeline modifications---structured helpers, strategic hints, tailored feedback---that constrain the policy LLM toward consistently good solutions, reducing dependence on inner-loop stochasticity.
 
 \begin{figure*}[t]
 \centering
