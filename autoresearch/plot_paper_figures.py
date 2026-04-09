@@ -116,11 +116,35 @@ OUT_DIR = Path(__file__).parent / "figures"
 OUT_DIR.mkdir(exist_ok=True)
 
 
+# ── Baseline statistics (mean ± s.d. from iteration-0 across all runs) ────
+BASELINES = {
+    # Cleanup baselines (4 runs per LLM: 2 eff + 2 max)
+    ("Cleanup", "Gemini", "eff"):  {"mean": 1.93, "sd": 0.73},
+    ("Cleanup", "Sonnet", "eff"):  {"mean": 0.86, "sd": 0.62},
+    ("Gathering", "Gemini", "eff"): {"mean": 2.04, "sd": 0.54},
+    ("Gathering", "Sonnet", "eff"): {"mean": 0.03, "sd": 0.00},
+    # Maximin baselines (from re-evaluation of all Cleanup exp0 policies)
+    ("Cleanup", "Gemini", "maximin"): {"mean": -159, "sd": 78},
+    ("Cleanup", "Sonnet", "maximin"): {"mean": -151, "sd": 73},
+}
+
+# Maximin at best efficiency for Φ_U runs (re-evaluated since metric was added later)
+MAXIMIN_AT_BEST_EFF = {
+    "exp1": -238.6,  # Gemini, eff=3.247
+    "exp2": -182.4,  # Gemini, eff=3.150
+    "exp3": -145.6,  # Sonnet, eff=3.097
+    "exp4": -247.0,  # Sonnet, eff=3.137
+}
+
+
 # ── Figure 1: Efficiency trajectory (Cleanup left, Gathering right) ────────
 def plot_efficiency_trajectory():
     fig, (ax_c, ax_g) = plt.subplots(1, 2, figsize=(5.5, 3.0),
-                                      gridspec_kw={"width_ratios": [3, 1.2]},
+                                      gridspec_kw={"width_ratios": [2.5, 1.5]},
                                       sharey=True)
+
+    # Gathering markers to distinguish LLMs beyond color
+    MARKERS_GATH = {"Gemini": "s", "Sonnet": "D"}
 
     legend_entries = {}
     run_counter = {}
@@ -149,21 +173,35 @@ def plot_efficiency_trajectory():
                 lw=1.5, label=lbl, zorder=3)
 
         # Individual experiment dots (kept = filled, discarded = hollow)
+        mk = MARKERS_GATH.get(d["llm"], "o") if d["game"] == "Gathering" else "o"
         for i, (eff, st) in enumerate(zip(d["efficiency"], d["status"])):
             if st in ("keep", "baseline"):
-                ax.scatter(i, eff, marker="o", s=16, color=color,
+                ax.scatter(i, eff, marker=mk, s=16, color=color,
                            edgecolors=color, zorder=2)
             else:
-                ax.scatter(i, eff, marker="o", facecolors="white",
-                           edgecolors=color, s=14, linewidths=0.6,
-                           zorder=2, alpha=0.6)
+                ax.scatter(i, eff, marker=mk, facecolors="white",
+                           edgecolors=color, s=8, linewidths=0.4,
+                           zorder=2, alpha=0.35)
 
-    # Cleanup baselines
-    for ax_b in (ax_c,):
-        ax_b.axhline(2.75, color="gray", ls=":", lw=0.8, alpha=0.6)
-        ax_b.axhline(1.37, color="gray", ls=":", lw=0.8, alpha=0.6)
-    ax_c.text(17, 2.55, "Baseline (Gem.)", fontsize=6, color="gray", ha="right")
-    ax_c.text(17, 1.17, "Baseline (Son.)", fontsize=6, color="gray", ha="right")
+    # Cleanup baseline lines (mean only, no bands)
+    bl_gem = BASELINES[("Cleanup", "Gemini", "eff")]
+    bl_son = BASELINES[("Cleanup", "Sonnet", "eff")]
+    ax_c.axhline(bl_gem["mean"], color=COLORS[("Cleanup", "Gemini", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+    ax_c.axhline(bl_son["mean"], color=COLORS[("Cleanup", "Sonnet", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+    ax_c.text(17.3, bl_gem["mean"], "BL (Gem)", fontsize=5.5,
+              color=COLORS[("Cleanup", "Gemini", "eff")], ha="left", va="center", alpha=0.7)
+    ax_c.text(17.3, bl_son["mean"], "BL (Son)", fontsize=5.5,
+              color=COLORS[("Cleanup", "Sonnet", "eff")], ha="left", va="center", alpha=0.7)
+
+    # Gathering baseline lines
+    bl_gem_g = BASELINES[("Gathering", "Gemini", "eff")]
+    bl_son_g = BASELINES[("Gathering", "Sonnet", "eff")]
+    ax_g.axhline(bl_gem_g["mean"], color=COLORS[("Gathering", "Gemini", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+    ax_g.axhline(bl_son_g["mean"], color=COLORS[("Gathering", "Sonnet", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
 
     ax_c.set_xlabel("Researcher iteration")
     ax_c.set_ylabel("Efficiency ($U$)")
@@ -218,6 +256,12 @@ def plot_maximin_trajectory():
     ax.axhline(0, color="gray", ls=":", lw=0.8, alpha=0.7)
     ax.text(0.5, 5, "$\\min_i R_i = 0$", fontsize=7, color="gray", va="bottom")
 
+    # Baseline reference line (mean of starting maximin across all 4 runs)
+    bl_mean = np.mean([-98.8, -83.8, -188.6, -59.0])
+    ax.axhline(bl_mean, color="gray", ls=":", lw=0.7, alpha=0.4, zorder=0)
+    ax.text(17.3, bl_mean, "BL", fontsize=5.5,
+            color="gray", ha="left", va="center", alpha=0.6)
+
     ax.set_xlabel("Researcher iteration")
     ax.set_ylabel("Maximin ($\\min_i R_i$)")
     ax.set_xlim(-0.5, 17.5)
@@ -229,77 +273,109 @@ def plot_maximin_trajectory():
     print(f"  Saved fig2_maximin_trajectory")
 
 
-# ── Figure 3: Efficiency vs Equality bar chart ────────────────────────────
+# ── Figure 3: Three-panel bar chart (U, E, min_i R_i) ───────────────────
 def plot_efficiency_equality_bars():
-    """Grouped bar chart: final (best) efficiency and equality per condition."""
-    # Aggregate by condition (mean of best across runs)
+    """Three-panel bar chart: final efficiency, equality, and maximin per condition."""
     conditions = [
-        ("Gem $\\Phi_U$", "Cleanup", "Gemini", "eff"),
-        ("Son $\\Phi_U$", "Cleanup", "Sonnet", "eff"),
-        ("Gem $\\Phi_{\\min}$", "Cleanup", "Gemini", "max"),
-        ("Son $\\Phi_{\\min}$", "Cleanup", "Sonnet", "max"),
-        ("Gem (Gath)", "Gathering", "Gemini", "eff"),
-        ("Son (Gath)", "Gathering", "Sonnet", "eff"),
+        ("Gem\n$\\Phi_U$",        "Cleanup",    "Gemini", "eff"),
+        ("Son\n$\\Phi_U$",        "Cleanup",    "Sonnet", "eff"),
+        ("Gem\n$\\Phi_{\\min}$",  "Cleanup",    "Gemini", "max"),
+        ("Son\n$\\Phi_{\\min}$",  "Cleanup",    "Sonnet", "max"),
+        ("Gem\n(Gath)",            "Gathering",  "Gemini", "eff"),
+        ("Son\n(Gath)",            "Gathering",  "Sonnet", "eff"),
     ]
 
     eff_means, eff_errs = [], []
     eq_means, eq_errs = [], []
+    max_means, max_errs = [], []
 
-    for label, game, llm, target in conditions:
+    # Map exp keys to their condition for maximin lookup
+    eff_exp_keys = {"exp1": 0, "exp2": 0, "exp3": 1, "exp4": 1}  # index into conditions
+
+    for idx, (label, game, llm, target) in enumerate(conditions):
         runs = [d for d in data.values()
                 if d["game"] == game and d["llm"] == llm and d["target"] == target]
         # Best efficiency and corresponding equality for each run
         best_effs = [max(r["efficiency"]) for r in runs]
-        # Equality at the best-efficiency experiment
         best_eqs = []
         for r in runs:
             best_idx = int(np.argmax(r["efficiency"]))
             best_eqs.append(r["equality"][best_idx])
+
         eff_means.append(np.mean(best_effs))
         eff_errs.append(np.std(best_effs) if len(best_effs) > 1 else 0)
         eq_means.append(np.mean(best_eqs))
         eq_errs.append(np.std(best_eqs) if len(best_eqs) > 1 else 0)
 
+        # Maximin at best config
+        if game == "Cleanup" and target == "eff":
+            # Use re-evaluated maximin values (not in TSV)
+            if llm == "Gemini":
+                maxs = [MAXIMIN_AT_BEST_EFF["exp1"], MAXIMIN_AT_BEST_EFF["exp2"]]
+            else:
+                maxs = [MAXIMIN_AT_BEST_EFF["exp3"], MAXIMIN_AT_BEST_EFF["exp4"]]
+        elif game == "Cleanup" and target == "max":
+            # Maximin at best maximin iteration
+            maxs = []
+            for r in runs:
+                best_max_idx = int(np.argmax(r["maximin"]))
+                maxs.append(r["maximin"][best_max_idx])
+        else:
+            # Gathering: maximin available in data at best efficiency
+            maxs = []
+            for r in runs:
+                best_idx = int(np.argmax(r["efficiency"]))
+                maxs.append(r["maximin"][best_idx])
+
+        max_means.append(np.mean(maxs))
+        max_errs.append(np.std(maxs) if len(maxs) > 1 else 0)
+
     x = np.arange(len(conditions))
-    width = 0.35
+    width = 0.6
+    colors = [COLORS[(c[1], c[2], c[3])] for c in conditions]
 
-    fig, ax1 = plt.subplots(figsize=(5.5, 3.0))
+    fig, (ax_u, ax_e, ax_m) = plt.subplots(1, 3, figsize=(7.0, 2.8),
+                                             gridspec_kw={"width_ratios": [1, 1, 1.15]})
 
-    bar_colors_eff = ["#2171b5", "#6baed6", "#cb181d", "#fb6a4a", "#238b45", "#74c476"]
-    bar_colors_eq = [c + "88" for c in bar_colors_eff]  # won't work for hex, handle below
+    # Panel 1: Efficiency (U)
+    ax_u.bar(x, eff_means, width, yerr=eff_errs, color=colors,
+             edgecolor="white", linewidth=0.5, capsize=3, zorder=3)
+    ax_u.set_ylabel("Efficiency ($U$)")
+    ax_u.set_ylim(0, 3.8)
+    ax_u.set_title("(a) Efficiency", fontsize=9)
+    ax_u.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.4)
 
-    # Efficiency bars (left y-axis)
-    bars1 = ax1.bar(x - width / 2, eff_means, width, yerr=eff_errs,
-                    color=[COLORS[(c[1], c[2], c[3])] for c in conditions],
-                    edgecolor="white", linewidth=0.5,
-                    capsize=3, label="Efficiency ($U$)", zorder=3)
-    ax1.set_ylabel("Efficiency ($U$)")
-    ax1.set_ylim(0, 3.8)
+    # Panel 2: Equality (E)
+    ax_e.bar(x, eq_means, width, yerr=eq_errs, color=colors,
+             edgecolor="white", linewidth=0.5, capsize=3, zorder=3)
+    ax_e.set_ylabel("Equality ($E$)")
+    ax_e.set_ylim(0, 1.15)
+    ax_e.set_title("(b) Equality", fontsize=9)
+    ax_e.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.4)
 
-    # Equality bars (right y-axis)
-    ax2 = ax1.twinx()
-    bars2 = ax2.bar(x + width / 2, eq_means, width, yerr=eq_errs,
-                    color=[COLORS[(c[1], c[2], c[3])] for c in conditions],
-                    edgecolor="white", linewidth=0.5, alpha=0.4,
-                    capsize=3, label="Equality ($E$)", zorder=3,
-                    hatch="//")
-    ax2.set_ylabel("Equality ($E$)")
-    ax2.set_ylim(0, 1.15)
+    # Panel 3: Maximin (min_i R_i)
+    bar_colors_m = []
+    for i, m in enumerate(max_means):
+        bar_colors_m.append(colors[i])
+    ax_m.bar(x, max_means, width, yerr=max_errs, color=bar_colors_m,
+             edgecolor="white", linewidth=0.5, capsize=3, zorder=3)
+    ax_m.set_ylabel("Maximin ($\\min_i R_i$)")
+    ax_m.set_title("(c) Maximin", fontsize=9)
+    ax_m.axhline(0, color="gray", ls=":", lw=0.7, alpha=0.5)
+    ax_m.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.4)
 
-    ax1.set_xticks(x)
-    ax1.set_xticklabels([c[0] for c in conditions], rotation=15, ha="right")
+    # Shared x-axis labels and game annotations
+    for ax in (ax_u, ax_e, ax_m):
+        ax.set_xticks(x)
+        ax.set_xticklabels([c[0] for c in conditions], fontsize=7)
 
-    # Combined legend
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left",
-               framealpha=0.9)
+    # Game labels
+    ax_u.text(1.5, 3.65, "Cleanup", ha="center", fontsize=7, color="gray")
+    ax_u.text(4.5, 3.65, "Gathering", ha="center", fontsize=7, color="gray")
+    ax_e.text(1.5, 1.10, "Cleanup", ha="center", fontsize=7, color="gray")
+    ax_e.text(4.5, 1.10, "Gathering", ha="center", fontsize=7, color="gray")
 
-    # Separator between Cleanup and Gathering
-    ax1.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.5)
-    ax1.text(1.5, 3.65, "Cleanup ($N{=}10$)", ha="center", fontsize=7.5, color="gray")
-    ax1.text(4.5, 3.65, "Gathering ($N{=}4$)", ha="center", fontsize=7.5, color="gray")
-
+    fig.tight_layout()
     fig.savefig(OUT_DIR / "fig3_efficiency_equality.png")
     fig.savefig(OUT_DIR / "fig3_efficiency_equality.svg")
     plt.close(fig)
