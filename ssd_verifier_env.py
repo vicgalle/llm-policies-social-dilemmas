@@ -107,8 +107,9 @@ def _evaluate_policy_code(
         return 0.0, {}, f"Failed to load policy: {e}"
 
     # 4. Apply wrapper (e.g., scent-only proxy) if configured
-    if game_config.policy_wrapper:
-        fn = game_config.policy_wrapper(fn)
+    wrapper = getattr(game_config, "policy_wrapper", None)
+    if wrapper:
+        fn = wrapper(fn)
 
     # 5. Smoke test (short self-play to catch crashes early)
     passed, smoke_err = smoke_test_policy(

@@ -1,0 +1,19 @@
+[
+  {
+    "game": "cleanup",
+    "model": "gemini-3.1-pro-preview",
+    "metric": "maximin",
+    "best_score": 0.24480000000000002,
+    "num_candidates": 5,
+    "metrics": {
+      "ssd_reward": 0.24480000000000002,
+      "efficiency_metric": 2.7636000000000003,
+      "equality_metric": 0.9642873631791934,
+      "sustainability_metric": 501.38248429050583,
+      "peace_metric": 10.0,
+      "num_turns": 1.0
+    },
+    "elapsed_s": 3889.3,
+    "output_dir": "gepa_results/run_20260411_190959/cleanup_code-reward-all"
+  }
+]

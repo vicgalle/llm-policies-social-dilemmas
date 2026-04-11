@@ -1,0 +1,109 @@
+You are an expert game-theoretic AI designing policies for a multi-agent Sequential Social Dilemma (the Cleanup game).
+
+## Task
+
+Write a policy that maximizes the **minimum per-agent reward** (Rawlsian welfare: maximize the worst-off agent's total return). All agents will run your exact same code simultaneously. There are 10 agents on a 18x25 map with ~103 apple spawns.
+
+## Environment Summary
+
+- 2D gridworld with two regions: a river area (left side) and an orchard (right side). A stream separates the two regions.
+- Agents collect apples in the orchard (+1 reward each).
+- Waste (pollution) accumulates in the river over time. If waste gets too high, apple spawning slows or stops.
+- Episode length: 1000 steps.
+- 9 actions: FORWARD(0), BACKWARD(1), STEP_LEFT(2), STEP_RIGHT(3), ROTATE_LEFT(4), ROTATE_RIGHT(5), BEAM(6), STAND(7), CLEAN(8)
+- BEAM: fires a penalty beam (range 5, width 3). Costs -1 reward to fire. Hit agents receive -50 reward penalty and are removed for 25 steps (1 hit to tag).
+- CLEAN: fires a cleaning beam (range 5, width 3). Costs -1 reward to fire. Removes waste cells in the beam's path, restoring clean river.
+- Agents move in 4 cardinal directions WITHOUT needing to rotate first (strafe movement). Rotation only matters for the beam/clean direction.
+
+## Environment API (available in your policy's namespace)
+
+```python
+# env attributes you can read:
+env.agent_pos        # np.array shape (n_agents, 2) — [row, col] per agent
+env.agent_orient     # np.array shape (n_agents,) — 0=N, 1=E, 2=S, 3=W
+env.agent_timeout    # np.array shape (n_agents,) — >0 means agent is removed
+env.agent_beam_hits  # np.array shape (n_agents,) — hits accumulated toward tag
+env.apple_alive      # np.array shape (n_apples,) bool — which apples exist
+env._apple_pos       # np.array shape (n_apples, 2) — [row, col] per apple spawn
+env.walls            # np.array shape (H, W) bool — wall map
+env.waste            # np.array shape (H, W) bool — True where waste exists
+env.river_cells_set  # set of (row, col) — all river cell positions
+env.stream_cells_set # set of (row, col) — stream cell positions
+env.height, env.width                  # map dimensions
+env.n_agents, env.n_apples             # counts
+env.beam_length, env.beam_width        # beam/clean parameters (5, 3)
+env.hits_to_tag, env.timeout_steps     # 1 hit to tag, 25 step timeout
+```
+
+## Helper functions available in your namespace
+
+```python
+from cleanup_env import CleanupAction, NUM_CLEANUP_ACTIONS
+from gathering_env import Orientation, _ROTATIONS
+
+# BFS to nearest alive apple. Returns (dr, dc) of first step, or None.
+bfs_nearest_apple(env, agent_id) -> Optional[Tuple[int,int]]
+
+# BFS to nearest position in a set. Returns (dr, dc) or None.
+bfs_to_target_set(env, agent_id, target_set) -> Optional[Tuple[int,int]]
+
+# BFS toward a specific (row, col). Returns (dr, dc) or None.
+bfs_toward(env, agent_id, target_r, target_c) -> Optional[Tuple[int,int]]
+
+# Convert world-frame (dr, dc) step to an Action given agent orientation.
+direction_to_action(dr, dc, orientation) -> int
+
+# Build the opponents list for _beam_targets_for_orient.
+get_opponents(env, agent_id) -> list
+
+# Check which opponents would be hit by beam from (ar, ac) facing orient_val.
+_beam_targets_for_orient(env, ar, ac, orient_val, opponents) -> list
+
+# Min rotations between two orientations (0-2).
+_rotation_distance(cur, target) -> int
+
+# Reference policy (BFS to nearest apple, never beams or cleans):
+greedy_action(env, agent_id) -> int
+
+# Also available: np (numpy), deque (from collections)
+```
+
+## Strategic Guidance & Domain Constraints
+
+To successfully maximize the minimum per-agent reward (Rawlsian welfare), you must perfectly equalize both the cleaning penalty and the apple-picking rewards among all 10 agents, while maintaining a clean river to ensure apples spawn. Because you lack persistent internal memory or reward-sharing mechanisms, you must rely on **Strict Spatial Partitioning**:
+
+1. **Partitioning the Environment**: You must sort all `env.river_cells_set` by row (then column) and divide them as evenly as possible into `n_agents` chunks (e.g., using `index * env.n_agents // total_cells == agent_id`). Do exactly the same for all `env._apple_pos`. Agent `agent_id` is exclusively responsible for its specific river chunk AND its specific orchard chunk. Since the map is roughly symmetric, sorting by row creates contiguous horizontal "bands" of responsibility.
+2. **Zero Redundancy & No Stealing**: An agent must ONLY clean waste that appears in its assigned river chunk, and ONLY pick apples that spawn in its assigned orchard chunk. Do NOT use the generic `bfs_nearest_apple` on the whole map. This completely eliminates redundant CLEAN penalties and perfectly equalizes apple rewards.
+3. **Efficient Clean Targeting**: When waste appears in an agent's assigned chunk at `(wr, wc)`, it should navigate to a valid firing position to the right of the waste, face West, and CLEAN. Because the beam length is 5, a valid firing position `(cr, cc)` is any non-wall cell where `wc + 1 <= cc <= wc + 5` and `wr - 1 <= cr <= wr + 1`. 
+   - **CRITICAL FIX**: Do NOT restrict valid firing positions to exclude the river. Waste can spawn at the far-left edge of the river (e.g., `wc = 0`). Because the beam length is 5, cleaning `wc = 0` REQUIRES standing at columns 1 through 5, which are INSIDE the river. If you exclude river cells from valid firing positions, far-left waste becomes permanently unreachable, stopping all apple spawns and ruining the score.
+4. **Behavior Loop**:
+   - Compute the agent's assigned river cells and assigned apple spawn cells. *(Tip: `env._apple_pos` and `env.apple_alive` are parallel arrays. When sorting `env._apple_pos`, keep track of the original indices to accurately query `env.apple_alive[original_index]`)*.
+   - If waste exists in the assigned river cells, find the set of ALL valid firing positions for ALL such waste. Move toward the closest valid firing position using `bfs_to_target_set`. 
+   - At any point, if you are mathematically within firing range and alignment of ANY assigned waste (facing West, distance 1 to 5 cells right of the waste, within 1 row), fire CLEAN immediately. If you are on a valid firing position but facing the wrong way, ROTATE to face West.
+   - If the assigned river chunk is clean, look for alive apples strictly within the assigned apple chunk. If found, use `bfs_to_target_set` to move and collect them.
+   - **Standby Setup**: If the assigned river chunk is clean AND no assigned apples are alive, move to a standby location strictly **IN THE ORCHARD** (e.g., at the average row and average column of the agent's assigned apple spawns). **Do NOT standby in the stream.** 10 agents standing in the stream will create a vertical wall that blocks pathing for everyone.
+5. **Movement and Strafe**: Use `direction_to_action` combined with BFS step outputs to strafe towards targets without wasting steps rotating. Rotation should exclusively be used when setting up to fire a CLEAN beam. Never use the BEAM action.
+
+## Your task
+
+Write a Python function called `policy` with this exact signature:
+
+```python
+def policy(env, agent_id) -> int:
+    """Return an action (int 0-8) for the given agent."""
+    ...
+```
+
+The function must:
+1. Return an integer 0-8 (a CleanupAction value).
+2. Be deterministic given the environment state.
+3. Only use the env attributes and helper functions listed above.
+4. Not import any modules (numpy and deque are pre-loaded).
+5. Not use eval(), exec(), open(), or __import__.
+
+IMPORTANT:
+- Always check `if result is None` before unpacking BFS results (dr, dc = result).
+- Always cast env arrays to int when comparing: `int(env.agent_timeout[agent_id])`.
+- Always return a plain int (0-8), never a tuple or None.
+- Put your code in a single ```python ... ``` block.
+- Before the code block, explain your reasoning and how your strategy enforces strict spatial partitioning to perfectly balance the minimum reward without needing communication memory.

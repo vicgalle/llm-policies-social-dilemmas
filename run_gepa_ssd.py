@@ -142,9 +142,10 @@ def run_gepa_for_config(
         metric=metric,
     )
 
-    # GEPA budget: 1 initial valset eval + 1 call per reflection iteration,
-    # matching llm_self_play's 1 LLM call per iteration.
-    max_metric_calls = 1 + max_iterations
+    # GEPA budget: each reflection iteration costs ~3 metric calls
+    # (eval selected on subsample + eval new on subsample + eval on valset),
+    # plus 1 initial valset eval of the seed candidate.
+    max_metric_calls = 1 + max_iterations * 3
     minibatch_size = 1   # single task per env
     num_train = 1
     num_val = 1
