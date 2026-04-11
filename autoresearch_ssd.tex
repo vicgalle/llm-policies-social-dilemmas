@@ -316,7 +316,7 @@ For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $
 Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}. We additionally test with Gemma 4 26B-A4B-IT (Google), a smaller open-weight model, to probe the framework's behavior when the policy synthesizer has substantially lower capability (Appendix~\ref{app:gemma}).
 
 \paragraph{Baselines.}
-The hand-designed dense feedback (reward + social metrics) configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93{\pm}0.73$ with Gemini and $U{=}0.86{\pm}0.62$ with Sonnet (mean $\pm$ s.d.\ across 4 runs each).
+The hand-designed dense feedback (reward + social metrics) configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93{\pm}0.73$ with Gemini and $U{=}0.86{\pm}0.62$ with Sonnet (mean $\pm$ s.d.\ across 4 runs each). We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \ell, \phi, \mathcal{H}, \iota, v)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method (each GEPA step costs ${\sim}3$ policy evaluations, comparable to our inner loop's $K{+}1{=}4$).
 
 \paragraph{Inner loop parameters.}
 $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated over $|S|{=}5$--$12$ random seeds (researcher-configurable). The researcher ran $J{=}3$--$17$ outer iterations per run (mean: 8.3), with a keep rate of 18\%--100\% (mean: 63\%).
@@ -326,7 +326,7 @@ $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated ov
 Table~\ref{tab:results} presents the main results, showing the best configuration achieved by the researcher in each condition, compared against the hand-designed baseline of~\cite{gallego2026}.
 
 \begin{table}[t]
-\caption{Autoresearch results. Mean $\pm$ s.d.\ across runs per condition (2 runs for autoresearch, 4 for Cleanup baselines, 2 for Gathering baselines). Baseline: unmodified pipeline with dense feedback from~\cite{gallego2026}.}
+\caption{Results. Mean $\pm$ s.d.\ across runs per condition (2 runs for autoresearch, 4 for Cleanup baselines, 2 for Gathering baselines, 1 for GEPA). Baseline: unmodified pipeline with dense feedback from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
 \label{tab:results}
 \centering
 \footnotesize
@@ -337,6 +337,11 @@ Policy LLM & Target & $U$ & $E$ & $\min_i R_i$ \\
 \multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- Baseline}} \\
 Gemini 3.1 Pro & --- & 1.93{\scriptsize$\pm$0.73} & 0.17{\scriptsize$\pm$0.52} & $-$159{\scriptsize$\pm$78} \\
 Sonnet 4.6 & --- & 0.86{\scriptsize$\pm$0.62} & $-$0.02{\scriptsize$\pm$0.36} & $-$151{\scriptsize$\pm$73} \\
+\addlinespace
+\multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- GEPA~\cite{agrawal2026}}} \\
+\multirow{2}{*}{Gemini 3.1 Pro}
+  & $\Phi_U$ & 1.04 & $-$0.65 & --- \\
+  & $\Phi_{\min}$ & 2.76 & 0.96 & 245 \\
 \addlinespace
 \multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- Autoresearch}} \\
 \multirow{2}{*}{Gemini 3.1 Pro}
@@ -351,6 +356,9 @@ Sonnet 4.6 & --- & 0.86{\scriptsize$\pm$0.62} & $-$0.02{\scriptsize$\pm$0.36} & 
 Gemini 3.1 Pro & --- & 2.04{\scriptsize$\pm$0.54} & 0.90{\scriptsize$\pm$0.11} & 412{\scriptsize$\pm$224} \\
 Sonnet 4.6 & --- & 0.03{\scriptsize$\pm$0.00} & 0.54{\scriptsize$\pm$0.00} & 0{\scriptsize$\pm$0} \\
 \addlinespace
+\multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- GEPA~\cite{agrawal2026}}} \\
+Gemini 3.1 Pro & $\Phi_U$ & 1.82 & 0.92 & --- \\
+\addlinespace
 \multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- Autoresearch}} \\
 Gemini 3.1 Pro & $\Phi_U$ & 2.49{\scriptsize$\pm$0.02} & 0.98{\scriptsize$\pm$0.00} & 582{\scriptsize$\pm$1} \\
 Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize$\pm$0.01} & 0.96{\scriptsize$\pm$0.02} & 576{\scriptsize$\pm$20} \\
@@ -358,8 +366,10 @@ Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize$\pm$0.01} & 0.96{\scriptsize$\pm$0.02} 
 \end{tabular}
 \end{table}
 
-\paragraph{Finding 1: The researcher reliably improves over hand-designed baselines.}
+\paragraph{Finding 1: The researcher reliably improves over hand-designed baselines and outperforms prompt-only optimization.}
 All 12 runs show substantial improvement regardless of starting point (Figure~\ref{fig:efficiency}). In Cleanup, the researcher exceeds the unmodified pipeline baseline by 66\% with Gemini ($U$: $1.93 \to 3.20$) and 263\% with Sonnet ($U$: $0.86 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($0.86$ vs.\ $1.93$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM. Beyond improving the mean, the researcher also dramatically reduces variance: in Cleanup, Gemini's s.d.\ drops from $0.73$ to $0.05$ ($14\times$ reduction) and Sonnet's from $0.62$ to $0.02$ ($31\times$) under efficiency optimization. In Gathering, Gemini's s.d.\ drops from $0.54$ to $0.02$. The researcher discovers pipeline modifications---structured helpers, strategic hints, tailored feedback---that constrain the policy LLM toward consistently good solutions, reducing dependence on inner-loop stochasticity.
+
+Compared to GEPA (Table~\ref{tab:results}), autoresearch achieves $3{\times}$ higher efficiency under $\Phi_U$ in Cleanup ($U{=}3.20$ vs.\ $1.04$), $18\%$ higher maximin under $\Phi_{\min}$ ($290$ vs.\ $245$), and $37\%$ higher efficiency in Gathering ($U{=}2.49$ vs.\ $1.82$). GEPA's Cleanup efficiency run failed to improve over its seed prompt despite 7 reflection iterations: the high variance in policy evaluation ($U$ ranging from $0.5$ to $3.1$ for the \emph{same} prompt) makes prompt-level comparison unreliable. This highlights the advantage of modifying the full pipeline---helpers, feedback, and iteration logic provide structured scaffolding that reduces the policy LLM's output variance, whereas prompt-only optimization cannot address the underlying stochasticity of code generation.
 
 \begin{figure*}[t]
 \centering
@@ -418,7 +428,7 @@ Our results empirically support the mechanism design interpretation of Section~3
 The Cleanup--Gathering contrast reveals a structural insight about social dilemmas: \emph{provision} dilemmas (asymmetric costs, one agent's contribution benefits all) require explicit fairness mechanisms, while \emph{restraint} dilemmas (symmetric costs, each agent faces the same temptation) achieve fairness naturally when coordination improves. This distinction, well-known in the common-pool resource literature, is rediscovered here by an autonomous AI agent---suggesting it is a robust structural feature of these environments.
 
 \paragraph{Limitations.}
-Our experiments use only 2 replications per condition, yielding high uncertainty on some estimates (e.g., Sonnet maximin: $U{=}2.57 \pm 0.36$). The two SSDs are small gridworld environments; scaling to larger, more complex games remains open. The researcher runs are not fully controlled---the number of outer iterations varies from 3 to 17 (mean 8.3)---making direct comparison across conditions approximate. We do not compare against automated prompt optimization baselines such as GEPA~\cite{agrawal2026}, which optimizes the system prompt rather than the full pipeline; this comparison is an important direction.
+Our experiments use only 2 replications per condition, yielding high uncertainty on some estimates (e.g., Sonnet maximin: $U{=}2.57 \pm 0.36$). The two SSDs are small gridworld environments; scaling to larger, more complex games remains open. The researcher runs are not fully controlled---the number of outer iterations varies from 3 to 17 (mean 8.3)---making direct comparison across conditions approximate. The GEPA comparison uses a single run per condition; additional replications would strengthen confidence in the comparison.
 
 \paragraph{Future work.}
 Five directions emerge: (1)~\emph{new domains}---apply the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; (2)~\emph{ablation}---freeze all configuration components except one to isolate the relative importance of prompt, feedback, helpers, and iteration logic; (3)~\emph{adversarial objectives}---set $\Phi = R_0$ (agent~0's reward only) to test whether the researcher discovers exploitative pipeline configurations, connecting to the reward hacking analysis of~\cite{gallego2026}; (4)~\emph{cross-game transfer}---run the best Cleanup configuration on Gathering and vice versa, testing game-generality; (5)~\emph{heterogeneous policies}---extend to settings where agents run different code, enabling richer role specialization. Code is available at \url{https://github.com/vicgalle/llm-policies-social-dilemmas}.

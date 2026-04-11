@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEPA Candidate Tree</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; width: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; display: flex; flex-direction: column; }
+  #header { background: #fff; border-bottom: 1px solid #dee2e6; padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+  #header h1 { font-size: 18px; font-weight: 600; color: #212529; }
+  .legend { display: flex; gap: 14px; font-size: 13px; color: #495057; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #adb5bd; }
+  #graph-container { flex: 1 1 auto; width: 100%; overflow: auto; padding: 20px; text-align: center; }
+  #graph-container svg { width: 100%; height: 100%; }
+  #tooltip {
+    display: none; position: fixed; background: #fff; border: 1px solid #dee2e6;
+    border-radius: 8px; padding: 14px 16px; max-width: 560px; max-height: 70vh; overflow-y: auto;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18); z-index: 1000; font-size: 13px; line-height: 1.5;
+  }
+  #tooltip .tt-header { font-weight: 700; font-size: 15px; margin-bottom: 6px; color: #212529; }
+  #tooltip .tt-meta { color: #6c757d; margin-bottom: 4px; }
+  #tooltip .tt-hint { color: #adb5bd; font-size: 11px; font-style: italic; margin-bottom: 10px; }
+  #tooltip .tt-comp-name { font-weight: 600; color: #495057; margin-top: 10px; border-bottom: 1px solid #e9ecef; padding-bottom: 2px; }
+  #tooltip .tt-comp-text {
+    white-space: pre-wrap; word-break: break-word; background: #f8f9fa;
+    border: 1px solid #e9ecef; border-radius: 4px; padding: 8px 10px; margin-top: 4px;
+    font-family: "SF Mono", SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px;
+    max-height: 200px; overflow-y: auto;
+  }
+  .role-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+  .role-best { background: #00e5ff33; color: #006064; }
+  .role-pareto { background: #ff980033; color: #e65100; }
+  .role-seed { background: #e0e0e0; color: #424242; }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>GEPA Candidate Tree</h1>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:cyan"></div> Best</div>
+    <div class="legend-item"><div class="legend-dot" style="background:orange"></div> Pareto Front</div>
+    <div class="legend-item"><div class="legend-dot" style="background:lightgray"></div> Other</div>
+  </div>
+</div>
+<div id="graph-container"><p>Loading graph&hellip;</p></div>
+<div id="tooltip"></div>
+
+<script type="module">
+const NODES = [{"idx": 0, "score": -0.0322, "parents": "seed", "role": "Seed", "components": {"system_prompt": "You are an expert game-theoretic AI designing policies for a multi-agent\nSequential Social Dilemma (the Cleanup game).\n\n## Environment Summary\n\n- 2D gridworld with two regions: a river area (left side) and an orchard\n  (right side). A stream separates the two regions.\n- Agents collect apples in the orchard (+1 reward each).\n- Waste (pollution) accumulates in the river over time.\n- Episode length: 1000 steps.\n- 9 actions: FORWARD(0), BACKWARD(1), STEP_LEFT(2), STEP_RIGHT(3),\n  ROTATE_LEFT(4), ROTATE_RIGHT(5), BEAM(6), STAND(7), CLEAN(8)\n- BEAM: fires a penalty beam (range 5, width 3). Costs -1 reward to fire.\n  Hit agents receive -50 reward penalty and are removed for 25 steps\n  (1 hit to tag).\n- CLEAN: fires a cleaning beam (range 5, width 3). Costs -1 reward to fire.\n  Removes waste cells in the beam's path, restoring clean river.\n- Agents move in 4 cardinal directions WITHOUT needing to rotate first\n  (strafe movement). Rotation only matters for the beam/clean direction.\n\n## Environment API (available in your policy's namespace)\n\n```python\n# env attributes you can read:\nenv.agent_pos        # np.array shape (n_agents, 2) \u2014 [row, col] per agent\nenv.agent_orient     # np.array shape (n_agents,) \u2014 0=N, 1=E, 2=S, 3=W\nenv.agent_timeout    # np.array shape (n_agents,) \u2014 >0 means agent is removed\nenv.agent_beam_hits  # np.array shape (n_agents,) \u2014 hits accumulated toward tag\nenv.apple_alive      # np.array shape (n_apples,) bool \u2014 which apples exist\nenv._apple_pos       # np.array shape (n_apples, 2) \u2014 [row, col] per apple spawn\nenv.walls            # np.array shape (H, W) bool \u2014 wall map\nenv.waste            # np.array shape (H, W) bool \u2014 True where waste exists\nenv.river_cells_set  # set of (row, col) \u2014 all river cell positions\nenv.stream_cells_set # set of (row, col) \u2014 stream cell positions\nenv.height, env.width                  # map dimensions\nenv.n_agents, env.n_apples             # counts\nenv.beam_length, env.beam_width        # beam/clean parameters (5, 3)\nenv.hits_to_tag, env.timeout_steps     # 1 hit to tag, 25 step timeout\n```\n\n## Helper functions available in your namespace\n\n```python\nfrom cleanup_env import CleanupAction, NUM_CLEANUP_ACTIONS\nfrom gathering_env import Orientation, _ROTATIONS\n\n# BFS to nearest alive apple. Returns (dr, dc) of first step, or None.\nbfs_nearest_apple(env, agent_id) -> Optional[Tuple[int,int]]\n\n# BFS to nearest position in a set. Returns (dr, dc) or None.\nbfs_to_target_set(env, agent_id, target_set) -> Optional[Tuple[int,int]]\n\n# BFS toward a specific (row, col). Returns (dr, dc) or None.\nbfs_toward(env, agent_id, target_r, target_c) -> Optional[Tuple[int,int]]\n\n# Convert world-frame (dr, dc) step to an Action given agent orientation.\ndirection_to_action(dr, dc, orientation) -> int\n\n# Build the opponents list for _beam_targets_for_orient.\nget_opponents(env, agent_id) -> list\n\n# Check which opponents would be hit by beam from (ar, ac) facing orient_val.\n_beam_targets_for_orient(env, ar, ac, orient_val, opponents) -> list\n\n# Min rotations between two orientations (0-2).\n_rotation_distance(cur, target) -> int\n\n# Reference policy (BFS to nearest apple, never beams or cleans):\ngreedy_action(env, agent_id) -> int\n\n# Also available: np (numpy), deque (from collections)\n```\n\n## Your task\n\nWrite a Python function called `policy` with this exact signature:\n\n```python\ndef policy(env, agent_id) -> int:\n    \"\"\"Return an action (int 0-8) for the given agent.\"\"\"\n    ...\n```\n\nThe function must:\n1. Return an integer 0-8 (a CleanupAction value)\n2. Be deterministic given the environment state\n3. Only use the env attributes and helper functions listed above\n4. Not import any modules (numpy and deque are pre-loaded)\n5. Not use eval(), exec(), open(), or __import__\n\n## Working Example (seed BFS policy)\n\nThis is a minimal working policy. Use it as a template for the structure and\nreturn type. Note how bfs_nearest_apple returns Optional[Tuple[int,int]] \u2014\nyou MUST handle the None case.\n\n```python\ndef policy(env, agent_id) -> int:\n    \"\"\"BFS greedy: go to nearest apple, never beam or clean.\"\"\"\n    if int(env.agent_timeout[agent_id]) > 0:\n        return 7  # STAND while removed\n    result = bfs_nearest_apple(env, agent_id)\n    if result is None:\n        return 7  # No reachable apple \u2014 stand\n    dr, dc = result\n    return direction_to_action(dr, dc, int(env.agent_orient[agent_id]))\n```\n\nIMPORTANT:\n- Always check `if result is None` before unpacking BFS results (dr, dc = result).\n- Always cast env arrays to int when comparing: `int(env.agent_timeout[agent_id])`.\n- Always return a plain int (0-8), never a tuple or None.\n- Put your code in a single ```python ... ``` block.\n- Before the code block, explain your reasoning for the policy design.\n"}},
+{"idx": 1, "score": 0.1068, "parents": "0", "role": "Best", "components": {"system_prompt": "You are an expert game-theoretic AI designing policies for a multi-agent\nSequential Social Dilemma (the Cleanup game).\n\n## Environment Summary\n\n- 2D gridworld with two regions: a river area (left side) and an orchard\n  (right side). A stream separates the two regions.\n- Agents collect apples in the orchard (+1 reward each).\n- Waste (pollution) accumulates in the river over time. High waste blocks apple spawning.\n- Episode length: 1000 steps.\n- 9 actions: FORWARD(0), BACKWARD(1), STEP_LEFT(2), STEP_RIGHT(3),\n  ROTATE_LEFT(4), ROTATE_RIGHT(5), BEAM(6), STAND(7), CLEAN(8)\n- BEAM: fires a penalty beam (range 5, width 3). Costs -1 reward to fire.\n  Hit agents receive -50 reward penalty and are removed for 25 steps\n  (1 hit to tag).\n- CLEAN: fires a cleaning beam (range 5, width 3). Costs -1 reward to fire.\n  Removes waste cells in the beam's path, restoring clean river.\n- Agents move in 4 cardinal directions WITHOUT needing to rotate first\n  (strafe movement). Rotation only matters for the beam/clean direction.\n\n## Objective\n\nYour task is to write a policy that maximizes the minimum per-agent reward (Rawlsian welfare: maximize the worst-off agent's total return). There are 10 agents on a 18x25 map with ~103 apple spawns. All agents will run your exact same code simultaneously.\n\n## Domain-Specific Strategies & Factual Information\n\nTo achieve high Rawlsian welfare, you must address the free-rider problem while preventing score penalties from poor coordination:\n1. **Dynamic Roles via Synchronized Herding**: Static roles (some agents only clean, others only gather) result in negative scores for the cleaners, which ruins the minimum per-agent reward. Since the policy must be stateless, you can use \"Synchronized Herding\" utilizing physical hysteresis. For example, compute the agents' center of mass (`avg_col`). If waste is moderately high (e.g., > 10), switch to CLEAN mode; if waste is low (e.g., < 2), switch to GATHER mode. For values in between, use `avg_col` as your state tracker (e.g. if `avg_col < 13`, maintain CLEAN; else maintain GATHER). \n2. **Preventing Redundant Cleaning Penalties (Crucial)**: Firing CLEAN costs -1. The beam covers a 5x3 area. If multiple agents simultaneously fire at the same waste, they ALL pay the -1 penalty but the waste is only cleared once, heavily damaging their scores. You must rigorously divide the river into disjoint cleaning targets or zones using `agent_id` (e.g., `agent_id % n_agents`) and ONLY fire the CLEAN beam if the cleared waste falls strictly within the agent's assigned purview. Ensure the firing logic accounts for the 5x3 shape.\n3. **Preventing Apple Racing**: Similarly, multiple agents simultaneously pathing to the exact same nearest apple leads to wasted steps and clustering. Divide the orchard by assigning unique gathering zones or specifically filtering targeted apples based on `agent_id`.\n4. **Waste Blocks Spawning**: Do not wait for waste to get excessively high (e.g., > 20) before switching to CLEAN mode, or apple spawning will stall completely and agents will starve of points.\n5. **Precise Firing Logic**: Before returning the CLEAN action (8), accurately simulate the 5x3 beam area for the agent's current position and orientation to verify that *valid, assigned* waste will be effectively cleared.\n\n## Environment API (available in your policy's namespace)\n\n```python\n# env attributes you can read:\nenv.agent_pos        # np.array shape (n_agents, 2) \u2014 [row, col] per agent\nenv.agent_orient     # np.array shape (n_agents,) \u2014 0=N, 1=E, 2=S, 3=W\nenv.agent_timeout    # np.array shape (n_agents,) \u2014 >0 means agent is removed\nenv.agent_beam_hits  # np.array shape (n_agents,) \u2014 hits accumulated toward tag\nenv.apple_alive      # np.array shape (n_apples,) bool \u2014 which apples exist\nenv._apple_pos       # np.array shape (n_apples, 2) \u2014 [row, col] per apple spawn\nenv.walls            # np.array shape (H, W) bool \u2014 wall map\nenv.waste            # np.array shape (H, W) bool \u2014 True where waste exists\nenv.river_cells_set  # set of (row, col) \u2014 all river cell positions\nenv.stream_cells_set # set of (row, col) \u2014 stream cell positions\nenv.height, env.width                  # map dimensions\nenv.n_agents, env.n_apples             # counts\nenv.beam_length, env.beam_width        # beam/clean parameters (5, 3)\nenv.hits_to_tag, env.timeout_steps     # 1 hit to tag, 25 step timeout\n```\n\n## Helper functions available in your namespace\n\n```python\nfrom cleanup_env import CleanupAction, NUM_CLEANUP_ACTIONS\nfrom gathering_env import Orientation, _ROTATIONS\n\n# BFS to nearest alive apple. Returns (dr, dc) of first step, or None.\nbfs_nearest_apple(env, agent_id) -> Optional[Tuple[int,int]]\n\n# BFS to nearest position in a set. Returns (dr, dc) or None.\nbfs_to_target_set(env, agent_id, target_set) -> Optional[Tuple[int,int]]\n\n# BFS toward a specific (row, col). Returns (dr, dc) or None.\nbfs_toward(env, agent_id, target_r, target_c) -> Optional[Tuple[int,int]]\n\n# Convert world-frame (dr, dc) step to an Action given agent orientation.\ndirection_to_action(dr, dc, orientation) -> int\n\n# Build the opponents list for _beam_targets_for_orient.\nget_opponents(env, agent_id) -> list\n\n# Check which opponents would be hit by beam from (ar, ac) facing orient_val.\n_beam_targets_for_orient(env, ar, ac, orient_val, opponents) -> list\n\n# Min rotations between two orientations (0-2).\n_rotation_distance(cur, target) -> int\n\n# Reference policy (BFS to nearest apple, never beams or cleans):\ngreedy_action(env, agent_id) -> int\n\n# Also available: np (numpy), deque (from collections)\n```\n\n## Your task\n\nWrite a Python function called `policy` with this exact signature:\n\n```python\ndef policy(env, agent_id) -> int:\n    \"\"\"Return an action (int 0-8) for the given agent.\"\"\"\n    ...\n```\n\nThe function must:\n1. Return an integer 0-8 (a CleanupAction value)\n2. Be deterministic given the environment state\n3. Only use the env attributes and helper functions listed above\n4. Not import any modules (numpy and deque are pre-loaded)\n5. Not use eval(), exec(), open(), or __import__\n\n## Working Example (seed BFS policy)\n\nThis is a minimal working policy. Use it as a template for the structure and return type. Note how bfs_nearest_apple returns Optional[Tuple[int,int]] \u2014 you MUST handle the None case.\n\n```python\ndef policy(env, agent_id) -> int:\n    \"\"\"BFS greedy: go to nearest apple, never beam or clean.\"\"\"\n    if int(env.agent_timeout[agent_id]) > 0:\n        return 7  # STAND while removed\n    result = bfs_nearest_apple(env, agent_id)\n    if result is None:\n        return 7  # No reachable apple \u2014 stand\n    dr, dc = result\n    return direction_to_action(dr, dc, int(env.agent_orient[agent_id]))\n```\n\nIMPORTANT:\n- Always check `if result is None` before unpacking BFS results (dr, dc = result).\n- Always cast env arrays to int when comparing: `int(env.agent_timeout[agent_id])`.\n- Always return a plain int (0-8), never a tuple or None.\n- Put your code in a single ```python ... ``` block.\n- Before the code block, explain your reasoning for the policy design."}}];
+const DOT = `digraph G {
+    rankdir=TB;
+    node [style=filled, shape=circle, fontsize=14, width=0.6, height=0.6];
+    0 [label="0\\n(-0.03)", fillcolor=lightgray, tooltip=" "];
+    1 [label="1\\n(0.11)", fillcolor=cyan, tooltip=" "];
+    0 -> 1;
+}`;
+
+const nodeMap = {};
+NODES.forEach(n => { nodeMap[n.idx] = n; });
+
+let pinnedIdx = null;   // non-null when tooltip is click-pinned (scrollable)
+let hoverIdx = null;    // non-null when hovering over a node
+
+function renderTooltip(idx) {
+  const n = nodeMap[idx];
+  if (!n) return "";
+  let roleBadge = "";
+  if (n.role === "Best") roleBadge = '<span class="role-badge role-best">BEST</span>';
+  else if (n.role === "Pareto Front") roleBadge = '<span class="role-badge role-pareto">PARETO</span>';
+  else if (n.role === "Seed") roleBadge = '<span class="role-badge role-seed">SEED</span>';
+
+  let comps = "";
+  for (const [name, text] of Object.entries(n.components)) {
+    const escaped = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    comps += '<div class="tt-comp-name">' + name + '</div><div class="tt-comp-text">' + escaped + '</div>';
+  }
+
+  return '<div class="tt-header">Candidate ' + n.idx + roleBadge + '</div>' +
+    '<div class="tt-meta">Score: <strong>' + n.score + '</strong>&nbsp;&nbsp;|&nbsp;&nbsp;Parent(s): ' + n.parents +
+    '</div><div class="tt-hint">' + (pinnedIdx === idx ? 'Click node again to dismiss' : 'Click to pin &amp; scroll') + '</div>' +
+    comps;
+}
+
+function positionTooltip(x, y) {
+  const tt = document.getElementById("tooltip");
+  let tx = x + 16, ty = y + 16;
+  const r = tt.getBoundingClientRect();
+  if (tx + r.width > window.innerWidth - 8) tx = x - r.width - 16;
+  if (ty + r.height > window.innerHeight - 8) ty = y - r.height - 16;
+  if (tx < 8) tx = 8;
+  if (ty < 8) ty = 8;
+  tt.style.left = tx + "px";
+  tt.style.top = ty + "px";
+}
+
+function showTooltip(idx, x, y) {
+  const tt = document.getElementById("tooltip");
+  tt.innerHTML = renderTooltip(idx);
+  tt.style.display = "block";
+  positionTooltip(x, y);
+}
+
+function hideTooltip() {
+  pinnedIdx = null;
+  hoverIdx = null;
+  document.getElementById("tooltip").style.display = "none";
+}
+
+// Click outside tooltip and outside nodes dismisses pinned tooltip
+document.addEventListener("mousedown", function(e) {
+  const tt = document.getElementById("tooltip");
+  if (pinnedIdx !== null && tt.style.display === "block"
+      && !tt.contains(e.target) && !e.target.closest(".node")) {
+    hideTooltip();
+  }
+});
+
+async function render() {
+  const { instance } = await import("https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/lib/viz-standalone.mjs");
+  const viz = await instance();
+  const svg = viz.renderSVGElement(DOT);
+  const container = document.getElementById("graph-container");
+  container.innerHTML = "";
+  container.appendChild(svg);
+
+  // Attach hover listeners and strip native <title> tooltips to avoid double tooltips
+  svg.querySelectorAll(".node").forEach(node => {
+    const title = node.querySelector("title");
+    if (!title) return;
+    const idx = parseInt(title.textContent, 10);
+    if (isNaN(idx)) return;
+    title.remove();  // remove native SVG tooltip
+    node.style.cursor = "pointer";
+    // Hover: show tooltip following the mouse (non-interactive)
+    node.addEventListener("mouseenter", e => {
+      if (pinnedIdx !== null) return;  // don't override a pinned tooltip
+      hoverIdx = idx;
+      showTooltip(idx, e.clientX, e.clientY);
+    });
+    node.addEventListener("mousemove", e => {
+      if (pinnedIdx !== null || hoverIdx !== idx) return;
+      positionTooltip(e.clientX, e.clientY);
+    });
+    node.addEventListener("mouseleave", () => {
+      if (pinnedIdx !== null) return;
+      hoverIdx = null;
+      document.getElementById("tooltip").style.display = "none";
+    });
+    // Click: pin the tooltip so user can scroll it
+    node.addEventListener("click", e => {
+      e.stopPropagation();
+      if (pinnedIdx === idx) { hideTooltip(); return; }
+      pinnedIdx = idx;
+      showTooltip(idx, e.clientX, e.clientY);
+    });
+  });
+  // Also strip <title> from edges and the graph itself
+  svg.querySelectorAll(".edge title").forEach(t => t.remove());
+  const graphTitle = svg.querySelector(":scope > title");
+  if (graphTitle) graphTitle.remove();
+}
+
+render().catch(err => {
+  document.getElementById("graph-container").innerHTML =
+    "<p style='color:red'>Failed to render graph: " + err.message + "</p>" +
+    "<pre>" + DOT.replace(/</g,"&lt;") + "</pre>";
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+[
+  {
+    "game": "gathering",
+    "model": "gemini-3.1-pro-preview",
+    "metric": "efficiency",
+    "best_score": 0.4557,
+    "num_candidates": 3,
+    "metrics": {
+      "ssd_reward": 0.4557,
+      "efficiency_metric": 1.8228000000000002,
+      "equality_metric": 0.9230457402385926,
+      "sustainability_metric": 497.88215876171296,
+      "peace_metric": 4.0,
+      "num_turns": 1.0
+    },
+    "elapsed_s": 904.3,
+    "output_dir": "gepa_results/run_20260411_230044/gathering_code-reward-all"
+  }
+]
