@@ -308,7 +308,7 @@ We conduct 12 autonomous researcher runs across a factorial design. The research
 For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $=$ 8 runs. For Gathering: $2$ policy LLMs $\times$ $1$ objective $\times$ $2$ replications $=$ 4 runs. Maximin runs are unnecessary for Gathering because efficiency optimization alone achieves equality $E > 0.94$ (the game's symmetric cost structure makes fairness a free byproduct of coordination).
 
 \paragraph{Models.}
-Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}.
+Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}. We additionally test with Gemma 4 26B-A4B-IT (Google), a smaller open-weight model, to probe the framework's behavior when the policy synthesizer has substantially lower capability (Appendix~\ref{app:gemma}).
 
 \paragraph{Baselines.}
 The hand-designed dense feedback (reward + social metrics) configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93{\pm}0.73$ with Gemini and $U{=}0.86{\pm}0.62$ with Sonnet (mean $\pm$ s.d.\ across 4 runs each).
@@ -479,5 +479,44 @@ In \emph{Proc.\ 16th Conference on Autonomous Agents and MultiAgent Systems}. 46
 \caption{Final metrics across all conditions. (a)~Efficiency: all conditions converge to $U \approx 2.5$--$3.2$. (b)~Equality: maximin-optimized Cleanup runs achieve $E \approx 1.0$, while efficiency-optimized runs show $E \approx 0.5$--$0.7$; Gathering achieves high equality regardless. (c)~Maximin: the sharpest contrast---efficiency optimization leaves the worst-off agent deeply negative ($\min_i R_i \approx {-}200$), while maximin optimization transforms it to $+290$ (Gemini) or $+179$ (Sonnet). Gathering achieves high maximin (${\sim}580$) under efficiency optimization alone. Error bars show s.d.\ across runs.}
 \label{fig:eff_eq}
 \end{figure}
+
+\section{Smaller Open-Weight Model: Gemma 4 26B}
+\label{app:gemma}
+
+We test the framework with Gemma 4 26B-A4B-IT (Google), a 26B-parameter open-weight model substantially smaller than the frontier models in the main experiments. We run three experiments---two on Cleanup ($N{=}10$) optimizing efficiency and maximin respectively, and one on Gathering ($N{=}4$) optimizing efficiency---all with Opus 4.6 as the researcher $\cR$.
+
+\paragraph{Setup.} In all three experiments, Gemma starts from complete failure: the baseline pipeline produces $U{=}{-}10.0$ on Cleanup (agents CLEAN-spam without collecting apples) and $U{=}0.0$ on Gathering (broken BFS calls), compared to $U{=}1.93$/$0.86$ (Gemini/Sonnet on Cleanup) and $U{=}2.04$/$0.03$ (Gemini/Sonnet on Gathering). The researcher ran $J{=}10$--$18$ outer iterations per condition.
+
+\paragraph{Results.} Table~\ref{tab:gemma} presents the best configurations discovered. Under efficiency optimization, the researcher achieves $U{=}0.87$---a dramatic recovery from the broken baseline but far below frontier models ($U{\approx}3.2$). The researcher compensates for the model's limited capability by reducing inner-loop iterations to $K{=}1$ (avoiding the regression that plagued $K{\geq}2$ runs) and providing highly structured worked examples with explicit cleaning-role assignment.
+
+\begin{table}[h]
+\caption{Autoresearch with Gemma 4 26B-A4B-IT. Single run per condition. Baseline: dense feedback pipeline from~\cite{gallego2026}.}
+\label{tab:gemma}
+\centering
+\small
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Game & Target & $U$ & $E$ & $\min_i R_i$ & Keep rate \\
+\midrule
+\multirow{3}{*}{\rotatebox[origin=c]{0}{\scriptsize Cleanup}}
+& Baseline & $-$10.0 & 1.00\textsuperscript{$\dagger$} & $-$1000 & --- \\
+& $\Phi_U$ & 0.87 & $-$1.11 & $-$371 & 6/19 \\
+& $\Phi_{\min}$ & \textbf{1.71} & \textbf{0.94} & \textbf{137} & 9/17 \\
+\addlinespace
+\multirow{2}{*}{\rotatebox[origin=c]{0}{\scriptsize Gathering}}
+& Baseline & 0.0 & 1.00\textsuperscript{$\dagger$} & 0 & --- \\
+& $\Phi_U$ & \textbf{2.44} & \textbf{0.98} & \textbf{580} & 4/11 \\
+\bottomrule
+\multicolumn{6}{@{}l}{\textsuperscript{$\dagger$}\scriptsize Equality is trivially 1.0 because all agents receive near-zero reward.}
+\end{tabular}
+\end{table}
+
+\paragraph{Maximin optimization rescues efficiency.}
+Strikingly, under maximin optimization the researcher achieves \emph{higher} efficiency ($U{=}1.71$) than under direct efficiency optimization ($U{=}0.87$), alongside strong equality ($E{=}0.94$) and positive worst-off welfare ($\min_i R_i{=}137$). This reversal---absent in frontier models, where both objectives yield $U{\approx}3.1$--$3.2$---occurs because the maximin objective forces the researcher toward coordination mechanisms (rotating cleaning duties, index-based apple assignment) that simultaneously improve collective output. Under efficiency-only optimization, the researcher converges on a local optimum---static role assignment with 25\% dedicated cleaners---that a 26B model can implement but that caps performance well below the frontier.
+
+This suggests that \emph{for models below a capability threshold, fairness objectives may serve as better optimization targets for overall social welfare than direct efficiency maximization}. The structured coordination enforced by the maximin objective provides a scaffold that compensates for the weaker model's difficulty implementing complex strategies from strategic hints alone.
+
+\paragraph{Gathering: full recovery on a simpler game.}
+On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$ with $E{=}0.98$ and $\min_i R_i{=}580$, after 10 outer iterations (4 kept). These values nearly match frontier models (Gemini: $U{=}2.49$, Sonnet: $U{=}2.52$; Table~\ref{tab:results}). The researcher discovers the same Voronoi partitioning and respawn-aware camping strategies found in the main experiments, and increases inner-loop iterations to $K{=}5$ to allow sufficient refinement. The contrast with Cleanup---where Gemma peaks at $U{=}0.87$/$1.71$ versus frontier $U{\approx}3.2$---suggests that the researcher can fully compensate for model weakness on simpler coordination tasks (4 agents, symmetric costs) but not on harder provision dilemmas (10 agents, asymmetric costs).
 
 \end{document}
