@@ -28,5 +28,18 @@
     "new_subsample_scores": [
       0.0
     ]
+  },
+  {
+    "i": 2,
+    "selected_program_candidate": 1,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      -0.0016
+    ],
+    "new_subsample_scores": [
+      -0.0078
+    ]
   }
 ]

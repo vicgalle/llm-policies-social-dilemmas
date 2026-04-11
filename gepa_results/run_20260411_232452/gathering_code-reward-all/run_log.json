@@ -1,0 +1,28 @@
+[
+  {
+    "i": 0,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.5864
+    ],
+    "new_subsample_scores": [
+      0.5864
+    ]
+  },
+  {
+    "i": 1,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.5864
+    ],
+    "new_subsample_scores": [
+      0.5864
+    ]
+  }
+]
