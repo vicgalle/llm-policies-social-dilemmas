@@ -186,7 +186,13 @@ Given a configuration $c$, the inner loop executes $K$ iterations of LLM policy 
 \begin{equation}
   \pi^*_c = \textsc{InnerLoop}(\cM, \cG, c)
 \end{equation}
-following Algorithm~1 of~\cite{gallego2026}: at each iteration $k$, $\cM$ generates a policy from the system prompt $p$ and feedback constructed according to $(\ell, \phi)$, using helpers $\mathcal{H}$. The policy is validated via $v$ and evaluated in $N$-agent self-play over seeds $S$.
+Each iteration $k$ proceeds in four stages, following~\cite{gallego2026}:
+\begin{enumerate}
+  \item \textbf{Synthesize.} The policy LLM $\cM$ receives the system prompt $p$, the previous policy's source code $\pi_{k-1}$, and feedback $\mathcal{F}_{k-1}^\ell$ constructed according to $(\ell, \phi)$. It generates a new Python policy function $\pi_k$ that has access to full environment state and the helper library $\mathcal{H}$.
+  \item \textbf{Validate.} The generated code undergoes AST-based safety checks (blocking dangerous operations such as file I/O and network access) followed by a short smoke test. Failures trigger re-generation (up to $R$ retries), with the error message appended to the prompt.
+  \item \textbf{Evaluate.} All $N$ agents execute the same policy $\pi_k$ in self-play over $|S|$ random seeds. The evaluation yields the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$.
+  \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$ according to the template $\ell$. Under sparse feedback, $\cM$ sees only the scalar reward; under dense feedback, it additionally receives all social metrics with natural-language definitions.
+\end{enumerate}
 
 The inner loop output is evaluated on held-out seeds via a fixed ground-truth objective:
 \begin{equation}
