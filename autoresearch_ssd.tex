@@ -92,13 +92,12 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ optimizes 
 \node[mbox=pipcolor, below=0.42cm of R] (P) {%
   \textbf{Pipeline} $c_j$%
   \;\;{\scriptsize $p,\;\ell,\;\phi,\;\mathcal{H},\;\iota,\;v$}};
-% 3. Inner loop sub-nodes
-\node[sbox, below=0.8cm of P, xshift=-0.95cm] (S) {Synthesize $\cM$};
-\node[sbox, right=0.12cm of S] (V) {Validate};
+% 3. Inner loop sub-nodes — center Validate under Pipeline
+\node[sbox, below=0.8cm of P] (V) {Validate};
+\node[sbox, left=0.12cm of V] (S) {Synthesize $\cM$};
 \node[sbox, right=0.12cm of V] (Ev) {Evaluate in $\cG$};
-% Feedback below
-\coordinate (fbmid) at ($(S.south)!0.5!(Ev.south)+(0,-0.28)$);
-\node[sbox, minimum width=0.9cm] at (fbmid) (FB) {Feedback $\mathcal{F}_k^\ell$};
+% Feedback below, centered under Validate
+\node[sbox, minimum width=0.9cm, below=0.28cm of V] (FB) {Feedback $\mathcal{F}_k^\ell$};
 % Inner loop frame
 \begin{scope}[on background layer]
 \node[draw=ilcolor!35, fill=ilcolor!3, rounded corners=5pt, line width=0.55pt,
@@ -117,8 +116,8 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ optimizes 
   {\scriptsize\textcolor{metcolor!80!black}{\textbf{keep}}%
    \;$\mid$\;%
    \textcolor{deccolor!80!black}{\textbf{discard}}}};
-% Frozen annotation
-\node[frzbox, right=0.12cm of IL.north east, anchor=north west] (F) {%
+% Frozen annotation — more spacing from inner loop
+\node[frzbox, right=0.35cm of IL.north east, anchor=north west] (F) {%
   $\cG$,\,$\Phi$,\,$\cM$\\[-1pt]\textbf{frozen}};
 
 % === ARROWS ===
@@ -143,10 +142,10 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ optimizes 
 \begin{scope}[on background layer]
 \draw[rescolor!30, dashed, rounded corners=7pt, line width=0.65pt]
   ([shift={(-1.35cm,0.3cm)}]R.north west) rectangle
-  ([shift={(0.15cm,-0.18cm)}]D.south east);
+  ([shift={(0.25cm,-0.35cm)}]D.south east);
 \end{scope}
 \node[font=\tiny\itshape, text=rescolor!45!black, anchor=south east]
-  at ([shift={(0.1cm,-0.13cm)}]D.south east) {$j = 1,\ldots,J$};
+  at ([shift={(0.2cm,-0.3cm)}]D.south east) {$j = 1,\ldots,J$};
 \end{tikzpicture}
 \caption{Two-level automated research framework (Algorithm~\ref{alg:outer}). \emph{Outer loop}: the researcher $\cR$ modifies the pipeline configuration $c_j$, runs the inner loop, and keeps or discards based on $\Phi$. \emph{Inner loop}: the policy LLM $\cM$ iteratively synthesizes, validates, and evaluates policies in the frozen environment $\cG$.}
 \label{fig:framework}
