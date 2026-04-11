@@ -1,0 +1,17 @@
+{
+  "num_candidates": 4,
+  "best_idx": 1,
+  "best_score": 0.10679999999999999,
+  "total_metric_calls": 20,
+  "completed_at": "2026-04-12T00:08:30.651835",
+  "config": {
+    "game": "cleanup",
+    "mode": "code-reward-all",
+    "model": "gemini-3.1-pro-preview",
+    "metric": "maximin",
+    "n_agents": 10,
+    "n_eval_seeds": 5,
+    "max_iterations": 6,
+    "max_metric_calls": 19
+  }
+}
