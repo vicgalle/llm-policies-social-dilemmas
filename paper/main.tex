@@ -494,6 +494,46 @@ Five directions emerge: (1)~\emph{new domains}---apply the two-level framework t
 \label{fig:eff_eq}
 \end{figure}
 
+\section{Compute Requirements}
+\label{app:compute}
+
+Table~\ref{tab:compute} reports wall-clock time for all 12 autonomous runs and the 6 GEPA comparison runs. \emph{Inner loop} measures total time spent on policy LLM generation and environment simulation across all evaluations; \emph{total} (estimated from run-directory timestamps) additionally includes the researcher agent's analysis, code editing, and decision-making between evaluations.
+
+\begin{table}[h]
+\caption{Wall-clock time per autonomous run. Evals: total inner loop evaluations including initial baseline. Per eval: mean wall-clock per single evaluation. Total: end-to-end including researcher overhead.}
+\label{tab:compute}
+\centering
+\footnotesize
+\begin{tabular}{@{}llcrrr@{}}
+\toprule
+Policy LLM & $\Phi$ & Evals & \shortstack{Inner\\loop (h)} & \shortstack{Per\\eval (min)} & \shortstack{Total\\(h)} \\
+\midrule
+\multicolumn{6}{@{}l}{\emph{Cleanup ($N{=}10$)}} \\
+Gemini & $\Phi_U$ & 11 & 2.6 & 14 & 3.7 \\
+Gemini & $\Phi_U$ & 18 & 4.1 & 14 & 6.4 \\
+Sonnet & $\Phi_U$ & 4 & 2.1 & 32 & 6.1 \\
+Sonnet & $\Phi_U$ & 7 & 5.0 & 43 & 6.1 \\
+Gemini & $\Phi_{\min}$ & 17 & 3.0 & 11 & 4.3 \\
+Gemini & $\Phi_{\min}$ & 11 & 3.6 & 20 & 5.0 \\
+Sonnet & $\Phi_{\min}$ & 8 & 4.5 & 33 & 8.8 \\
+Sonnet & $\Phi_{\min}$ & 9 & 5.3 & 36 & 13.2 \\
+\addlinespace
+\multicolumn{6}{@{}l}{\emph{Gathering ($N{=}4$)}} \\
+Sonnet & $\Phi_U$ & 3 & 1.7 & 33 & 2.2 \\
+Gemini & $\Phi_U$ & 5 & 1.4 & 17 & 1.9 \\
+Gemini & $\Phi_U$ & 3 & 0.9 & 19 & 1.1 \\
+Sonnet & $\Phi_U$ & 4 & 2.3 & 35 & 3.4 \\
+\midrule
+\multicolumn{2}{@{}l}{All 12 runs} & 100 & 36.6 & 22 & 62.2 \\
+\addlinespace
+\multicolumn{2}{@{}l}{GEPA (6 runs)} & 6 & 5.0 & 50 & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Cost breakdown.}
+Each inner loop evaluation involves $K{=}2$--$3$ policy LLM generation calls (each ${\sim}$2k input tokens, ${\sim}$1.5k output tokens) followed by multi-seed simulation (5--12 seeds, ${\sim}$15--30s total). Policy LLM generation dominates inner loop time (86--97\%), with Sonnet evaluations taking ${\sim}2{\times}$ longer than Gemini due to extended thinking. The researcher agent (Claude Opus 4.6, running via Claude Code CLI) accounts for 41\% of total wall-clock time (25.6h of the 62.2h total across all 12 runs), spent reading results, editing pipeline source files, and planning modifications. In monetary terms, the researcher agent is the dominant cost: each outer iteration consumes ${\sim}$50--100k context tokens in the Opus session, whereas each inner loop evaluation uses only ${\sim}$5--10k policy LLM tokens. The 6 GEPA comparison runs required 5.0h of compute with no researcher agent, operating at lower cost per run but achieving substantially lower performance (Table~\ref{tab:results}).
+
 \section{Smaller Open-Weight Model: Gemma 4 26B}
 \label{app:gemma}
 
