@@ -424,28 +424,9 @@ In Cleanup, where cleaning costs are borne asymmetrically (cleaners pay $-1$, fr
 This generalizes: in \emph{provision} dilemmas with asymmetric costs, fairness requires designed mechanisms (role rotation, duty sharing); in \emph{restraint} dilemmas with symmetric costs, fairness emerges as a free byproduct of efficient coordination. The researcher independently discovers this---it creates role differentiation pipelines only for Cleanup, and pure spatial-coordination pipelines for Gathering.
 
 \paragraph{Finding 4: Convergent discovery of qualitatively different strategies per objective.}
-Despite fully independent runs, the researcher converges on the same core strategies within each condition (Table~\ref{tab:strategies}). In Cleanup, waste-counting helpers and spatial zone partitioning appear across all 8 runs. The key qualitative difference: \emph{role rotation}---time-based cycling of cleaning duty---appears in 4/4 maximin runs but 0/4 efficiency runs. Under efficiency optimization, the researcher assigns static cleaning roles (some agents always clean), achieving high collective output at the cost of equality. Under maximin optimization, it discovers rotation as a fairness mechanism.
+Despite fully independent runs, the researcher converges on the same core strategies within each condition (Table~\ref{tab:strategies}, Appendix~\ref{app:additional}). In Cleanup, waste-counting helpers and spatial zone partitioning appear across all 8 runs. The key qualitative difference: \emph{role rotation}---time-based cycling of cleaning duty---appears in 4/4 maximin runs but 0/4 efficiency runs. Under efficiency optimization, the researcher assigns static cleaning roles (some agents always clean), achieving high collective output at the cost of equality. Under maximin optimization, it discovers rotation as a fairness mechanism.
 
 In Gathering, the researcher discovers BFS-based Voronoi territory partitioning and respawn-timer awareness, with no role differentiation needed---the entire optimization is spatial (who collects which apples) and temporal (respawn-aware positioning).
-
-\begin{table}[t]
-\caption{Strategies discovered by the researcher in Cleanup across 4 efficiency-optimized and 4 maximin-optimized independent runs.}
-\label{tab:strategies}
-\centering
-\small
-\begin{tabular}{@{}lcc@{}}
-\toprule
-Strategy & $\Phi_U$ (4 runs) & $\Phi_{\min}$ (4 runs) \\
-\midrule
-Waste-counting helpers & 4/4 & 4/4 \\
-Zone/lane partitioning & 3/4 & 4/4 \\
-Anti-regression feedback & 3/4 & 2/4 \\
-Worked policy examples & 2/4 & 3/4 \\
-Cleaning cost economics & 2/4 & 3/4 \\
-\textbf{Time-based role rotation} & \textbf{0/4} & \textbf{4/4} \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 \paragraph{Common failure modes.}
 Several patterns led to discarded experiments across all runs: (1)~\emph{over-prescription}---adding too many strategic hints confuses the policy LLM, causing generation failures; (2)~\emph{iteration regression}---$K{=}4$ or $K{=}5$ inner iterations often cause catastrophic regression as the LLM ``over-refines'' a working policy; (3)~\emph{feedback overload}---dense per-agent diagnostics cause over-correction rather than gradual improvement; (4)~\emph{variance exposure}---identical configurations can yield $U{=}3.2$ then $U{=}0.09$ on different seeds, requiring multi-seed evaluation for stable signals.
@@ -477,6 +458,26 @@ Five directions emerge: (1)~\emph{new domains}---apply the two-level framework t
 \appendix
 
 \section{Additional Results}
+\label{app:additional}
+
+\begin{table}[h]
+\caption{Strategies discovered by the researcher in Cleanup across 4 efficiency-optimized and 4 maximin-optimized independent runs.}
+\label{tab:strategies}
+\centering
+\small
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Strategy & $\Phi_U$ (4 runs) & $\Phi_{\min}$ (4 runs) \\
+\midrule
+Waste-counting helpers & 4/4 & 4/4 \\
+Zone/lane partitioning & 3/4 & 4/4 \\
+Anti-regression feedback & 3/4 & 2/4 \\
+Worked policy examples & 2/4 & 3/4 \\
+Cleaning cost economics & 2/4 & 3/4 \\
+\textbf{Time-based role rotation} & \textbf{0/4} & \textbf{4/4} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{figure}[h]
 \centering
