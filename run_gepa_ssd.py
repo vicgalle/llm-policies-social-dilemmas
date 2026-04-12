@@ -9,9 +9,10 @@ LLM generates better policy code for multi-agent self-play.
 
 This script produces the GEPA baseline numbers for the paper.
 
-Model: Gemini 3.1 Pro (same model for generation and reflection).
-Settings parallel llm_self_play.py: 10 agents, large maps, 3 iterations,
-5 evaluation seeds per policy.
+Supports both Gemini (via OpenAI-compatible endpoint) and Claude
+(via Claude Agent SDK, using the Claude Code subscription — no API
+key needed). Settings parallel llm_self_play.py: 10 agents, large
+maps, 3 iterations, 5 evaluation seeds per policy.
 
 Usage::
 
@@ -23,6 +24,9 @@ Usage::
 
     # Optimize maximin (Rawlsian welfare) instead of efficiency
     python run_gepa_ssd.py --game cleanup --metric maximin
+
+    # Use Claude Sonnet as the policy LLM
+    python run_gepa_ssd.py --model claude-sonnet-4-6
 
     # Override model or iteration count
     python run_gepa_ssd.py --model gemini-2.5-pro-preview --iterations 5
@@ -47,12 +51,15 @@ if _VERIFIERS_DIR not in sys.path:
 if _SSD_DIR not in sys.path:
     sys.path.insert(0, _SSD_DIR)
 
+import asyncio
+
 import numpy as np
 
 from gepa.api import optimize
 
 import verifiers as vf
 from verifiers.clients import resolve_client
+from verifiers.clients.client import Client
 from verifiers.gepa.adapter import (
     VerifiersGEPAAdapter,
     make_reflection_lm,
@@ -60,9 +67,28 @@ from verifiers.gepa.adapter import (
 )
 from verifiers.gepa.display import GEPADisplay
 from verifiers.gepa.gepa_utils import save_gepa_results
-from verifiers.types import ClientConfig
+from verifiers.types import (
+    ClientConfig,
+    Response,
+    ResponseMessage,
+    Usage,
+)
 
 from ssd_verifier_env import load_environment, _evaluate_policy_code
+
+# llm_self_play already handles os.environ.pop("CLAUDECODE", None) and
+# imports the Agent SDK; reuse its _call_claude helper.
+from llm_self_play import _call_claude
+
+
+# ── Model detection helpers ──────────────────────────────────────────────────
+
+def _is_gemini_model(model: str) -> bool:
+    return model.startswith("gemini")
+
+
+def _is_claude_model(model: str) -> bool:
+    return model.startswith("claude")
 
 # ── Defaults (aligned with llm_self_play.py) ─────────────────────────────────
 
@@ -81,6 +107,91 @@ GEMINI_API_KEY_VAR = "GEMINI_API_KEY"
 def log(msg: str = ""):
     sys.stderr.write(msg + "\n")
     sys.stderr.flush()
+
+
+# ── Claude Agent SDK client for verifiers ────────────────────────────────────
+# Uses the Claude Code subscription (no ANTHROPIC_API_KEY required).
+
+class ClaudeAgentSDKClient(Client):
+    """Verifiers Client that delegates LLM calls to the Claude Agent SDK.
+
+    This avoids needing an Anthropic API key — it uses the Claude Code
+    subscription instead, matching the approach in llm_self_play.py.
+    """
+
+    def __init__(self):
+        # Bypass Client.__init__'s ClientConfig path — no API client needed.
+        self.logger = __import__("logging").getLogger(
+            f"{__name__}.{self.__class__.__name__}"
+        )
+        self._client = None
+
+    def setup_client(self, config):
+        return None
+
+    async def close(self):
+        pass
+
+    async def to_native_tool(self, tool):
+        raise NotImplementedError("Tool use not supported via Agent SDK")
+
+    async def to_native_prompt(self, messages):
+        """Extract (system_prompt, user_prompt) from verifiers messages."""
+        system_parts, user_parts = [], []
+        for msg in messages:
+            role = msg.get("role", "") if isinstance(msg, dict) else getattr(msg, "role", "")
+            content = msg.get("content", "") if isinstance(msg, dict) else getattr(msg, "content", "")
+            if isinstance(content, list):
+                content = " ".join(
+                    (c.get("text", "") if isinstance(c, dict) else str(c))
+                    for c in content
+                )
+            if role == "system":
+                system_parts.append(content or "")
+            elif role == "user":
+                user_parts.append(content or "")
+        return ("\n".join(system_parts), "\n".join(user_parts)), {}
+
+    async def get_native_response(self, prompt, model, sampling_args,
+                                  tools=None, **kwargs):
+        system_prompt, user_prompt = prompt
+        text, reasoning = await _call_claude(system_prompt, user_prompt, model)
+        return {"text": text, "reasoning": reasoning}
+
+    async def raise_from_native_response(self, response):
+        pass  # Agent SDK raises its own errors during _call_claude
+
+    async def from_native_response(self, response):
+        return Response(
+            id="agent-sdk",
+            created=int(time.time()),
+            model="claude-agent-sdk",
+            usage=Usage(
+                prompt_tokens=0, reasoning_tokens=0,
+                completion_tokens=0, total_tokens=0,
+            ),
+            message=ResponseMessage(
+                content=response["text"],
+                reasoning_content=response.get("reasoning") or None,
+                finish_reason="stop",
+                is_truncated=False,
+            ),
+        )
+
+
+def _make_agent_sdk_reflection_lm(model: str):
+    """Reflection LM callable that uses the Claude Agent SDK.
+
+    GEPA expects: reflection_lm(prompt: str) -> str.
+    """
+    def reflection_lm(prompt: str) -> str:
+        loop = asyncio.get_event_loop()
+        text, _ = loop.run_until_complete(
+            _call_claude("", prompt, model)
+        )
+        return text
+
+    return reflection_lm
 
 
 def _save_results_fallback(run_dir: Path, result, config: dict) -> None:
@@ -151,10 +262,11 @@ def run_gepa_for_config(
     num_val = 1
 
     # ── Client configs ────────────────────────────────────────────────────
+    use_agent_sdk = _is_claude_model(model)
     client_config = ClientConfig(
         api_key_var=api_key_var,
         api_base_url=api_base_url,
-    )
+    ) if not use_agent_sdk else None
 
     output_dir.mkdir(parents=True, exist_ok=True)
     env_id = f"ssd-{game}-{mode}"
@@ -183,8 +295,11 @@ def run_gepa_for_config(
         display.num_train = len(trainset)
         display.num_val = len(valset)
 
-        # Verifiers client (OpenAI-compatible, talks to Gemini)
-        client = resolve_client(client_config)
+        # Verifiers client
+        if use_agent_sdk:
+            client = ClaudeAgentSDKClient()
+        else:
+            client = resolve_client(client_config)
 
         # GEPA adapter
         adapter = VerifiersGEPAAdapter(
@@ -198,10 +313,13 @@ def run_gepa_for_config(
         )
 
         # Reflection LM (same model)
-        reflection_lm = make_reflection_lm(
-            client_config=client_config,
-            model=model,
-        )
+        if use_agent_sdk:
+            reflection_lm = _make_agent_sdk_reflection_lm(model)
+        else:
+            reflection_lm = make_reflection_lm(
+                client_config=client_config,
+                model=model,
+            )
 
         # Seed candidate = environment's existing system prompt
         seed_candidate = {"system_prompt": env.system_prompt or ""}
@@ -254,7 +372,6 @@ def run_gepa_for_config(
         log("  Running final evaluation for social metrics...")
         final_inputs = valset[:]
         final_inputs = _inject_system_prompt(final_inputs, best_prompt)
-        import asyncio
         final_out = asyncio.get_event_loop().run_until_complete(
             env.generate(
                 inputs=final_inputs,
@@ -317,7 +434,7 @@ def main():
     )
     parser.add_argument(
         "--model", default=MODEL,
-        help=f"Gemini model name (default: {MODEL})",
+        help=f"Model name — Gemini or Claude (default: {MODEL})",
     )
     parser.add_argument(
         "--metric", choices=["efficiency", "maximin"], default="efficiency",
@@ -352,11 +469,13 @@ def main():
     )
     args = parser.parse_args()
 
-    # Validate API key is available
-    if not os.environ.get(args.api_key_var):
-        log(f"ERROR: {args.api_key_var} environment variable not set.")
-        log(f"Set it with:  export {args.api_key_var}=your_key_here")
-        sys.exit(1)
+    # Claude models use the Agent SDK (Claude Code subscription) — no API key.
+    # Gemini models need GEMINI_API_KEY.
+    if not _is_claude_model(args.model):
+        if not os.environ.get(args.api_key_var):
+            log(f"ERROR: {args.api_key_var} environment variable not set.")
+            log(f"Set it with:  export {args.api_key_var}=your_key_here")
+            sys.exit(1)
 
     # ── Build list of game configurations ───────────────────────────────────
     games = [args.game] if args.game else ["gathering", "cleanup"]
