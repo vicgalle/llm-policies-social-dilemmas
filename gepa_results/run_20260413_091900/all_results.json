@@ -1,0 +1,19 @@
+[
+  {
+    "game": "cleanup",
+    "model": "claude-sonnet-4-6",
+    "metric": "maximin",
+    "best_score": 0.0056,
+    "num_candidates": 5,
+    "metrics": {
+      "ssd_reward": 0.0056,
+      "efficiency_metric": 1.5965999999999998,
+      "equality_metric": 0.5481091838409069,
+      "sustainability_metric": 424.7808077530025,
+      "peace_metric": 10.0,
+      "num_turns": 1.0
+    },
+    "elapsed_s": 9730.5,
+    "output_dir": "gepa_results/run_20260413_091900/cleanup_code-reward-all"
+  }
+]
