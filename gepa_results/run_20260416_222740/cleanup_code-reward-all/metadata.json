@@ -1,0 +1,17 @@
+{
+  "num_candidates": 5,
+  "best_idx": 2,
+  "best_score": 0.14184,
+  "total_metric_calls": 23,
+  "completed_at": "2026-04-17T08:55:49.689120",
+  "config": {
+    "game": "cleanup",
+    "mode": "code-reward-all",
+    "model": "claude-sonnet-4-6",
+    "metric": "efficiency",
+    "n_agents": 10,
+    "n_eval_seeds": 5,
+    "max_iterations": 7,
+    "max_metric_calls": 22
+  }
+}

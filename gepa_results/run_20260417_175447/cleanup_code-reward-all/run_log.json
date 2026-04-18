@@ -1,0 +1,131 @@
+[
+  {
+    "i": 0,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.13378
+    ],
+    "new_subsample_scores": [
+      0.1433
+    ],
+    "new_program_idx": 1,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 1,
+    "selected_program_candidate": 1,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.1175
+    ],
+    "new_subsample_scores": [
+      0.02846
+    ]
+  },
+  {
+    "i": 2,
+    "selected_program_candidate": 1,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.08926
+    ],
+    "new_subsample_scores": [
+      0.12952000000000002
+    ],
+    "new_program_idx": 2,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 3,
+    "selected_program_candidate": 2,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.08846
+    ],
+    "new_subsample_scores": [
+      0.08684
+    ]
+  },
+  {
+    "i": 4,
+    "selected_program_candidate": 2,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.12634
+    ],
+    "new_subsample_scores": [
+      -0.25362
+    ]
+  },
+  {
+    "i": 5,
+    "selected_program_candidate": 2,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.13706000000000002
+    ],
+    "new_subsample_scores": [
+      0.13128
+    ]
+  },
+  {
+    "i": 6,
+    "selected_program_candidate": 2,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.10815999999999999
+    ],
+    "new_subsample_scores": [
+      0.13726
+    ],
+    "new_program_idx": 3,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 7,
+    "selected_program_candidate": 2,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.13862
+    ],
+    "new_subsample_scores": [
+      0.10148
+    ]
+  },
+  {
+    "i": 8,
+    "selected_program_candidate": 2,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.13954
+    ],
+    "new_subsample_scores": [
+      0.13326
+    ]
+  }
+]
