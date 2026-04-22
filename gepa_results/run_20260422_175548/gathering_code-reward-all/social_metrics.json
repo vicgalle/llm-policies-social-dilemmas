@@ -1,0 +1,13 @@
+{
+  "reward": 0.30110000000000003,
+  "metric": "efficiency",
+  "metrics": {
+    "ssd_reward": 0.30110000000000003,
+    "efficiency_metric": 1.2044000000000001,
+    "equality_metric": 0.7100795261082053,
+    "sustainability_metric": 371.6401238164204,
+    "peace_metric": 2.9544,
+    "maximin_metric": 123.4,
+    "num_turns": 1.0
+  }
+}

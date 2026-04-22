@@ -515,7 +515,7 @@ def main():
                 f"E={m.get('equality_metric', 0):.4f}  "
                 f"S={m.get('sustainability_metric', 0):.1f}  "
                 f"P={m.get('peace_metric', 0):.1f}  "
-                f"Max={m.get('maximin', 0):.1f}")
+                f"min_i R_i={m.get('maximin_metric', m.get('maximin', 0)):.1f}")
     log(f"\n{'=' * 70}")
 
     # Save combined results

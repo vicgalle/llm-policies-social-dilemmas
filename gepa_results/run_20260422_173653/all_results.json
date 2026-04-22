@@ -1,0 +1,20 @@
+[
+  {
+    "game": "gathering",
+    "model": "claude-sonnet-4-6",
+    "metric": "efficiency",
+    "best_score": 0.30119999999999997,
+    "num_candidates": 3,
+    "metrics": {
+      "ssd_reward": 0.30119999999999997,
+      "efficiency_metric": 1.2048,
+      "equality_metric": 0.5509464046982689,
+      "sustainability_metric": 270.66354609460006,
+      "peace_metric": 3.85,
+      "maximin_metric": 48.2,
+      "num_turns": 1.0
+    },
+    "elapsed_s": 3212.9,
+    "output_dir": "gepa_results/run_20260422_173653/gathering_code-reward-all"
+  }
+]

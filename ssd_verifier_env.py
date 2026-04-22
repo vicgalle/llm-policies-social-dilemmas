@@ -306,13 +306,17 @@ def load_environment(
         def peace_metric(state, **kwargs) -> float:
             return state.get("ssd_metrics", {}).get("peace", 0.0)
 
+        def maximin_metric(state, **kwargs) -> float:
+            return state.get("ssd_metrics", {}).get("maximin", 0.0)
+
         funcs += [
             efficiency_metric,
             equality_metric,
             sustainability_metric,
             peace_metric,
+            maximin_metric,
         ]
-        weights += [0.0, 0.0, 0.0, 0.0]
+        weights += [0.0, 0.0, 0.0, 0.0, 0.0]
 
     rubric = vf.Rubric(funcs=funcs, weights=weights)
 
