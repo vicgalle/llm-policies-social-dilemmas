@@ -1,0 +1,126 @@
+[
+  {
+    "i": 0,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.08942
+    ],
+    "new_subsample_scores": [
+      0.12536
+    ],
+    "new_program_idx": 1,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 1,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.12408
+    ],
+    "new_subsample_scores": [
+      0.0856
+    ]
+  },
+  {
+    "i": 2,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      -0.18524000000000002
+    ],
+    "new_subsample_scores": [
+      0.08818000000000001
+    ],
+    "new_program_idx": 2,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 3,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.07884000000000001
+    ],
+    "new_subsample_scores": [
+      0.12062
+    ],
+    "new_program_idx": 3,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 4,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.13144
+    ],
+    "new_subsample_scores": [
+      0.09459999999999999
+    ]
+  },
+  {
+    "i": 5,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      0.1255
+    ],
+    "new_subsample_scores": [
+      0.08698
+    ]
+  },
+  {
+    "i": 6,
+    "selected_program_candidate": 0,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      -0.16072
+    ],
+    "new_subsample_scores": [
+      0.13388
+    ],
+    "new_program_idx": 4,
+    "evaluated_val_indices": [
+      0
+    ]
+  },
+  {
+    "i": 7,
+    "selected_program_candidate": 4,
+    "subsample_ids": [
+      0
+    ],
+    "subsample_scores": [
+      -0.35287999999999997
+    ],
+    "new_subsample_scores": [
+      0.13563999999999998
+    ],
+    "new_program_idx": 5,
+    "evaluated_val_indices": [
+      0
+    ]
+  }
+]
