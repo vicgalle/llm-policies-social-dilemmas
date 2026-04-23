@@ -1,0 +1,87 @@
+You are an expert game-theoretic AI designing policies for a multi-agent Sequential Social Dilemma (the Cleanup game).
+
+## Environment Summary
+
+- 2D gridworld (18x25 map). River area (left side) and orchard (right side) are separated by a stream.
+- 10 agents. All agents run your exact same policy code simultaneously.
+- Agents collect apples in the orchard (+1 reward each).
+- Waste (pollution) accumulates in the river over time. If waste exceeds a threshold, apples stop spawning in the orchard.
+- Episode length: 1000 steps.
+- 9 actions: FORWARD(0), BACKWARD(1), STEP_LEFT(2), STEP_RIGHT(3), ROTATE_LEFT(4), ROTATE_RIGHT(5), BEAM(6), STAND(7), CLEAN(8).
+- BEAM: Penalty beam (costs -1). Hit agents receive -50 penalty and are removed for 25 steps. (DO NOT USE THIS in a cooperative setting).
+- CLEAN: Cleaning beam. Costs -1 reward. Removes waste in the beam's path.
+- Movement: Agents can strafe in 4 cardinal directions without needing to rotate first. Rotation only matters for the direction of the CLEAN beam.
+
+## Beam Geometry (Length 5, Width 3)
+
+When firing CLEAN or BEAM from `(r, c)` facing a specific orientation, the affected cells are:
+- North (0): rows `r-5` to `r-1`, cols `c-1` to `c+1`
+- East (1): rows `r-1` to `r+1`, cols `c+1` to `c+5`
+- South (2): rows `r+1` to `r+5`, cols `c-1` to `c+1`
+- West (3): rows `r-1` to `r+1`, cols `c-5` to `c-1`
+
+## Environment API (available in your policy's namespace)
+
+```python
+# env attributes you can read:
+env.agent_pos        # np.array shape (n_agents, 2) — [row, col] per agent
+env.agent_orient     # np.array shape (n_agents,) — 0=N, 1=E, 2=S, 3=W
+env.agent_timeout    # np.array shape (n_agents,) — >0 means agent is removed
+env.apple_alive      # np.array shape (n_apples,) bool — which apples exist
+env._apple_pos       # np.array shape (n_apples, 2) — [row, col] per apple spawn
+env.walls            # np.array shape (H, W) bool — wall map
+env.waste            # np.array shape (H, W) bool — True where waste exists
+env.river_cells_set  # set of (row, col) — all river cell positions
+env.stream_cells_set # set of (row, col) — stream cell positions
+env.height, env.width                  # map dimensions
+env.n_agents, env.n_apples             # counts
+```
+
+## Helper functions available in your namespace
+
+```python
+# BFS to nearest alive apple. Returns (dr, dc) of first step, or None.
+bfs_nearest_apple(env, agent_id) -> Optional[Tuple[int,int]]
+
+# BFS to nearest position in a set. Returns (dr, dc) or None.
+bfs_to_target_set(env, agent_id, target_set) -> Optional[Tuple[int,int]]
+
+# Convert world-frame (dr, dc) step to an Action given agent orientation.
+direction_to_action(dr, dc, orientation) -> int
+
+# Available modules: np (numpy), deque (from collections)
+```
+
+## Winning Strategy & Optimization Guidelines
+
+To maximize the collective team reward, you must implement a strict, permanent division of labor. Dynamic role switching causes agents to constantly walk across the entire map, wasting time and blocking each other.
+
+1. **Permanent Role Allocation**: Assign exactly 2 agents (e.g., `agent_id < 2`) as dedicated "Cleaners" and the remaining 8 agents as dedicated "Gatherers". NEVER switch these roles.
+2. **Gatherers**: Their exclusive job is to collect apples. They should use `bfs_nearest_apple` and `direction_to_action`. If no apples are reachable, they should `STAND` (7) and wait. They must NEVER attempt to clean or travel to the river.
+3. **Cleaners (Spatial Partitioning)**: To prevent Cleaners from picking the same target spot and permanently blocking each other, mathematically divide their responsibilities by row. For example, Cleaner 0 ONLY evaluates target cells where `row < env.height // 2`, and Cleaner 1 ONLY evaluates target cells where `row >= env.height // 2`.
+4. **Cleaners (Targeting & Firing)**: Do NOT evaluate every cell on the map or all orientations for firing positions. To avoid severe execution timeouts, Cleaners should exclusively search within `env.stream_cells_set` and `env.river_cells_set` (filtered by their assigned row partition), and ONLY evaluate the WEST (3) orientation. 
+   - For each valid cell in their partition, calculate the waste cleared if firing West.
+   - Pick the cell that clears the most waste (minimum 1). Tie-break by closest Manhattan distance.
+   - Navigate to the chosen spot using `bfs_to_target_set`. Once there, check if orientation is 3. If not, output the correct rotation action (`ROTATE_LEFT` or `ROTATE_RIGHT`). If orientation is 3, fire `CLEAN` (8).
+5. **Cleaners (Idle State)**: If no waste can be cleared in their partition, the Cleaner should pick a default idle spot on the stream within their partition and wait there, proactively facing West, ready for waste to spawn.
+6. **Movement Efficiency**: Take full advantage of omnidirectional strafe movement. Keep orientation fixed while walking to save steps (`direction_to_action` handles this seamlessly). Only rotate when you are exactly on the firing spot.
+
+## Your task
+
+Write a Python function called `policy` with this exact signature:
+
+```python
+def policy(env, agent_id) -> int:
+    """Return an action (int 0-8) for the given agent."""
+    ...
+```
+
+The function must:
+1. Return a standard Python integer 0-8 (a CleanupAction value).
+2. Be entirely deterministic based solely on the environment state.
+3. Check timeouts first: `if int(env.agent_timeout[agent_id]) > 0: return 7`.
+4. Always check `if result is None` when handling BFS return tuples before unpacking (if `None`, return `7`).
+5. Only use the provided env attributes, helpers, `np` (numpy), and `deque`. **DO NOT use any `import` statements** (e.g., do not write `import numpy as np`), as the required modules are already injected into your namespace.
+6. Not use eval(), exec(), open(), or __import__.
+7. Provide your final code entirely inside a single ```python ... ``` block.
+8. Precede your code block with a brief explanation of your role-division and cleaning strategy design.
