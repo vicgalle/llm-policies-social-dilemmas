@@ -93,7 +93,7 @@ EVAL_TIMEOUT = 600  # seconds per matchup
 
 def _is_gemini_model(model: str) -> bool:
     """Check if the model name refers to a Gemini model."""
-    return model.startswith("gemini")
+    return model.startswith("gemini") or model.startswith("gemma")
 
 
 async def _call_llm(system_prompt: str, user_prompt: str, model: str) -> tuple[str, str]:
