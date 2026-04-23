@@ -363,14 +363,11 @@ contains fixed functional cells:
 - **Sawmill cells** (2) and **Masonry cells** (2): workshops. CRAFT on or
   adjacent to a sawmill converts one wood into one plank (one per step).
   A masonry converts stone into brick the same way.
-- **Forge cells** (2): CRAFT_TOOL consumes 2 planks + 1 brick **from the
-  agent's inventory** and equips a TOOL in the agent's equipment slot.
-  CRAFT_SHELTER consumes 3 planks + 3 bricks from the **combined pool of
-  the agent's inventory AND items dropped on the forge cell**, and
-  increments the global `shelter_count`. Because inventory capacity is
-  only 3, shelter assembly REQUIRES at least two agents coordinating
-  via drops (e.g., one drops 3 planks on the forge cell, another arrives
-  holding 3 bricks, stands on the forge, and calls CRAFT_SHELTER).
+- **Forge cells** (2): CRAFT_TOOL consumes 2 planks + 1 brick from the
+  agent's inventory and equips a TOOL in the agent's equipment slot.
+  CRAFT_SHELTER consumes 3 planks + 3 bricks drawn from the agent's
+  inventory and/or items dropped on the same forge cell (inventory
+  consumed first), and increments the global `shelter_count`.
 
 Resource nodes deplete on gather and respawn with probability 0.05 per
 step. 80% are stocked at reset.
@@ -379,24 +376,13 @@ step. 80% are stocked at reset.
 
 1. **Tool payoff.** While an agent has a tool equipped, it receives
    +2 reward every step. A tool spoils 80 steps after being equipped
-   and must be recrafted. Tools also DOUBLE the yield of GATHER (+2
+   and must be recrafted. Tools also double the yield of GATHER (+2
    items instead of +1).
 2. **Winter event at step 200.** Every agent receives +50 if
    `env.shelter_count >= 6`, else -50. Triggers once per episode.
 
 No reward is given for gathering, crafting intermediates, or depositing
 shelter pieces. Nothing else is rewarded or penalised.
-
-### The core dilemma
-
-- **Private.** Tools pay +2/step for up to 80 steps (max +160 each,
-  renewable). Myopically optimal.
-- **Public.** Shelter pieces pay nothing directly but flip the winter
-  reward from -50 to +50 per agent once 6 pieces exist — so the
-  amortised value of a shelter contribution is ~+8.3 per agent * N
-  contributors. Free-riders benefit equally.
-- The strategic pivot (*when* to stop forging tools and start forging
-  shelter) has no stationary optimum.
 
 ## Action space (17 discrete actions, return int 0-16)
 
@@ -513,80 +499,34 @@ The function must:
 4. Not import any modules (numpy and deque are pre-loaded)
 5. Not use eval(), exec(), open(), or __import__
 
-## Working example (pipeline-sketch baseline)
+## Working example (seed policy)
 
-A minimal template showing the API. It is **not** a strong policy — you
-should do much better by coordinating across the 8 agents.
+A minimal working policy. Use it as a template for the structure and
+return type. Note how `bfs_to_target_set` returns Optional[Tuple[int,int]] —
+you MUST handle the None case.
 
 ```python
 def policy(env, agent_id) -> int:
-    \"\"\"Greedy single-agent pipeline: gather -> craft -> forge tool, repeat.\"\"\"
+    \"\"\"Walk to the nearest stocked resource and gather it.\"\"\"
     ar, ac = int(env.agent_pos[agent_id][0]), int(env.agent_pos[agent_id][1])
-    inv = env.inventory[agent_id]
-    has_tool = bool(env.has_tool[agent_id])
-
-    def step_toward(target_set):
-        result = bfs_to_target_set(env, agent_id, target_set)
-        if result is None:
-            return 0  # NOOP
-        dr, dc = result
-        if dr == -1 and dc == 0: return 1
-        if dr ==  1 and dc == 0: return 2
-        if dr ==  0 and dc == 1: return 3
-        if dr ==  0 and dc == -1: return 4
-        return 0
-
-    # If standing on a forge and have tool ingredients, forge tool
-    if (ar, ac) in env.forge_cells_set:
-        if not has_tool and inv[PLANK] >= 2 and inv[BRICK] >= 1:
-            return 7  # CRAFT_TOOL
-        # Otherwise leave forge to gather or craft inputs
-
-    # If on or adjacent to a workshop and have matching raw input, craft
-    on_or_adj_saw = any(
-        (ar + dr, ac + dc) in env.sawmill_cells_set
-        for dr, dc in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1))
-    )
-    on_or_adj_mas = any(
-        (ar + dr, ac + dc) in env.masonry_cells_set
-        for dr, dc in ((0, 0), (-1, 0), (1, 0), (0, -1), (0, 1))
-    )
-    if on_or_adj_saw and inv[WOOD] >= 1:
-        return 6  # CRAFT
-    if on_or_adj_mas and inv[STONE] >= 1:
-        return 6  # CRAFT
-
-    # Gather if we're on a stocked resource cell
+    # If we're already on a stocked resource cell, gather.
     for idx in range(env.n_resources):
         if env.resource_stocked[idx]:
             rr, rc = int(env.resource_pos[idx][0]), int(env.resource_pos[idx][1])
             if (rr, rc) == (ar, ac):
                 return 5  # GATHER
-
-    # Otherwise, move toward where we need to be
-    if inv[PLANK] >= 2 and inv[BRICK] >= 1 and not has_tool:
-        return step_toward(env.forge_cells_set)
-    if inv[WOOD] >= 1:
-        return step_toward(env.sawmill_cells_set)
-    if inv[STONE] >= 1:
-        return step_toward(env.masonry_cells_set)
-
-    # Need raw materials
-    total = int(inv.sum())
-    if total >= env.inventory_capacity:
-        # Inventory full of intermediates we can't use — try a workshop
-        return step_toward(env.workshop_cells_set)
-    forest_set = set(env.forest_cells_list)
-    quarry_set = set(env.quarry_cells_list)
-    stocked_forest = {tuple(env.resource_pos[i]) for i in range(env.n_resources)
-                      if env.resource_stocked[i] and int(env.resource_type[i]) == 0}
-    stocked_quarry = {tuple(env.resource_pos[i]) for i in range(env.n_resources)
-                      if env.resource_stocked[i] and int(env.resource_type[i]) == 1}
-    if stocked_forest:
-        return step_toward(stocked_forest)
-    if stocked_quarry:
-        return step_toward(stocked_quarry)
-    return 0  # NOOP
+    # Otherwise move toward the nearest stocked cell.
+    stocked = {tuple(env.resource_pos[i]) for i in range(env.n_resources)
+               if env.resource_stocked[i]}
+    result = bfs_to_target_set(env, agent_id, stocked)
+    if result is None:
+        return 0  # NOOP
+    dr, dc = result
+    if dr == -1 and dc ==  0: return 1  # MOVE_N
+    if dr ==  1 and dc ==  0: return 2  # MOVE_S
+    if dr ==  0 and dc ==  1: return 3  # MOVE_E
+    if dr ==  0 and dc == -1: return 4  # MOVE_W
+    return 0
 ```
 
 IMPORTANT:
@@ -594,9 +534,7 @@ IMPORTANT:
 - Always cast env arrays to int when comparing: `int(env.inventory[agent_id, WOOD])`.
 - Always return a plain int (0-16), never a tuple or None.
 - Put your code in a single ```python ... ``` block.
-- Before the code block, explain your reasoning for the policy design, including
-  your take on the tool-vs-shelter pivot timing and how coordination is enforced
-  across the 8 agents running the SAME code.
+- Before the code block, explain your reasoning for the policy design.
 """)
 
 
