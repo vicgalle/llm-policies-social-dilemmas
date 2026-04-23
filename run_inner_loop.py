@@ -244,9 +244,12 @@ async def run_inner_loop(
         reward_avg = results["reward_avg"]
         metrics = results["metrics"]
 
-        # --- PGA: one additional "profile episode" with trajectory capture
-        # and line tracing. Extracts the five-channel Profile used by both
-        # the inner-loop feedback builder and the outer-loop researcher.
+        # --- PGA: run K additional "profile episodes" (one per eval seed)
+        # with trajectory capture and line tracing, then aggregate the
+        # channels. Using the SAME seeds as evaluation makes the profile
+        # faithful to the metric — rare-but-load-bearing branches (e.g.
+        # a guarded CRAFT_SHELTER invocation) no longer go missing due to
+        # single-seed sampling.
         profile_obj = None
         profile_md = None
         profile_time = 0.0
@@ -256,18 +259,22 @@ async def run_inner_loop(
                 line_hits: dict = {}
                 filename = getattr(fn, "__policy_filename__",
                                    f"<policy_{policy_tag}>")
-                prof_env = env_factory()
-                fns_all = {k: fn for k in range(prof_env.n_agents)}
-                prof_result = run_episode(
-                    prof_env,
-                    fns_all,
-                    seed=1000 + i,          # separate from eval seeds
-                    verbose=False,
-                    capture_trajectory=True,
-                    trace_line_hits=line_hits,
-                )
+                profile_seeds = list(seeds)  # same range used by evaluate_matchup
+                trajectories = []
+                for pseed in profile_seeds:
+                    prof_env = env_factory()
+                    fns_all = {k: fn for k in range(prof_env.n_agents)}
+                    prof_result = run_episode(
+                        prof_env,
+                        fns_all,
+                        seed=int(pseed),
+                        verbose=False,
+                        capture_trajectory=True,
+                        trace_line_hits=line_hits,  # accumulates across seeds
+                    )
+                    trajectories.append(prof_result)
                 profile_obj = profile_mod.extract_profile(
-                    trajectory=prof_result,
+                    trajectory=trajectories,
                     code=code,
                     filename=filename,
                     game=game,
@@ -275,7 +282,8 @@ async def run_inner_loop(
                 )
                 profile_md = profile_mod.serialize_profile(profile_obj)
                 profile_time = time.time() - t0p
-                log(f"  Profile extracted in {profile_time:.1f}s")
+                log(f"  Profile extracted over {len(trajectories)} seeds "
+                    f"in {profile_time:.1f}s")
             except Exception as e:
                 import traceback
                 log(f"  WARNING: profile extraction failed: {e}")

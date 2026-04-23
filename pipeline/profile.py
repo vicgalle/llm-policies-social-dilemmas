@@ -456,7 +456,7 @@ def precondition_failure_rates(
 
 
 def extract_profile(
-    trajectory: dict,
+    trajectory: dict | list[dict],
     code: str,
     filename: str | None,
     game: str,
@@ -464,10 +464,36 @@ def extract_profile(
 ) -> Profile:
     """Compose all five channels into a single :class:`Profile`.
 
+    Accepts either a single trajectory dict (legacy) OR a *list* of trajectory
+    dicts from several episodes. Multi-episode aggregation is the recommended
+    path — it fixes the single-seed sampling blind spot (a rare-but-important
+    branch like ``CRAFT_SHELTER`` can fire on eval seed 0 and not on the
+    profile seed, producing a misleading "never invoked" flag).
+
+    Aggregation rules, per channel:
+
+    * **Action histogram (ch. 1).** Bucketed *within* each episode (so the
+      "first third / last third" semantics stays meaningful), then counts
+      are summed across episodes.
+    * **Change-points (ch. 2).** Detector is run per agent per episode; we
+      report the mean CP count across all agent-episodes. Representative
+      example phases come from the first episode's median-CP agent.
+    * **Inter-agent divergence (ch. 3).** Per-agent action sequences are
+      concatenated across episodes *before* computing distributions; this
+      just sharpens the estimate.
+    * **Branch coverage (ch. 4).** ``line_hits`` is expected to accumulate
+      across episodes (the caller passes the same dict into every
+      ``run_episode(..., trace_line_hits=line_hits)`` call). Coverage is
+      computed once over the union.
+    * **Precondition failures + inventory-at-cap (ch. 5).** Actions and
+      state-changed booleans are concatenated; rates are recomputed.
+      Inventory-at-cap is ``Σ(inv_full_frames) / Σ(horizon × n_agents)``.
+
     Parameters
     ----------
     trajectory
-        The dict returned by ``run_episode(..., capture_trajectory=True)``.
+        A single trajectory dict, or a list of dicts from K run_episode calls
+        all with ``capture_trajectory=True``.
     code
         Source of the synthesized policy (for branch coverage).
     filename
@@ -477,33 +503,106 @@ def extract_profile(
         Game name; used to pick action names.
     line_hits
         Optional dict populated by the tracer in
-        :func:`gathering_policy.run_episode`.
+        :func:`gathering_policy.run_episode`. When aggregating over multiple
+        episodes, callers should pass the **same** dict to every run so hits
+        accumulate.
     """
+    # Normalise to a list.
+    if isinstance(trajectory, dict):
+        trajectories = [trajectory]
+    else:
+        trajectories = list(trajectory)
+
     action_names = ACTION_NAMES_BY_GAME.get(game, [])
-    horizon = int(trajectory.get("horizon", 0))
-    n_agents = int(trajectory.get("n_agents", 0))
+    num_actions = max(len(action_names), 1)
+    n_buckets = 3  # paper default; matches N_PROFILE_BUCKETS in pipeline.config
 
-    action_history = trajectory.get("action_history") or {}
-    state_changed = trajectory.get("state_changed") or {}
-    ep_rewards = trajectory.get("ep_rewards") or {}
-    inv_full = trajectory.get("inventory_full_frames") or {}
+    if not trajectories:
+        # Nothing to aggregate.
+        return Profile(n_episodes=0)
 
-    # --- Channel 1 ---
-    buckets, never = action_histogram_over_buckets(
-        action_history, horizon, action_names,
-    )
+    # Use the first episode as the canonical horizon / agent-count for
+    # display. (In practice all profile episodes run on identical env
+    # factories so these are equal across episodes.)
+    horizon = int(trajectories[0].get("horizon", 0))
+    n_agents = int(trajectories[0].get("n_agents", 0))
+    n_episodes = len(trajectories)
 
-    # --- Channel 2 ---
-    cp_mean, cp_example, phase_example = change_point_detection(
-        ep_rewards, horizon,
-    )
+    # --- Channel 1: action histograms, bucketed WITHIN each episode -------
+    bucket_counts = [Counter() for _ in range(n_buckets)]
+    total_counts: Counter = Counter()
+    for traj in trajectories:
+        h = int(traj.get("horizon", horizon))
+        edges = [int(round(h * k / n_buckets)) for k in range(n_buckets + 1)]
+        ah = traj.get("action_history") or {}
+        for aid, acts in ah.items():
+            for b in range(n_buckets):
+                for a in acts[edges[b]:edges[b + 1]]:
+                    a = int(a)
+                    bucket_counts[b][a] += 1
+                    total_counts[a] += 1
 
-    # --- Channel 3 ---
+    buckets: List[dict] = []
+    # Bucket edges for display use the first-episode horizon.
+    disp_edges = [int(round(horizon * k / n_buckets)) for k in range(n_buckets + 1)]
+    for b in range(n_buckets):
+        counts = bucket_counts[b]
+        total = sum(counts.values()) or 1
+        top = counts.most_common(4)
+        buckets.append({
+            "bucket": b,
+            "steps": [disp_edges[b], disp_edges[b + 1]],
+            "total": total,
+            "top": [(action_names[a] if 0 <= a < num_actions else str(a),
+                     round(c / total, 3))
+                    for a, c in top],
+        })
+
+    never = [action_names[a] for a in range(num_actions)
+             if total_counts.get(a, 0) == 0]
+
+    # --- Channel 2: change-points, aggregated across agent-episodes -------
+    cp_counts_all: List[int] = []
+    for traj in trajectories:
+        er = traj.get("ep_rewards") or {}
+        for aid, rews in er.items():
+            cp_counts_all.append(len(_simple_change_points(rews)))
+    mean_cp = float(np.mean(cp_counts_all)) if cp_counts_all else 0.0
+
+    # Representative example: first episode's median-CP agent.
+    rep_ep_rewards = trajectories[0].get("ep_rewards") or {}
+    cp_lists_first = {aid: _simple_change_points(rews)
+                      for aid, rews in rep_ep_rewards.items()}
+    if cp_lists_first:
+        rep_aid = sorted(cp_lists_first,
+                         key=lambda k: len(cp_lists_first[k]))[len(cp_lists_first) // 2]
+        rep_cps = cp_lists_first[rep_aid]
+        rep_rewards = rep_ep_rewards.get(rep_aid, [])
+    else:
+        rep_cps = []
+        rep_rewards = []
+    phases: List[dict] = []
+    boundaries = [0] + rep_cps + [len(rep_rewards)]
+    for s, e in zip(boundaries[:-1], boundaries[1:]):
+        if e <= s:
+            continue
+        chunk = rep_rewards[s:e]
+        phases.append({
+            "start": int(s),
+            "end": int(e),
+            "rate": round(float(sum(chunk) / max(len(chunk), 1)), 4),
+        })
+
+    # --- Channel 3: inter-agent divergence on concatenated sequences ------
+    concat_ah: Dict[int, list] = {}
+    for traj in trajectories:
+        for aid, acts in (traj.get("action_history") or {}).items():
+            concat_ah.setdefault(aid, []).extend(acts)
     tv_mean, role_r2 = inter_agent_divergence(
-        action_history, num_actions=max(len(action_names), 1),
+        concat_ah, num_actions=num_actions,
     )
 
-    # --- Channel 4 ---
+    # --- Channel 4: branch coverage (line_hits accumulated by caller) -----
     if line_hits is not None and filename is not None:
         coverage_pct, n_exec, dead_entries, coldest_entries = ast_branch_coverage(
             code, filename, line_hits,
@@ -511,23 +610,29 @@ def extract_profile(
     else:
         coverage_pct, n_exec, dead_entries, coldest_entries = 100.0, 0, [], []
 
-    # --- Channel 5 ---
+    # --- Channel 5: precondition failures + inventory-at-cap --------------
+    concat_sc: Dict[int, list] = {}
+    for traj in trajectories:
+        for aid, sc in (traj.get("state_changed") or {}).items():
+            concat_sc.setdefault(aid, []).extend(sc)
     ineffective = precondition_failure_rates(
-        action_history, state_changed, action_names,
+        concat_ah, concat_sc, action_names,
     )
-    if inv_full and horizon > 0 and n_agents > 0:
-        inv_full_rate = round(
-            sum(inv_full.values()) / (horizon * n_agents), 3,
-        )
-    else:
-        inv_full_rate = 0.0
+
+    inv_total = 0
+    frames_total = 0
+    for traj in trajectories:
+        inv = traj.get("inventory_full_frames") or {}
+        inv_total += sum(inv.values())
+        frames_total += int(traj.get("horizon", 0)) * int(traj.get("n_agents", 0))
+    inv_full_rate = round(inv_total / frames_total, 3) if frames_total else 0.0
 
     return Profile(
         action_buckets=buckets,
         actions_never_used=never,
-        change_points_per_agent_mean=round(cp_mean, 2),
-        change_points_example=cp_example,
-        reward_phases_example=phase_example,
+        change_points_per_agent_mean=round(mean_cp, 2),
+        change_points_example=rep_cps,
+        reward_phases_example=phases,
         action_tv_mean=round(tv_mean, 3),
         role_id_rsquared=round(role_r2, 3),
         branch_coverage_pct=coverage_pct,
@@ -536,7 +641,7 @@ def extract_profile(
         coldest_branches=coldest_entries,
         action_ineffective_rate=ineffective,
         inventory_full_frame_rate=inv_full_rate,
-        n_episodes=1,
+        n_episodes=n_episodes,
         horizon=horizon,
         n_agents=n_agents,
     )
@@ -551,9 +656,9 @@ def serialize_profile(p: Profile, include_source: bool = True) -> str:
     """Render a :class:`Profile` as a short Markdown block for prompts."""
     lines: List[str] = []
     lines.append("### Execution profile (PGA)")
-    lines.append(
-        f"- Horizon {p.horizon}, {p.n_agents} agents, {p.n_episodes} trace episode(s)."
-    )
+    ep_note = (f"aggregated over {p.n_episodes} trace episodes"
+               if p.n_episodes > 1 else "1 trace episode")
+    lines.append(f"- Horizon {p.horizon}, {p.n_agents} agents, {ep_note}.")
 
     # Channel 1
     lines.append("")
