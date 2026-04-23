@@ -6,6 +6,7 @@ The researcher can modify these to change the inner loop behavior:
 - Number of evaluation seeds
 - Retry budget
 - Thinking budget for the policy LLM
+- MH inner-loop parameters (variance containment — see pga_improvement_plan.md)
 - Any other iteration-level hyperparameters
 """
 
@@ -24,3 +25,20 @@ THINKING_BUDGET = 16000
 
 # Evaluation timeout per matchup (seconds).
 EVAL_TIMEOUT = 600
+
+# --- Profile-Guided Autoresearch (PGA) ------------------------------------
+
+# Number of time-buckets to split the horizon into for the action histogram
+# profile channel. 3 = thirds (matches the paper default).
+N_PROFILE_BUCKETS = 3
+
+# --- MH-accepted inner loop (variance containment) ------------------------
+# When enabled, each inner-loop iteration proposes a LOCAL MUTATION of the
+# current best policy rather than regenerating from scratch. Accepts with
+# probability min(1, exp(beta * (Φ_new - Φ_old))) with β annealed across
+# the loop. Off by default; flip to True (and set --inner-loop mh in the
+# CLI if added) to run Experiment 1's "PGA + MH" arm.
+MH_INNER_LOOP = False
+MH_BETA_0 = 1.0           # initial inverse-temperature (linear schedule)
+MH_BETA_FINAL = 5.0       # β at the last inner iteration
+MH_METRIC = "efficiency"  # which channel drives acceptance (efficiency or maximin)

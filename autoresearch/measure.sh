@@ -188,6 +188,13 @@ d = json.load(sys.stdin)
 for t in d.get('trajectory', []):
     print(f\"  iter {t['iteration']}: reward={t['reward_avg']:.1f}  eff={t['efficiency']:.4f}  eq={t.get('equality',0):.3f}  sus={t.get('sustainability',0):.1f}  peace={t.get('peace',0):.2f}  maximin={t.get('maximin',0):.2f}\")
 "
+    # --- PGA: show the final profile so the outer-loop researcher sees the
+    # same diagnostic signal the inner-loop synthesizer received.
+    if [[ -f "${OUTPUT_DIR}/profile_latest.md" ]]; then
+        echo ""
+        echo "--- EXECUTION PROFILE (final iteration) ---"
+        cat "${OUTPUT_DIR}/profile_latest.md"
+    fi
     echo ""
     echo "--- PIPELINE STATE ---"
     echo "Files in pipeline/:"

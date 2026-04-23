@@ -40,7 +40,9 @@ FROZEN — Not modifiable by the researcher
 - `pipeline/prompts.py` — System prompts for the policy LLM ($p$ in the formalism)
 - `pipeline/feedback.py` — Feedback construction: what metrics/info the policy LLM sees between iterations ($\ell$, $\phi$)
 - `pipeline/helpers.py` — Extra helper functions injected into the policy namespace ($\mathcal{H}$)
-- `pipeline/config.py` — Iteration parameters: K, eval seeds, retries ($\iota$)
+- `pipeline/config.py` — Iteration parameters: K, eval seeds, retries, MH-loop flags ($\iota$)
+- `pipeline/profile.py` — FROZEN. Profile-Guided Autoresearch extractor (see `pga_improvement_plan.md`). Environment-agnostic; researcher may read but not modify.
+- `pipeline/inner_loop_mh.py` — FROZEN. Metropolis–Hastings-accepted inner loop helpers.
 
 ### Orchestrator
 - `run_inner_loop.py` — Composes pipeline/ with frozen infrastructure, runs the inner loop, outputs metrics as JSON. Args: `--game`, `--model`, `--map`, `--n-agents`, `--output-dir`.
@@ -94,6 +96,17 @@ uv run run_inner_loop.py --game coop_mining --model gemini-3.1-pro-preview --map
 ./autoresearch/measure.sh dense                              # Gemini (default), optimize efficiency
 ./autoresearch/measure.sh dense --model claude-sonnet-4-6    # Sonnet
 ./autoresearch/measure.sh dense --metric maximin             # Optimize maximin (Rawlsian welfare)
+
+# Profile-Guided Autoresearch (PGA) — default. Adds a structured
+# execution profile to the researcher's observation: action histograms,
+# reward change-points, inter-agent divergence, AST branch coverage,
+# precondition-failure rates. See pga_improvement_plan.md and
+# pipeline/profile.py.
+#
+#   Scalar-only ablation:  uv run run_inner_loop.py ... --no-profile
+#   PGA + MH inner loop:   uv run run_inner_loop.py ... --mh
+#
+# Both flags forward through ./autoresearch/measure.sh.
 
 # Launch autonomous researcher (Opus researcher, Gemini policy LLM)
 ./autoresearch/run_experiment.sh mar30-test dense

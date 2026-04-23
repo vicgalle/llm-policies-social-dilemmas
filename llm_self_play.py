@@ -630,8 +630,19 @@ def validate_code_safety(code: str) -> list[str]:
     return violations
 
 
-def load_policy(code: str, extra_namespace: dict | None = None) -> callable:
-    """Execute policy code in a sandboxed namespace and return the function."""
+def load_policy(
+    code: str,
+    extra_namespace: dict | None = None,
+    tag: str | None = None,
+) -> callable:
+    """Execute policy code in a sandboxed namespace and return the function.
+
+    When ``tag`` is given, the code is compiled with a stable pseudo-filename
+    ``<policy_{tag}>`` and registered in ``linecache`` so that
+    :mod:`pipeline.profile` can (a) filter ``sys.settrace`` events to this
+    policy's frames, and (b) look up source by line number for dead-branch
+    reports.
+    """
     namespace = {
         # Environment types
         "GatheringEnv": GatheringEnv,
@@ -666,12 +677,30 @@ def load_policy(code: str, extra_namespace: dict | None = None) -> callable:
     if extra_namespace:
         namespace.update(extra_namespace)
 
-    exec(code, namespace)
+    if tag is not None:
+        import linecache
+        filename = f"<policy_{tag}>"
+        # Register source with linecache so introspection (and sys.settrace
+        # filtering) can resolve this virtual filename.
+        lines = [ln + "\n" for ln in code.splitlines()]
+        linecache.cache[filename] = (len(code), None, lines, filename)
+        compiled = compile(code, filename, "exec")
+        exec(compiled, namespace)
+        namespace.setdefault("__policy_filename__", filename)
+    else:
+        exec(code, namespace)
 
     if "policy" not in namespace:
         raise ValueError("Code does not define 'policy' function")
 
-    return namespace["policy"]
+    fn = namespace["policy"]
+    if tag is not None:
+        # Stash the tag on the function so callers can retrieve source lines.
+        try:
+            fn.__policy_filename__ = namespace["__policy_filename__"]
+        except Exception:
+            pass
+    return fn
 
 
 def smoke_test_policy(fn: callable, env_factory: callable = None, max_action: int = 7,

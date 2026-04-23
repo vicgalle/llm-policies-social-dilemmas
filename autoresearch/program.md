@@ -30,6 +30,62 @@ You, the researcher agent $\mathcal{R}$, modify the **pipeline configuration** �
 | Budget: 5 min wall clock | Budget: ~5-10 min per inner loop |
 | Agent: AI coding agent | Agent: Researcher $\mathcal{R}$ (you) |
 
+## Profile-Guided Autoresearch (PGA)
+
+This framework now includes **Profile-Guided Autoresearch** (see
+`pga_improvement_plan.md` for the paper-level motivation). After each inner-
+loop iteration, a fixed extractor (`pipeline/profile.py` — FROZEN, not
+modifiable by you) runs one additional "profile episode" and produces a
+five-channel execution profile `P`:
+
+1. **Action histograms over time-buckets** — which actions dominate each
+   third of the horizon, and which actions were never invoked.
+2. **Per-agent reward change-points** — is the reward stream stationary,
+   or does it contain detectable regime changes? A flat profile tells you
+   the policy is not conditioning on time / phase information even if the
+   environment rewards vary over the episode.
+3. **Inter-agent divergence** — in homogeneous self-play, do agents
+   specialise by state, by `agent_id`, or not at all?
+4. **AST-branch coverage** — which lines of the synthesised policy
+   actually executed. Dead branches are silent bugs; coldest branches are
+   rarely-triggered corner cases.
+5. **Precondition-failure / cap-saturation rates** — how often a non-inert
+   action was taken but no agent-visible state change resulted.
+
+The profile is shown to the inner-loop policy LLM (as a prompt block with
+diagnostic hints) **and** surfaced in `measure.sh --dense` output and
+`profile_latest.md` inside the run directory so you can read it too.
+
+**How to use the profile**: reason diagnostically rather than optimistically.
+Given `(Φ, m, P)`, attribute the observed performance to specific mechanisms
+revealed by the profile, then propose pipeline modifications that make the
+policy LLM more likely to fix *that* mechanism. Examples (generic, not
+tied to any one environment):
+
+- Profile shows an action is never invoked by any agent → check whether
+  that action is reachable given the current policy's guards, and (if the
+  env mechanics suggest the action is useful) expose a helper or an API
+  reminder that makes it easier to emit.
+- Profile shows dead branches in the previous policy → the synthesiser is
+  writing guards that never trigger; add a worked example that gates on
+  the right env state, or prune the guard.
+- Profile shows high `role_id_rsquared` → the policy is doing brittle
+  static assignment; add a helper that enables state-conditional role
+  selection.
+- Profile shows stationary reward streams but the env rewards are not
+  uniform over time → the policy is ignoring time; surface time or phase
+  information in the prompt or helpers.
+
+When the researcher (you) decides whether to KEEP or DISCARD a modification,
+the profile often explains *why* the primary metric moved — useful for
+channel-by-channel attribution in the ablation experiment.
+
+You can also temporarily disable PGA for a scalar-only baseline:
+
+```bash
+./autoresearch/measure.sh dense --no-profile
+```
+
 ## The metrics
 
 The primary metric is specified at launch via `--metric` (default: `efficiency`). The two options are:
@@ -77,6 +133,11 @@ All files in `pipeline/`:
 - `autoresearch/measure.sh` — the measurement script (frozen)
 
 You CAN (and should) read these files to understand the game mechanics and make informed modifications to the pipeline.
+
+Additionally FROZEN (PGA infrastructure — you may *read* but not edit):
+- `pipeline/profile.py` — the execution-profile extractor. The scientific
+  claim of PGA is that the extractor is fixed and environment-agnostic; if
+  you change it, the claim no longer holds.
 
 ## Constraints
 

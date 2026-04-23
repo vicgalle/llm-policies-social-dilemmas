@@ -592,6 +592,8 @@ def run_episode(
     seed: int = 42,
     verbose: bool = True,
     label: str = "",
+    capture_trajectory: bool = False,
+    trace_line_hits: dict = None,
 ) -> dict:
     """Run one full episode with per-agent action functions.
 
@@ -603,6 +605,15 @@ def run_episode(
         ``"bfs"``  → greedy_action,
         ``"exploit"`` → exploitative_action,
         ``"random"`` → uniform random.
+    capture_trajectory : bool
+        If True, record per-step per-agent actions and a minimal state snapshot
+        (agent_pos, inventory if present, has_tool if present) before/after each
+        step. Returned under keys "action_history" and "state_deltas".
+        Used by the profile-guided autoresearch extractor (pipeline/profile.py).
+    trace_line_hits : dict or None
+        If provided, enable ``sys.settrace`` during policy calls and count line
+        hits keyed by (co_filename, lineno). The caller supplies an empty dict
+        and reads hits after the episode. Used for AST-branch coverage.
     """
     if agent_fns is None:
         agent_fns = {}
@@ -640,11 +651,68 @@ def run_episode(
     ep_rewards = {i: [] for i in range(env.n_agents)}
     ep_timeouts = {i: [] for i in range(env.n_agents)}
 
+    # --- Profile-guided autoresearch trajectory capture ------------------
+    # Opt-in: when capture_trajectory=True we record the per-step action for
+    # each agent and a "did the agent's own state change?" boolean so the
+    # profile extractor can compute precondition-failure / ineffective-action
+    # rates without environment-specific code. We also optionally enable a
+    # line tracer (for branch coverage) around the policy call.
+    capture = bool(capture_trajectory)
+    trace = trace_line_hits is not None
+    if capture:
+        action_history = {i: [0] * env.max_steps for i in range(env.n_agents)}
+        # State-changed booleans: True means the agent's own state (position,
+        # inventory, has_tool) advanced in some way during this step.
+        state_changed = {i: [False] * env.max_steps for i in range(env.n_agents)}
+        # Inventory-full frames: fraction of frames an agent is at inventory cap.
+        # Only meaningful when the env exposes ``inventory`` + ``inventory_capacity``.
+        inv_full_count = {i: 0 for i in range(env.n_agents)}
+        has_inventory = hasattr(env, "inventory") and hasattr(env, "inventory_capacity")
+        has_tool_flag = hasattr(env, "has_tool")
+    else:
+        action_history = None
+        state_changed = None
+        inv_full_count = None
+        has_inventory = False
+        has_tool_flag = False
+
+    # Trace helper: filter to frames whose co_filename starts with
+    # ``<policy`` (see ``load_policy(..., tag=...)``).
+    if trace:
+        import sys as _sys_for_trace
+
+        def _tracer(frame, event, arg):
+            if event == "line":
+                fn = frame.f_code.co_filename
+                if fn.startswith("<policy"):
+                    key = (fn, frame.f_lineno)
+                    trace_line_hits[key] = trace_line_hits.get(key, 0) + 1
+            return _tracer
+    else:
+        _sys_for_trace = None
+        _tracer = None
+
     for step in range(env.max_steps):
+        # Snapshot per-agent state (only if we need to detect "no-op" actions).
+        if capture:
+            prev_pos = [(int(env.agent_pos[i, 0]), int(env.agent_pos[i, 1]))
+                        for i in range(env.n_agents)]
+            if has_inventory:
+                prev_inv = env.inventory.copy()
+            if has_tool_flag:
+                prev_has_tool = env.has_tool.copy()
+
         actions = {}
         for i in range(env.n_agents):
             if fn_map[i] is not None:
-                actions[i] = fn_map[i](env, i)
+                if trace:
+                    _sys_for_trace.settrace(_tracer)
+                    try:
+                        actions[i] = fn_map[i](env, i)
+                    finally:
+                        _sys_for_trace.settrace(None)
+                else:
+                    actions[i] = fn_map[i](env, i)
             else:
                 actions[i] = int(env.rng.integers(NUM_ACTIONS))
 
@@ -653,6 +721,21 @@ def run_episode(
         for i in range(env.n_agents):
             ep_rewards[i].append(rewards[i])
             ep_timeouts[i].append(info[i]["timeout"] > 0)
+
+        if capture:
+            for i in range(env.n_agents):
+                action_history[i][step] = int(actions[i])
+                cur_pos = (int(env.agent_pos[i, 0]), int(env.agent_pos[i, 1]))
+                moved = cur_pos != prev_pos[i]
+                inv_ch = False
+                if has_inventory:
+                    inv_ch = bool((env.inventory[i] != prev_inv[i]).any())
+                tool_ch = False
+                if has_tool_flag:
+                    tool_ch = bool(env.has_tool[i] != prev_has_tool[i])
+                state_changed[i][step] = moved or inv_ch or tool_ch or rewards[i] > 0
+                if has_inventory and int(env.inventory[i].sum()) >= int(env.inventory_capacity):
+                    inv_full_count[i] += 1
 
     # ── Results ───────────────────────────────────────────────────────────
     total = {i: sum(ep_rewards[i]) for i in range(env.n_agents)}
@@ -680,12 +763,24 @@ def run_episode(
             print(f"    {k:20s}: {v:.4f}")
         print("=" * 60)
 
-    return {
+    out = {
         "total_rewards": total,
         "metrics": metrics,
         "ep_rewards": ep_rewards,
         "ep_timeouts": ep_timeouts,
     }
+    if capture_trajectory:
+        out["action_history"] = action_history
+        out["state_changed"] = state_changed
+        out["inventory_full_frames"] = inv_full_count
+        out["horizon"] = env.max_steps
+        out["n_agents"] = env.n_agents
+        out["final_shelter_count"] = int(getattr(env, "shelter_count", 0))
+        out["has_tool_final"] = (
+            [bool(env.has_tool[i]) for i in range(env.n_agents)]
+            if has_tool_flag else None
+        )
+    return out
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
