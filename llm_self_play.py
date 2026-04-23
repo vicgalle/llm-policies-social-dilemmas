@@ -501,6 +501,40 @@ COOP_MINING_CONFIG = GameConfig(
     ),
 )
 
+from production_economy_env import (
+    Action as ProductionAction,
+    NUM_ACTIONS as NUM_PRODUCTION_ACTIONS,
+    MAX_ACTION as PRODUCTION_MAX_ACTION,
+    WOOD as PE_WOOD,
+    STONE as PE_STONE,
+    PLANK as PE_PLANK,
+    BRICK as PE_BRICK,
+)
+
+PRODUCTION_ECONOMY_CONFIG = GameConfig(
+    name="production_economy",
+    # The system_prompt_reward is only used by the legacy paths in this file;
+    # the autoresearch path picks its system prompt from pipeline/prompts.py.
+    system_prompt_reward=SYSTEM_PROMPT_REWARD,
+    max_action=PRODUCTION_MAX_ACTION,
+    extra_namespace={
+        "ProductionAction": ProductionAction,
+        "NUM_PRODUCTION_ACTIONS": NUM_PRODUCTION_ACTIONS,
+        "WOOD": PE_WOOD,
+        "STONE": PE_STONE,
+        "PLANK": PE_PLANK,
+        "BRICK": PE_BRICK,
+    },
+    env_hint=(
+        "Gather wood (forests) and stone (quarries), craft planks at sawmills and "
+        "bricks at masonries, then at forges craft either a TOOL (2 planks + 1 brick; "
+        "+2/step for 80 steps; doubles GATHER yield) or a SHELTER piece (3 planks + "
+        "3 bricks). At step 200 all agents get +50 if global shelter_count >= 6 else -50. "
+        "Inventory cap: 3 items. Items can be dropped/picked up on cells (cap 5 per cell). "
+        "Horizon: 300 steps. No aggression or tagging."
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # PolicyRecord

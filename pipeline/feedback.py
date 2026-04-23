@@ -17,16 +17,15 @@ import textwrap
 
 # Social metric definitions shown to the policy LLM.
 METRIC_DEFINITIONS = (
-    "- **Efficiency**: collective apple collection rate across all agents "
-    "(higher = more apples collected per step).\n"
+    "- **Efficiency**: collective reward rate per step across all agents "
+    "(higher = more total reward earned per timestep).\n"
     "- **Equality**: fairness of reward distribution between agents "
-    "(1.0 = perfectly equal, negative = highly unequal).\n"
-    "- **Sustainability**: long-term apple availability — measures whether "
-    "resources are preserved over the episode (higher = apples remain available "
-    "later in the episode).\n"
-    "- **Peace**: absence of aggressive beaming — counts agents not involved in "
-    "attack beam conflicts (higher = less aggression). Using the CLEAN beam to "
-    "remove waste does NOT reduce peace."
+    "(1.0 = perfectly equal, lower = more unequal).\n"
+    "- **Sustainability**: the mean timestep at which reward-producing events "
+    "occur (higher = rewards accrue later in the episode, indicating preserved "
+    "resources or delayed payoffs).\n"
+    "- **Peace**: absence of aggressive interaction (higher = less conflict). "
+    "Games without a tagging/attack mechanism always report the maximum."
 )
 
 

@@ -42,12 +42,14 @@ from llm_self_play import (
     CLEANUP_CONFIG,
     GATHERING_CONFIG,
     COOP_MINING_CONFIG,
+    PRODUCTION_ECONOMY_CONFIG,
     get_opponents,
     log,
 )
 from gathering_env import make_gathering, make_gathering_large
 from cleanup_env import make_cleanup
 from coop_mining_env import make_coop_mining, make_coop_mining_large
+from production_economy_env import make_production_economy
 
 # --- Modifiable pipeline imports ---
 # These are the files the researcher modifies.
@@ -298,7 +300,7 @@ def parse_args():
     )
     parser.add_argument(
         "--game",
-        choices=["gathering", "cleanup", "coop_mining"],
+        choices=["gathering", "cleanup", "coop_mining", "production_economy"],
         default="cleanup",
     )
     parser.add_argument(
@@ -332,6 +334,8 @@ if __name__ == "__main__":
         game_config = CLEANUP_CONFIG
     elif args.game == "coop_mining":
         game_config = COOP_MINING_CONFIG
+    elif args.game == "production_economy":
+        game_config = PRODUCTION_ECONOMY_CONFIG
     else:
         game_config = GATHERING_CONFIG
 
@@ -341,6 +345,8 @@ if __name__ == "__main__":
             args.n_agents = 5 if args.map != "large" else 10
         elif args.game == "coop_mining":
             args.n_agents = 4 if args.map != "large" else 6
+        elif args.game == "production_economy":
+            args.n_agents = 8
         elif args.map == "large":
             args.n_agents = 4
         else:
@@ -355,6 +361,8 @@ if __name__ == "__main__":
                 return make_coop_mining_large(n_agents=args.n_agents)
             else:
                 return make_coop_mining(n_agents=args.n_agents, small=(args.map == "small"))
+        elif args.game == "production_economy":
+            return make_production_economy(n_agents=args.n_agents)
         elif args.map == "large":
             return make_gathering_large(n_agents=args.n_agents)
         else:

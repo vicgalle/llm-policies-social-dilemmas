@@ -82,6 +82,10 @@ elif [[ "$GAME" == "gathering" ]]; then
     GAME_ARGS="--game gathering --n-agents 4"
     GAME_DESC="Gathering with 4 agents on large map (common pool resource)"
     ENV_FILE="gathering_env.py"
+elif [[ "$GAME" == "production_economy" ]]; then
+    GAME_ARGS="--game production_economy --n-agents 8"
+    GAME_DESC="Production Economy with 8 agents on a 15x15 map (temporal coordination: tools vs shelter before winter at step 200)"
+    ENV_FILE="production_economy_env.py"
 fi
 
 PROMPT="Read autoresearch/program.md carefully. This is your research program.
