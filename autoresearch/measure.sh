@@ -50,7 +50,11 @@ if [[ "$METRIC" != "efficiency" && "$METRIC" != "maximin" ]]; then
     exit 1
 fi
 
-BASELINE_FILE="autoresearch/.baseline_${METRIC}"
+# Selection rule: compare the MEAN of iterations 1..K (excluding the cold-start
+# iter-0). This is less noisy than a single final-iteration sample and rewards
+# configs that refine consistently rather than ones that spike once.
+# Fresh filename to avoid collisions with legacy final-iteration baselines.
+BASELINE_FILE="autoresearch/.baseline_${METRIC}_mean"
 
 # Build run args: start with defaults, then overlay extra args.
 # Extra args like --model X will override the default --model.
@@ -105,7 +109,8 @@ if [[ -z "$METRICS_JSON" ]]; then
     exit 1
 fi
 
-# Parse with python
+# Parse with python.
+# Final-iteration values (kept for display / context)
 EFFICIENCY=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['efficiency'])")
 EQUALITY=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('equality', 0))")
 SUSTAINABILITY=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('sustainability', 0))")
@@ -114,11 +119,26 @@ MAXIMIN=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.st
 REWARD_AVG=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['reward_avg'])")
 WALL_TIME=$(echo "$METRICS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['wall_time_s'])")
 
-# Get the primary metric value
+# Mean over iterations 1..K (exclude cold-start iter-0). Falls back to the
+# final-iteration value if the trajectory has no iter>=1 entries (e.g. K=0).
+read -r EFFICIENCY_MEAN MAXIMIN_MEAN REWARD_AVG_MEAN N_ITERS_USED <<< "$(echo "$METRICS_JSON" | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+traj = [t for t in d.get('trajectory', []) if t.get('iteration', 0) >= 1]
+if not traj:
+    print(d['efficiency'], d.get('maximin', 0), d['reward_avg'], 0)
+else:
+    eff = sum(t['efficiency'] for t in traj) / len(traj)
+    mm  = sum(t.get('maximin', 0) for t in traj) / len(traj)
+    ra  = sum(t['reward_avg'] for t in traj) / len(traj)
+    print(eff, mm, ra, len(traj))
+")"
+
+# Primary value (used for keep/discard): mean over iters 1..K
 if [[ "$METRIC" == "efficiency" ]]; then
-    PRIMARY_VALUE="$EFFICIENCY"
+    PRIMARY_VALUE="$EFFICIENCY_MEAN"
 else
-    PRIMARY_VALUE="$MAXIMIN"
+    PRIMARY_VALUE="$MAXIMIN_MEAN"
 fi
 
 # Compute delta from baseline
@@ -135,25 +155,31 @@ fi
 # --- Report ---
 echo ""
 echo "--- RESULT ---"
-echo "status:          OK"
-echo "metric:          ${METRIC}"
-echo "efficiency:      ${EFFICIENCY}"
-echo "maximin:         ${MAXIMIN}"
-echo "delta:           ${DELTA}"
-echo "reward_avg:      ${REWARD_AVG}"
-echo "run_time:        ${RUN_TIME}s"
-echo "output_dir:      ${OUTPUT_DIR}"
+echo "status:              OK"
+echo "metric:              ${METRIC} (mean of iters 1..${N_ITERS_USED})"
+echo "efficiency_mean:     ${EFFICIENCY_MEAN}"
+echo "efficiency_final:    ${EFFICIENCY}"
+echo "maximin_mean:        ${MAXIMIN_MEAN}"
+echo "maximin_final:       ${MAXIMIN}"
+echo "delta:               ${DELTA}  (vs baseline ${METRIC}_mean)"
+echo "reward_avg_mean:     ${REWARD_AVG_MEAN}"
+echo "reward_avg_final:    ${REWARD_AVG}"
+echo "run_time:            ${RUN_TIME}s"
+echo "output_dir:          ${OUTPUT_DIR}"
 
 if [[ "$FEEDBACK_MODE" == "dense" ]]; then
     echo ""
     echo "--- ALL METRICS ---"
-    echo "efficiency:      ${EFFICIENCY}"
-    echo "maximin:         ${MAXIMIN}"
-    echo "equality:        ${EQUALITY}"
-    echo "sustainability:  ${SUSTAINABILITY}"
-    echo "peace:           ${PEACE}"
-    echo "reward_avg:      ${REWARD_AVG}"
-    echo "wall_time:       ${WALL_TIME}s"
+    echo "efficiency_mean:     ${EFFICIENCY_MEAN}"
+    echo "efficiency_final:    ${EFFICIENCY}"
+    echo "maximin_mean:        ${MAXIMIN_MEAN}"
+    echo "maximin_final:       ${MAXIMIN}"
+    echo "equality (final):    ${EQUALITY}"
+    echo "sustainability:      ${SUSTAINABILITY}"
+    echo "peace:               ${PEACE}"
+    echo "reward_avg_mean:     ${REWARD_AVG_MEAN}"
+    echo "reward_avg_final:    ${REWARD_AVG}"
+    echo "wall_time:           ${WALL_TIME}s"
     echo ""
     echo "--- PER-ITERATION TRAJECTORY ---"
     echo "$METRICS_JSON" | python3 -c "

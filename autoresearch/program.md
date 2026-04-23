@@ -147,6 +147,14 @@ Run the measurement script:
 - **dense**: all metrics + per-iteration trajectory + pipeline state
 - **--metric**: which metric to optimize (default: efficiency). Controls baseline/delta tracking.
 
+**Selection rule**: the primary metric used for keep/discard is the **mean of
+iterations 1..K** (excluding the cold-start iter-0), not the final iteration.
+This is less noisy than a single final-iteration sample and rewards configs
+that refine consistently rather than spiking once. `measure.sh` reports both
+`efficiency_mean` / `maximin_mean` (used for `delta`) and `efficiency_final` /
+`maximin_final` (for context). Compare the `_mean` value against baseline when
+deciding to keep or discard.
+
 Each run takes ~5-10 minutes (K=3 inner iterations of LLM calls + evaluation). Be patient.
 
 ## The experiment loop
@@ -158,10 +166,10 @@ LOOP FOREVER:
 1. **Ideate**: Think about what pipeline modification to try next. Review your results.tsv, the current pipeline code, and the game mechanics. What information or tools might help the policy LLM write better cooperative policies?
 2. **Implement**: Edit files in `pipeline/`. You may change one file or multiple.
 3. **Run**: Execute `./autoresearch/measure.sh dense` (or `sparse` for quick checks).
-4. **Evaluate**: Did the inner loop succeed? Did the primary metric increase?
+4. **Evaluate**: Did the inner loop succeed? Did the primary metric (mean over iters 1..K) increase vs baseline?
 5. **Decision**:
-   - If the primary metric **increased** and the run succeeded: **KEEP**. Commit the pipeline changes with a descriptive message.
-   - If the primary metric **stayed the same** or **decreased**, or the run **failed**: **DISCARD**. Run `git checkout -- pipeline/` to revert.
+   - If the primary `*_mean` metric **increased** and the run succeeded: **KEEP**. Commit the pipeline changes with a descriptive message.
+   - If the primary `*_mean` metric **stayed the same** or **decreased**, or the run **failed**: **DISCARD**. Run `git checkout -- pipeline/` to revert.
 6. **Log**: Record the result in `autoresearch/results.tsv`.
 7. **Go to 1**.
 
