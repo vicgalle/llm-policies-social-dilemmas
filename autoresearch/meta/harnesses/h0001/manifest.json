@@ -1,0 +1,15 @@
+{
+  "id": "h0001",
+  "mode": "M3",
+  "base_model": null,
+  "env": "production_economy",
+  "n_agents": 8,
+  "map": "default",
+  "parent": null,
+  "created": "2026-04-25T00:00:00",
+  "tag": "seed-handcrafted",
+  "synthesis_token_cost": 0.0,
+  "inference_token_cost": 0.0,
+  "rationale_path": "rationale.md",
+  "policy_path": "harness/policy.py"
+}

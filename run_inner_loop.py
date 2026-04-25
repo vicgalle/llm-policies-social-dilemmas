@@ -67,6 +67,7 @@ async def run_inner_loop(
     game_config: GameConfig,
     output_dir: Path | None = None,
     enable_profile: bool = True,
+    record_traces: bool = False,
 ) -> dict:
     """Run the inner policy synthesis loop using pipeline configuration.
 
@@ -370,6 +371,40 @@ async def run_inner_loop(
                 history[-1]["profile_markdown"]
             )
 
+        # Meta-harness trace recording: replay the final accepted policy
+        # over the eval seeds and dump per-step JSONL + summaries.
+        # Phase 1 deliverable from PLAN.md.
+        if record_traces and policies:
+            try:
+                from pipeline.trace import TraceRecorder, aggregate_seed_summaries
+                from pipeline.harness import (
+                    run_meta_episode,
+                    action_names_for,
+                )
+                trace_dir = output_dir / "traces"
+                trace_dir.mkdir(parents=True, exist_ok=True)
+                action_names = action_names_for(game)
+                env_meta = {"game": game, "model": model,
+                            "n_iterations": n_iterations,
+                            "policy": policies[-1].name}
+                seed_summaries = []
+                for s in seeds:
+                    rec = TraceRecorder(
+                        trace_dir / f"seed_{int(s):02d}.jsonl",
+                        action_names=action_names,
+                        env_meta={**env_meta, "seed": int(s)},
+                    )
+                    run_meta_episode(env_factory, policies[-1].fn, int(s),
+                                     recorder=rec, max_action=max_action)
+                    seed_summaries.append(rec.finalize())
+                (trace_dir / "summary.json").write_text(json.dumps(
+                    aggregate_seed_summaries(seed_summaries), indent=2))
+                log(f"  Wrote {len(seed_summaries)} seed traces to {trace_dir}")
+            except Exception as e:
+                import traceback
+                log(f"  WARNING: trace recording failed: {e}")
+                log(traceback.format_exc())
+
     # Final metrics (from the last successful iteration)
     if history:
         final = history[-1]
@@ -446,6 +481,12 @@ def parse_args():
         action="store_true",
         help="Enable Metropolis–Hastings-accepted inner loop (variance containment).",
     )
+    parser.add_argument(
+        "--record-traces",
+        action="store_true",
+        help=("Record per-step trace JSONL for the final-iteration eval episode "
+              "(meta-harness diagnostic context — see pipeline/trace.py)."),
+    )
     return parser.parse_args()
 
 
@@ -511,5 +552,6 @@ if __name__ == "__main__":
             game_config=game_config,
             output_dir=output_dir,
             enable_profile=not args.no_profile,
+            record_traces=args.record_traces,
         )
     )

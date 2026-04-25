@@ -1,0 +1,29 @@
+{
+  "objectives": [
+    "efficiency",
+    "maximin",
+    "equality",
+    "neg_synthesis_token_cost",
+    "neg_inference_token_cost"
+  ],
+  "frontier": [
+    "h0001"
+  ],
+  "scores": {
+    "h0000": [
+      -0.8066666666666666,
+      -50.0,
+      0.525,
+      -0.0,
+      -0.0
+    ],
+    "h0001": [
+      10.329666666666666,
+      232.0,
+      0.908906747380396,
+      -0.0,
+      -0.0
+    ]
+  },
+  "updated": "2026-04-25T13:46:43"
+}

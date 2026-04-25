@@ -1,0 +1,52 @@
+{
+  "n_seeds": 15,
+  "n_agents": 8,
+  "horizon": 300,
+  "agent_totals_mean": [
+    448.4,
+    402.8,
+    412.93,
+    387.07,
+    432.53,
+    377.47,
+    410.27,
+    233.47
+  ],
+  "agent_totals_min": [
+    366.0,
+    366.0,
+    208.0,
+    208.0,
+    378.0,
+    366.0,
+    208.0,
+    208.0
+  ],
+  "agent_totals_max": [
+    570.0,
+    454.0,
+    474.0,
+    444.0,
+    468.0,
+    428.0,
+    482.0,
+    272.0
+  ],
+  "deadlock_events_total": 20,
+  "forge_contention_steps_mean": 47.9,
+  "action_counts_mean": {
+    "MOVE_E": 341.0,
+    "GATHER": 82.4,
+    "MOVE_S": 532.0,
+    "CRAFT": 111.9,
+    "MOVE_N": 527.6,
+    "MOVE_W": 337.2,
+    "CRAFT_TOOL": 21.0,
+    "NOOP": 384.3,
+    "CRAFT_SHELTER": 6.1,
+    "PICKUP_BRICK": 7.5,
+    "DROP_BRICK": 28.8,
+    "PICKUP_PLANK": 8.5,
+    "DROP_PLANK": 11.7
+  }
+}

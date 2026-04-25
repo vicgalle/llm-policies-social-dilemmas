@@ -47,13 +47,29 @@ FROZEN — Not modifiable by the researcher
 ### Orchestrator
 - `run_inner_loop.py` — Composes pipeline/ with frozen infrastructure, runs the inner loop, outputs metrics as JSON. Args: `--game`, `--model`, `--map`, `--n-agents`, `--output-dir`.
 
-### Autoresearch infrastructure
+### Autoresearch infrastructure (PGA framework — current paper)
 - `autoresearch/program.md` — Full instructions for the researcher agent (the "research program")
 - `autoresearch/measure.sh` — Runs inner loop and reports metrics. Usage: `./autoresearch/measure.sh [sparse|dense] [--metric efficiency|maximin] [--model MODEL ...]`
 - `autoresearch/run_experiment.sh` — Launches an autonomous researcher run. Usage: `./autoresearch/run_experiment.sh <tag> [feedback_mode] [researcher_model] [policy_model] [metric]`
 - `autoresearch/analyze.py` — Results analysis and convergence plots
 - `autoresearch/results.tsv` — Experiment log (tab-separated)
 - `autoresearch/runs/` — Per-run output directories with policies, metrics, history
+
+### Meta-Harness layer (next paper — see PLAN.md)
+Filesystem-rooted, trace-rich, multi-mode harness search. Coexists with PGA;
+chosen per-experiment. The proposer (Claude Code + Opus) reads/writes
+`autoresearch/meta/` directly via the tools.py CLI.
+- `pipeline/trace.py` — `TraceRecorder` (frozen): per-step JSONL + aggregated summary.
+- `pipeline/harness.py` — `Harness` protocol + M1/M2/M3 + `run_meta_episode`.
+- `autoresearch/meta/program.md` — Proposer instructions.
+- `autoresearch/meta/tools.py` — CLI: `list/read/eval/diff/spawn/probe/trace/summary/log/...`
+  invoked as `uv run python -m autoresearch.meta.tools <subcmd>`.
+- `autoresearch/meta/evaluator.py` — Adaptive 2/5/20-seed staged eval (stage 3 records traces).
+- `autoresearch/meta/population.py` — Multi-objective Pareto frontier.
+- `autoresearch/meta/run_experiment.sh` — Launch a proposer search. Usage: `./autoresearch/meta/run_experiment.sh <tag> [game] [proposer_model]`.
+- `autoresearch/meta/harnesses/h0000` — Weak greedy seed (climb-from baseline).
+- `autoresearch/meta/harnesses/h0001` — Hand-crafted PE upper anchor (~10.33 eff over 20 seeds).
+- `run_inner_loop.py --record-traces` — Adds Phase-1 trace recording to the legacy PGA pipeline.
 
 ### Paper notes
 - `autoresearch_ssd.tex` — Formal description of the two-level framework, connection to automated mechanism design, experimental plan
