@@ -3,14 +3,9 @@ h0000 — weak greedy seed for production_economy.
 
 Deliberately incompetent baseline. Each agent walks toward the nearest
 stocked resource, gathers, and walks toward the nearest workshop /
-forge depending on what's in inventory. No phase routing, no shelter
-coordination, no tool maintenance. Used to bracket the search:
-
-  - h0000 = weak seed (this file)
-  - h0001 = hand-crafted upper anchor (~10.27 efficiency)
-
-The headline experiment (PLAN.md Phase 2): can a fully autonomous
-proposer climb from h0000 to ≥10 efficiency on production_economy?
+forge depending on what's in inventory. No phase routing, no
+specialisation, no coordinated handoff. The seed exists so the
+meta-harness search has somewhere to climb from.
 """
 
 from __future__ import annotations

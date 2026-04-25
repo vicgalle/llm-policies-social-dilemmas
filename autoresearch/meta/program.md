@@ -48,7 +48,7 @@ loop runs all three; the difference is what's optimized at search time.
 
 | Mode | Source layout | Inference-time LLM | Closest analog |
 |---|---|---|---|
-| **M3** policy-as-code | `harness/policy.py` defining `policy(env, agent_id) -> int` | none | AutoHarness "harness-as-policy"; the hand-crafted `production_economy_policy.py` |
+| **M3** policy-as-code | `harness/policy.py` defining `policy(env, agent_id) -> int` | none | AutoHarness "harness-as-policy" |
 | **M2** scaffold-supplier | `harness/scaffold.py` defining `make_policy(base_model) -> callable` | optional, lower call rate | AutoHarness "action-verifier" |
 | **M1** feedback-shaper | `harness/pipeline/{prompts,feedback,helpers,config}.py` + `harness/synthesized_policy.py` | none at run time, but synthesis cost is non-zero | Existing autoresearch |
 
@@ -106,11 +106,11 @@ read everything.
   `efficiency, maximin, equality, neg_synthesis_token_cost,
   neg_inference_token_cost`. Weight your work toward axes the user
   cares about (typically efficiency-primary on production_economy).
-* **Don't hyper-optimize the seed bracket.** The hand-crafted h0001
-  reaches ~10.27 on production_economy with 5 seeds. Match-or-beat is
-  the bar; chasing 10.5 from 10.3 is not where the value is. Better
-  uses of compute: cross-env transfer, a Pareto point at lower cost,
-  a qualitatively different strategy with a different equality profile.
+* **Don't hyper-optimize a single number.** Once you have a non-trivial
+  point on the frontier, marginal gains on the primary axis are usually
+  worse uses of compute than: cross-env transfer, a lower-cost Pareto
+  point, or a qualitatively different strategy with a different
+  equality / maximin profile.
 
 ## Hard rules
 
@@ -125,15 +125,38 @@ read everything.
    don't bypass it.
 5. The git branch is yours, but **don't `git push --force`** or rewrite
    shared history. Append commits.
+6. **Off-limits files (no Read, no grep, no inclusion in probes).** The
+   experiment's scientific value depends on the search being unsupervised
+   — discovering strategies by interacting with the env, not by
+   plagiarising a known answer. Treat as if these files do not exist:
+     * `PLAN.md`, `pga_improvement_plan.md`, `previous_paper.pdf`,
+       `paper/`, `gepa_results/` — design docs and prior-paper artifacts.
+     * `production_economy_policy.py` — a hand-crafted reference policy.
+     * `gathering_policy.py:greedy_action` /
+       `:exploitative_action` / `:cooperative_action` — *the policies*;
+       the file's `run_episode` infrastructure is fine to read.
+     * `pipeline/feedback.py`, `pipeline/prompts.py`,
+       `pipeline/helpers.py` — these encode hypotheses from a prior
+       researcher about what helps; ignore them.
+     * Any `reference/`, `solutions/`, `_anchor*` directory you
+       discover under `autoresearch/meta/` (none are seeded today,
+       but future authors may add some).
+   You may freely read env *source* (`*_env.py`), env *spec*
+   (`production_economy.md`), the meta framework code (`pipeline/trace.py`,
+   `pipeline/harness.py`, `autoresearch/meta/{tools,evaluator,population}.py`),
+   and your own past harnesses + traces.
 
 ## Background reading
 
-* `PLAN.md` — full framework design + the four phased experiments
-  (mode comparison, social-Pareto, cross-env transfer, info ablation).
-* `production_economy.md` — the env spec (the headline benchmark).
-* `production_economy_policy.py` — copy lives at `harnesses/h0001/`;
-  read it as the upper-anchor M3 reference.
-* `harnesses/h0000/` — weak greedy seed; the climb-from baseline.
+* `production_economy.md` — the env spec (mechanics + parameters).
+  Equivalent .md or env source for other games.
+* `*_env.py` — env source for whichever game you're working on.
+* The seed harnesses under `harnesses/` — your starting population.
+
+Do not read `PLAN.md` or any prior-paper artifact in this repo: those
+documents reflect the human authors' hypotheses about what good
+strategies look like, and reading them contaminates the experiment.
+Your hypotheses must come from env source + your own traces.
 
 The framework is permissively designed: file-based, append-only,
 diff-friendly. Use that.

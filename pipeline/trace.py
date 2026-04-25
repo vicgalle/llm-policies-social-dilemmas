@@ -28,10 +28,10 @@ Aggregated summary (summary.json), written on finalize():
       "extras": {... env-specific aggregates ...}
     }
 
-The recorder is environment-agnostic by duck-typing the env. Production
-Economy receives a few extra aggregates (forge contention, pool
-saturation events) when the corresponding attributes exist; otherwise
-those aggregates are silently skipped.
+The recorder is environment-agnostic by duck-typing the env. Envs that
+expose ``forge_cells_list`` / ``dropped_items`` get extra aggregates
+(``sink_pools`` snapshots, ``sink_contention_steps``); other envs
+silently skip those without code changes.
 """
 
 from __future__ import annotations
@@ -75,19 +75,22 @@ def _env_globals(env) -> Dict[str, Any]:
         g["shelter_count"] = int(env.shelter_count)
     if hasattr(env, "_step_count"):
         g["step"] = int(env._step_count)
-    # Production Economy: forge pool snapshot ([planks, bricks] per forge).
+    # Generic "drop pool" snapshot for envs that expose ``forge_cells_list``
+    # (or any analogous "production sink" attribute) plus ``dropped_items``.
+    # Recorded as raw per-item-index counts — no env-specific item names —
+    # so the recorder remains environment-agnostic. Per-env adapters (or
+    # the proposer's own probes) can decode the indices when needed.
     if hasattr(env, "forge_cells_list") and hasattr(env, "dropped_items"):
         try:
-            from production_economy_env import PLANK as _P, BRICK as _B
             forges = []
             for r, c in env.forge_cells_list:
+                row = env.dropped_items[r, c]
                 forges.append({
                     "cell": [int(r), int(c)],
-                    "planks": int(env.dropped_items[r, c, _P]),
-                    "bricks": int(env.dropped_items[r, c, _B]),
-                    "total": int(env.dropped_items[r, c].sum()),
+                    "items": [int(x) for x in row],
+                    "total": int(row.sum()),
                 })
-            g["forge_pools"] = forges
+            g["sink_pools"] = forges
         except Exception:
             pass
     # Cleanup / Gathering: alive apple count.
@@ -168,8 +171,8 @@ class TraceRecorder:
         self._stuck_run: Dict[int, Dict[str, Any]] = {}
         self._deadlock_events: List[Dict[str, Any]] = []
 
-        # PE forge contention counters.
-        self._forge_contention_steps = 0
+        # Sink-cell contention counter (multiple agents on a sink cell at once).
+        self._sink_contention_steps = 0
 
         # Pending events written by the harness via record_event.
         self._pending_events: List[Dict[str, Any]] = []
@@ -197,9 +200,9 @@ class TraceRecorder:
         """Buffer a structured event for inclusion in the next step record.
 
         Episode runners can call this between record_step calls to flag
-        things like "agent 3 attempted DROP_BRICK on a full forge" that
-        the env doesn't surface as a reward signal but matter for the
-        proposer's diagnosis.
+        env-internal failures (e.g., "agent 3 attempted to drop on a full
+        sink cell") that the env doesn't surface as a reward signal but
+        matter for the proposer's diagnosis.
         """
         evt = {"agent": payload.get("agent"), "kind": kind, **payload}
         evt.setdefault("t", t)
@@ -219,8 +222,8 @@ class TraceRecorder:
             self._n_agents = n
 
         agents_block: List[Dict[str, Any]] = []
-        forge_set = getattr(env, "forge_cells_set", None)
-        forge_occupants = 0
+        sink_set = getattr(env, "forge_cells_set", None)
+        sink_occupants = 0
 
         step_collective_reward = 0.0
 
@@ -287,11 +290,11 @@ class TraceRecorder:
             self._prev_pos[i] = cur_pos
 
             # Forge contention
-            if forge_set is not None and cur_pos in forge_set:
-                forge_occupants += 1
+            if sink_set is not None and cur_pos in sink_set:
+                sink_occupants += 1
 
-        if forge_set is not None and forge_occupants >= 2:
-            self._forge_contention_steps += 1
+        if sink_set is not None and sink_occupants >= 2:
+            self._sink_contention_steps += 1
 
         rec = {
             "t": int(t),
@@ -342,7 +345,7 @@ class TraceRecorder:
             "deadlock_events": self._deadlock_events,
             "no_op_action_rate": no_op_rate,
             "extras": {
-                "forge_contention_steps": self._forge_contention_steps,
+                "sink_contention_steps": self._sink_contention_steps,
             },
         }
 
@@ -412,8 +415,8 @@ def aggregate_seed_summaries(seed_summaries: List[Dict[str, Any]]) -> Dict[str, 
         "deadlock_events_total": sum(
             len(s.get("deadlock_events", [])) for s in seed_summaries
         ),
-        "forge_contention_steps_mean": round(
-            sum(s.get("extras", {}).get("forge_contention_steps", 0)
+        "sink_contention_steps_mean": round(
+            sum(s.get("extras", {}).get("sink_contention_steps", 0)
                 for s in seed_summaries) / len(seed_summaries), 1
         ),
     }

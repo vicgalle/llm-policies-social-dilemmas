@@ -67,8 +67,7 @@ chosen per-experiment. The proposer (Claude Code + Opus) reads/writes
 - `autoresearch/meta/evaluator.py` — Adaptive 2/5/20-seed staged eval (stage 3 records traces).
 - `autoresearch/meta/population.py` — Multi-objective Pareto frontier.
 - `autoresearch/meta/run_experiment.sh` — Launch a proposer search. Usage: `./autoresearch/meta/run_experiment.sh <tag> [game] [proposer_model]`.
-- `autoresearch/meta/harnesses/h0000` — Weak greedy seed (climb-from baseline).
-- `autoresearch/meta/harnesses/h0001` — Hand-crafted PE upper anchor (~10.33 eff over 20 seeds).
+- `autoresearch/meta/harnesses/h0000` — Weak greedy seed (climb-from baseline). Only seed currently shipped — the hand-crafted PE reference at `production_economy_policy.py` is intentionally NOT mirrored into the meta tree (it's the answer to the headline experiment).
 - `run_inner_loop.py --record-traces` — Adds Phase-1 trace recording to the legacy PGA pipeline.
 
 ### Paper notes

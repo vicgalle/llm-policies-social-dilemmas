@@ -78,14 +78,14 @@ Hard constraints:
     llm_self_play.py, run_inner_loop.py).
   * Never modify an existing harness folder.
   * Always validate before evaluating.
+  * Read the OFF-LIMITS FILES section in program.md and respect it.
+    The headline experiment is invalid if the search uses a known
+    reference solution.
 
-The framework's seed harnesses for production_economy are:
-  - h0000 (weak greedy baseline; ~few efficiency)
-  - h0001 (hand-crafted upper anchor; ~10.27 efficiency)
-
-Goal: discover M3/M2/M1 harnesses that match or beat h0001 on the
-primary metric, ideally finding distinct points on the Pareto frontier
-(different cost / equality / maximin tradeoffs).
+Discover the search space yourself: tools.py list to see what's seeded,
+read the env source to understand mechanics, propose harnesses, evaluate.
+Goal: find M3/M2/M1 harnesses that span the Pareto frontier
+(efficiency / maximin / equality / cost).
 
 NEVER STOP. Run experiments continuously until interrupted."
 
