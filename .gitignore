@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Meta-Harness run archives (see autoresearch/meta/archive_run.sh).
+# Stays out of git so `git reset --hard` doesn't clobber prior runs.
+autoresearch/meta_archive/
