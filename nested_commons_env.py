@@ -149,23 +149,23 @@ class NestedCommonsConfig:
 
     # Quadrant waste dynamics
     wq_growth: float = 0.005
-    wq_growth_per_apple: float = 0.02
+    wq_growth_per_apple: float = 0.04        # was 0.02 — harvest pollutes more
     wq_clean_amount: float = 0.025
 
     # Plaza waste dynamics
-    wp_growth: float = 0.002
-    wp_growth_per_apple: float = 0.001
-    wp_clean_amount: float = 0.02
+    wp_growth: float = 0.003                  # was 0.002 — faster baseline
+    wp_growth_per_apple: float = 0.002        # was 0.001 — stronger global coupling
+    wp_clean_amount: float = 0.025            # was 0.020 — matched cleaning power
 
     # Apple regrowth (orchard)
-    apple_regrow_max: float = 0.10  # p_regrow(w) = max(0, 0.1 * (1 - 2*w))
+    apple_regrow_max: float = 0.13            # was 0.10 — orchard a real income source
     apple_regrow_slope: float = 2.0
 
-    # Plaza bonus
-    bonus_threshold: float = 0.35           # w_P ≤ this → shared bonus pays
-    bonus_regrow_threshold: float = 0.5     # w_P ≤ this → bonus may regrow
-    bonus_regrow_prob: float = 0.08
-    bonus_value: float = 2.0
+    # Plaza bonus (de-emphasised so it doesn't dominate)
+    bonus_threshold: float = 0.25             # was 0.35 — tighter shared-bonus window
+    bonus_regrow_threshold: float = 0.35      # was 0.50 — regrowth disappears earlier
+    bonus_regrow_prob: float = 0.06           # was 0.08
+    bonus_value: float = 1.0                  # was 2.0 — half-strength shared payout
 
     # Action costs / probabilities
     clean_cost: float = 1.0
@@ -180,6 +180,15 @@ class NestedCommonsConfig:
     initial_wp: float = 0.1
     initial_orchard_fill: float = 0.4
     initial_plaza_fill: float = 0.5
+
+    # Held-inventory mechanic (third nested dilemma — raid restraint).
+    # Each held apple pays `held_apple_per_step_reward` per step, so inventory
+    # is a future-reward stream worth stealing.  `initial_held` seeds every
+    # agent so raids have something to target from t=0; auto-eat is decoupled
+    # from held inventory (see Phase 5 in step()) so raising held above 2
+    # actually pays out instead of consuming an auto-eat slot.
+    held_apple_per_step_reward: float = 0.05
+    initial_held: int = 2
 
 
 DEFAULT_CONFIG = NestedCommonsConfig()
@@ -401,7 +410,7 @@ class NestedCommonsEnv:
             slot = i % len(self.spawn_cells_per_q[clan])
             self.agent_pos[i] = self.spawn_cells_per_q[clan][slot]
 
-        self.inventory[:] = 0
+        self.inventory[:] = cfg.initial_held
         self.agent_timeout[:] = 0
 
         # Pre-seed orchards: 40% of cells per quadrant.
@@ -657,18 +666,30 @@ class NestedCommonsEnv:
         # ------------------------------------------------------------------
         # Phase 5 — auto-eat fresh orchard collections.
         #
-        #   eaten = min(fresh_collected, capacity - held_at_start)
-        #   reward += eaten;  excess fresh discarded.
-        # Held inventory is independent and unchanged here.
+        # Held inventory does NOT reduce the eat budget any more — instead,
+        # held apples earn an ongoing per-step holding reward (Phase 5b).
+        # Decoupling these means raising held inventory (e.g., via raid or
+        # gift) actually pays a net positive marginal stream, which is what
+        # makes raid restraint a real strategic dilemma rather than a
+        # structurally dead action.
         # ------------------------------------------------------------------
         cap = cfg.inventory_capacity
         for i in range(self.n_agents):
-            if fresh_collected[i] <= 0:
-                continue
-            max_eat = max(0, cap - int(held_at_start[i]))
-            eaten = min(int(fresh_collected[i]), max_eat)
-            if eaten > 0:
-                rewards[i] += float(eaten)
+            if fresh_collected[i] > 0:
+                rewards[i] += float(fresh_collected[i])
+
+        # ------------------------------------------------------------------
+        # Phase 5b — held-apple holding reward.
+        #
+        # Each apple in the agent's inventory at the start of the step pays
+        # `held_apple_per_step_reward` reward this step.  Held inventory is a
+        # future-reward stream worth stealing (raid) or transferring (gift).
+        # ------------------------------------------------------------------
+        if cfg.held_apple_per_step_reward > 0:
+            for i in range(self.n_agents):
+                held = int(held_at_start[i])
+                if held > 0:
+                    rewards[i] += cfg.held_apple_per_step_reward * float(held)
 
         # ------------------------------------------------------------------
         # Phase 6 — waste growth.
