@@ -55,7 +55,7 @@ FROZEN — Not modifiable by the researcher
 - `autoresearch/results.tsv` — Experiment log (tab-separated)
 - `autoresearch/runs/` — Per-run output directories with policies, metrics, history
 
-### Meta-Harness layer (next paper — see PLAN.md)
+### Meta-Harness layer (alternative)
 Filesystem-rooted, trace-rich, multi-mode harness search. Coexists with PGA;
 chosen per-experiment. The proposer (Claude Code + Opus) reads/writes
 `autoresearch/meta/` directly via the tools.py CLI.

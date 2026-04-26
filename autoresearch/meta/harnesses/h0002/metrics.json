@@ -1,0 +1,72 @@
+{
+  "id": "h0002",
+  "mode": "M2",
+  "env": "production_economy",
+  "n_seeds": 2,
+  "stage_reached": 1,
+  "primary": {
+    "efficiency": -1.3333333333333333,
+    "efficiency_std": 0.0,
+    "equality": 1.0,
+    "equality_std": 0.0,
+    "sustainability": 0.0,
+    "sustainability_std": 0.0,
+    "peace": 8.0,
+    "peace_std": 0.0,
+    "maximin": -50.0,
+    "maximin_std": 0.0,
+    "agent_total_mean": -50.0
+  },
+  "cost": {
+    "synthesis_token_cost": 0.0,
+    "inference_token_cost": 0.0
+  },
+  "raw_per_seed": [
+    {
+      "seed": 0,
+      "metrics": {
+        "efficiency": -1.3333333333333333,
+        "equality": 1.0,
+        "sustainability": 0.0,
+        "peace": 8.0,
+        "maximin": -50.0
+      },
+      "agent_totals": {
+        "0": -50.0,
+        "1": -50.0,
+        "2": -50.0,
+        "3": -50.0,
+        "4": -50.0,
+        "5": -50.0,
+        "6": -50.0,
+        "7": -50.0
+      },
+      "wall_time_s": 0.03,
+      "error": null
+    },
+    {
+      "seed": 1,
+      "metrics": {
+        "efficiency": -1.3333333333333333,
+        "equality": 1.0,
+        "sustainability": 0.0,
+        "peace": 8.0,
+        "maximin": -50.0
+      },
+      "agent_totals": {
+        "0": -50.0,
+        "1": -50.0,
+        "2": -50.0,
+        "3": -50.0,
+        "4": -50.0,
+        "5": -50.0,
+        "6": -50.0,
+        "7": -50.0
+      },
+      "wall_time_s": 0.029,
+      "error": null
+    }
+  ],
+  "wall_time_s_total": 0.06,
+  "evaluated": "2026-04-25T19:42:14"
+}
