@@ -1,0 +1,26 @@
+Looking at Red's exploit:
+1. One Red squats the plaza (collects +1 self-pick on bonuses, free-rides on Blue's cleaning everywhere else)
+2. Three Red harvesters opportunistically RAID Blues — even with `raid_cost=1.25`, the expected gain from stealing a held-apple stream (`0.05 × remaining_steps`) is enormous early in the episode, so raids stay profitable
+
+The structural problem isn't raid pricing — it's that *raids monetize the held-apple stream*. The retaliation toggle alone barely dents this because retaliators are usually non-adjacent. So I need to remove the **value of the loot**, not just the price of the raid.
+
+Two structural rules to flip:
+- **`held_apple_per_step_reward=0`** + **`initial_held=0`**: held apples no longer pay a future-stream reward, so a stolen apple is worth zero to the raider. Combined with no seed inventory, there is nothing for Red to take. Raids degenerate to pure cost.
+- **`plaza_local_clean_gate=True`**: ties the plaza payout to the *collector's* home-river cleanliness. A dedicated Red plaza-squatter that ignores clan upkeep — or any Red harvester polluting their clan — forfeits the bonus. Blue's rotating cleaner role keeps every clan river under threshold, so Blue clears the gate.
+
+Keep `same_clan_retaliation=True` as a residual deterrent in case Red still tries opportunistic raids.
+
+```json
+{
+  "numeric": {
+    "raid_cost": 1.5,
+    "held_apple_per_step_reward": 0.0,
+    "initial_held": 0
+  },
+  "toggles": {
+    "plaza_local_clean_gate": true,
+    "same_clan_retaliation": true
+  },
+  "rationale": "Hardening the assumption that 'inventory is a stealable future-reward stream' — by zeroing the per-step held bonus and seed inventory, raids no longer transfer any value, so the cost-deterrent finally bites. Plaza_local_clean_gate adds a structural rule that the plaza payout requires home-river upkeep, denying Red's free-riding plaza-squatter the bonus while Blue's rotating cleaner keeps the gate open."
+}
+```

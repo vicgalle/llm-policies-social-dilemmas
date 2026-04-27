@@ -1,0 +1,19 @@
+{
+  "patch": {
+    "numeric": {
+      "raid_cost": 1.5,
+      "held_apple_per_step_reward": 0.0,
+      "initial_held": 0,
+      "wq_growth_per_apple": 0.015,
+      "bonus_value": 1.5
+    },
+    "toggles": {
+      "plaza_occupant_only_bonus": true,
+      "plaza_local_clean_gate": true,
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Flip plaza_occupant_only_bonus=True so Red's parasitic-locust harvesters forfeit the shared plaza bonus while roaming outside the plaza \u2014 Blue's rotation keeps \u22653 specialists in-plaza, so the cooperators capture the shared payout and Red's free-ride on Blue-generated bonuses dies. Pair with the round-1 raid-economy kill (no held value, no seed inventory, expensive raids) and lower wq_growth_per_apple so Red's orchard poaching doesn't suppress Blue regrowth; raise bonus_value to 1.5 to amplify the now-Blue-concentrated plaza channel.",
+  "parse_ok": true,
+  "gen_time": 68.45310592651367
+}

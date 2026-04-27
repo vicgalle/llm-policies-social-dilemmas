@@ -1,0 +1,25 @@
+Looking at the trajectory:
+- Round 1 (V_blue=1022) killed the raid economy via `initial_held=0`, `held_apple_per_step_reward=0`, high `raid_cost`. That worked but Red still got V=1066 by parasitically harvesting Blue's orchards/plaza.
+- Round 2 introduced tighter `bonus_threshold` and `plaza_local_clean_gate`; V_blue fell to 917 because the bonus channel got too restrictive without addressing Red's parasitism.
+
+The unused structural lever is **`plaza_occupant_only_bonus`**. With λ=0.25, Red's 4 agents play "parasitic locust" globally and free-ride on the +1 shared bonus that Blue's plaza specialists generate. Setting this toggle True means only agents standing *in* the plaza receive the shared bonus — Blue's rotation has 3+ plaza specialists at any time, so Blues collect, Reds (out roaming/raiding) forfeit. This directly closes Red's free-rider channel without lowering Blue's plaza income.
+
+Combined with round-1's raid-economy kill (so the second prong of Red's exploit is dead) and a reduced `wq_growth_per_apple` (so Red poaching Blue's orchard doesn't crash Blue's regrowth), this should lift V_blue meaningfully.
+
+```json
+{
+  "numeric": {
+    "raid_cost": 1.5,
+    "held_apple_per_step_reward": 0.0,
+    "initial_held": 0,
+    "wq_growth_per_apple": 0.015,
+    "bonus_value": 1.5
+  },
+  "toggles": {
+    "plaza_occupant_only_bonus": true,
+    "plaza_local_clean_gate": true,
+    "same_clan_retaliation": true
+  },
+  "rationale": "Flip plaza_occupant_only_bonus=True so Red's parasitic-locust harvesters forfeit the shared plaza bonus while roaming outside the plaza — Blue's rotation keeps ≥3 specialists in-plaza, so the cooperators capture the shared payout and Red's free-ride on Blue-generated bonuses dies. Pair with the round-1 raid-economy kill (no held value, no seed inventory, expensive raids) and lower wq_growth_per_apple so Red's orchard poaching doesn't suppress Blue regrowth; raise bonus_value to 1.5 to amplify the now-Blue-concentrated plaza channel."
+}
+```

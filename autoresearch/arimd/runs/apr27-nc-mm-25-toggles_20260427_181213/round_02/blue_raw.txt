@@ -1,0 +1,28 @@
+Looking at Red's exploit, it has three vulnerabilities I want to attack:
+
+1. **Red squats plaza bonuses** as a free-rider — never cleans, but reaps individual + shared bonuses.
+2. **Red raids opportunistically** for cheap held-apple income when adjacent.
+3. **Red parks at plaza perimeter** to wait for regrowth — paying nothing.
+
+Round 1 showed `plaza_local_clean_gate + same_clan_retaliation` lifted V_λ blue to ~1022, but the big jump there came from also zeroing `held_apple_per_step_reward` and `initial_held`, which destroys the third nested dilemma (raid restraint becomes vacuous). Per arimd §6.1, that's a parameter trick that erases gameplay rather than a structural improvement, so I want the same V_λ lift while keeping the held-apple stream intact.
+
+I'll combine **both pertinent rule toggles** plus a modest cost bump on raids:
+
+- `plaza_local_clean_gate`: Red doesn't clean → its clan's river gradually dirties beyond `bonus_threshold`. Blue's rotation keeps Blue clans clean, so Blue plaza picks still pay shared bonuses; Red's picks become silent consumes that don't even feed the shared pool. This neutralizes Red's plaza squatting without hurting cooperative Blues.
+- `same_clan_retaliation`: forces Blue clan-mates of a raid victim to auto-RAID the raider next step (when adjacent). Adjacency-gated, so collateral damage is bounded, but Red sitting next to a Blue victim now eats reprisal.
+- Modest `raid_cost` and `raid_success_prob` shifts so opportunistic raiding has negative EV without flatlining the action.
+
+```json
+{
+  "numeric": {
+    "raid_cost": 1.0,
+    "raid_success_prob": 0.4,
+    "bonus_threshold": 0.2
+  },
+  "toggles": {
+    "plaza_local_clean_gate": true,
+    "same_clan_retaliation": true
+  },
+  "rationale": "Harden the assumption that plaza bonuses are payable to free-riders: the local-clean gate ties plaza payouts to the collector's clan river, so Red (who never CLEANs) silently forfeits picks while Blue's rotating cleaner keeps Blue clans qualified. Retaliation closes opportunistic adjacent raiding, and the modest raid cost/success shifts make raids negative-EV without zeroing held-apple incentives — preserving the third nested dilemma rather than erasing it."
+}
+```

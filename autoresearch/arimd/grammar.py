@@ -173,7 +173,27 @@ def _nested_commons_grammar() -> Grammar:
             "initial held inventory per agent (seeds raid targets)",
         ),
     }
-    toggles: Dict[str, ToggleKnob] = {}  # nested_commons currently has no boolean rule toggles wired in.
+    toggles: Dict[str, ToggleKnob] = {
+        # Plaza shared bonus paid only to other plaza occupants (kills the
+        # global free-rider; agents must be in the plaza to benefit).
+        "plaza_occupant_only_bonus": ToggleKnob(
+            "plaza_occupant_only_bonus", False, (True, False),
+            "if True, plaza shared bonus is paid only to agents currently in the plaza",
+        ),
+        # Plaza payout (individual + shared) gated on the collector's clan
+        # river being clean: w_q[clan_of_collector] <= bonus_threshold.
+        "plaza_local_clean_gate": ToggleKnob(
+            "plaza_local_clean_gate", False, (True, False),
+            "if True, plaza bonus requires the collector's clan river to be clean (w_q[clan] ≤ bonus_threshold)",
+        ),
+        # Same-clan retaliation: a successful cross-clan raid queues every
+        # clan-mate of the victim (other than the victim) to auto-RAID the
+        # raider next step (adjacency-checked at execute time).
+        "same_clan_retaliation": ToggleKnob(
+            "same_clan_retaliation", False, (True, False),
+            "if True, a successful cross-clan raid forces clan-mates of the victim to auto-RAID the raider next step",
+        ),
+    }
     return Grammar(game="nested_commons", numeric=numeric, toggles=toggles)
 
 

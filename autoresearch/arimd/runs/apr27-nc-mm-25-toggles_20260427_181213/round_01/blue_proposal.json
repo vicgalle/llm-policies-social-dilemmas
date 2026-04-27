@@ -1,0 +1,16 @@
+{
+  "patch": {
+    "numeric": {
+      "raid_cost": 1.5,
+      "held_apple_per_step_reward": 0.0,
+      "initial_held": 0
+    },
+    "toggles": {
+      "plaza_local_clean_gate": true,
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Hardening the assumption that 'inventory is a stealable future-reward stream' \u2014 by zeroing the per-step held bonus and seed inventory, raids no longer transfer any value, so the cost-deterrent finally bites. Plaza_local_clean_gate adds a structural rule that the plaza payout requires home-river upkeep, denying Red's free-riding plaza-squatter the bonus while Blue's rotating cleaner keeps the gate open.",
+  "parse_ok": true,
+  "gen_time": 141.87883496284485
+}

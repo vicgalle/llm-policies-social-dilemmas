@@ -1,0 +1,16 @@
+{
+  "candidate_idx": 0,
+  "v_blue": 731.0233333333333,
+  "v_red": 959.405,
+  "v_pop": 788.11875,
+  "metrics": {
+    "efficiency": 12.609900000000001,
+    "equality": 0.9046100383725438,
+    "sustainability": 498.586606258545,
+    "peace": 15.991399999999999,
+    "maximin": 578.3
+  },
+  "raid_attempts": 8.6,
+  "raid_successes": 4.4,
+  "reasoning": ""
+}

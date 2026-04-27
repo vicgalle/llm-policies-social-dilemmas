@@ -1,0 +1,18 @@
+Looking at Red's exploit: it aggressively cross-clan raids to steal Blue's held apples, then milks the per-step holding reward from a stolen-apple inventory. Red's value (~1021) comes from being a parasite on Blue inventories that Blue cooperators can't defend.
+
+The structural lever that directly closes this is `same_clan_retaliation`: a successful cross-clan raid drafts the victim's clan-mates into an automatic counter-raid next step. With λ=0.25, every clan has ~3 Blues vs ~1 Red, so retaliation overwhelmingly outnumbers the raider — Red's expected steal becomes negative because the held apple is reclaimed (and Red also pays raid_cost on the original raid). Combined with a moderate `raid_cost` bump, raiding flips from dominant strategy to net-negative without changing Blue's cooperator routine (the cooperator only retaliates when forced & adjacent, otherwise runs its Latin square).
+
+I keep `initial_held` and `held_apple_per_step_reward` untouched so Blue's cooperator still earns its baseline holding stream.
+
+```json
+{
+  "numeric": {
+    "raid_cost": 1.25,
+    "raid_success_prob": 0.45
+  },
+  "toggles": {
+    "same_clan_retaliation": true
+  },
+  "rationale": "Hardens the held-apple raid economy that Red's policy parasitizes. Same-clan retaliation makes any successful cross-clan raid trigger a 3-vs-1 counter-raid by the victim's clan-mates, so Red's stolen apple is expected to be reclaimed; raising raid_cost and lowering raid_success_prob further taxes the offensive side of the raid loop while leaving Blue's non-raiding cooperator largely undisturbed."
+}
+```

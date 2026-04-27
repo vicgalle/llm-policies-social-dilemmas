@@ -1,0 +1,14 @@
+{
+  "patch": {
+    "numeric": {
+      "raid_cost": 1.25,
+      "raid_success_prob": 0.45
+    },
+    "toggles": {
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Hardens the held-apple raid economy that Red's policy parasitizes. Same-clan retaliation makes any successful cross-clan raid trigger a 3-vs-1 counter-raid by the victim's clan-mates, so Red's stolen apple is expected to be reclaimed; raising raid_cost and lowering raid_success_prob further taxes the offensive side of the raid loop while leaving Blue's non-raiding cooperator largely undisturbed.",
+  "parse_ok": true,
+  "gen_time": 53.31799817085266
+}

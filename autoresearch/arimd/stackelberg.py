@@ -173,9 +173,11 @@ async def red_search(
             "best_idx": None, "candidates": [], "evals": [], "history": history_for_red,
         }
 
-    # Pick the candidate that hurts Blue the most (lowest V_λ_blue).
-    best_idx = int(np.argmin([r.primary(cfg.welfare) for r in candidate_evals]))
-    log(f"  [Red] best candidate: {best_idx}  V_blue={candidate_evals[best_idx].v_blue:.2f}")
+    # Selfish-defector Red (arimd_plan.md §2.4): pick the candidate that
+    # maximizes Red's own return, not the one that minimizes Blue's.
+    best_idx = int(np.argmax([r.v_red for r in candidate_evals]))
+    log(f"  [Red] best candidate: {best_idx}  V_red={candidate_evals[best_idx].v_red:.2f}  "
+        f"V_blue={candidate_evals[best_idx].v_blue:.2f}")
     return {
         "best_idx": best_idx,
         "candidates": candidates,

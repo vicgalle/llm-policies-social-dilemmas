@@ -190,6 +190,29 @@ class NestedCommonsConfig:
     held_apple_per_step_reward: float = 0.05
     initial_held: int = 2
 
+    # ARIMD structural toggles (autoresearch/arimd/grammar.py).
+    # All default False so the env's nominal behaviour is unchanged unless
+    # Blue explicitly flips one.  Each toggle changes a *rule*, not a
+    # numeric, and is the kind of structural lever H3 looks for.
+    #
+    # plaza_occupant_only_bonus: when a plaza apple's shared bonus fires
+    #   (w_p ≤ bonus_threshold), pay the bonus only to other agents whose
+    #   current cell is in the plaza.  Removes the global free-rider —
+    #   non-plaza occupants no longer collect a passive payout.
+    plaza_occupant_only_bonus: bool = False
+    # plaza_local_clean_gate: gate the plaza bonus (both individual and
+    #   shared) on the *collector's clan* river cleanliness:
+    #   ``w_q[clan_of_collector] <= bonus_threshold``.  The plaza apple is
+    #   still consumed if the gate fails, so polluting your own quadrant
+    #   forfeits the plaza payout for your clan.
+    plaza_local_clean_gate: bool = False
+    # same_clan_retaliation: after a successful cross-clan raid by i on j,
+    #   queue every clan-mate of j (other than j) for an automatic RAID(i)
+    #   on the next step — applied at action-resolution time only if the
+    #   would-be retaliator is adjacent to the raider.  One-step lifetime;
+    #   the queue clears after each step regardless of execution.
+    same_clan_retaliation: bool = False
+
 
 DEFAULT_CONFIG = NestedCommonsConfig()
 
@@ -364,6 +387,11 @@ class NestedCommonsEnv:
         self._gift_total: int = 0
         self._shared_bonus_total: int = 0
 
+        # Same-clan retaliation queue: list of (retaliator_id, target_id)
+        # tuples consumed at the start of the next step. Always present;
+        # only populated when cfg.same_clan_retaliation is True.
+        self._pending_retaliation: List[Tuple[int, int]] = []
+
         self.action_space_n = NUM_ACTIONS
 
     # ------------------------------------------------------------------
@@ -444,6 +472,7 @@ class NestedCommonsEnv:
         self._raid_successes_total = 0
         self._gift_total = 0
         self._shared_bonus_total = 0
+        self._pending_retaliation = []
 
         return {i: None for i in range(self.n_agents)}
 
@@ -476,13 +505,42 @@ class NestedCommonsEnv:
         # Phase 0 — resolve the action each agent will execute this step.
         # If the agent has a queued travel move, that overrides their input.
         # If their input is TRAVEL, plan a path and execute its first step.
+        #
+        # Same-clan retaliation queue (if cfg.same_clan_retaliation): every
+        # entry forces the listed retaliator to RAID the listed target this
+        # step, provided they are adjacent at action-resolution time.  The
+        # queue is drained unconditionally so retaliations have a one-step
+        # lifetime regardless of execution.
         # ------------------------------------------------------------------
+        forced_raid: Dict[int, int] = {}
+        if cfg.same_clan_retaliation and self._pending_retaliation:
+            for retaliator, target in self._pending_retaliation:
+                if not (0 <= retaliator < self.n_agents):
+                    continue
+                if not (0 <= target < self.n_agents) or target == retaliator:
+                    continue
+                if self._travel_queue[retaliator]:
+                    continue  # mid-travel agents can't retaliate this step
+                if int(self.agent_clan[target]) == int(self.agent_clan[retaliator]):
+                    continue  # same-clan raid would resolve as NOOP anyway
+                rr, rc = int(self.agent_pos[retaliator, 0]), int(self.agent_pos[retaliator, 1])
+                tr_, tc_ = int(self.agent_pos[target, 0]), int(self.agent_pos[target, 1])
+                if abs(rr - tr_) + abs(rc - tc_) != 1:
+                    continue  # adjacency required
+                forced_raid[retaliator] = raid(target)
+        self._pending_retaliation = []
+
         effective: List[int] = [int(Action.NOOP)] * self.n_agents
         for i in range(self.n_agents):
             if self._travel_queue[i]:
                 # Mid-travel: pop next queued move.
                 effective[i] = int(self._travel_queue[i].popleft())
                 rewards[i] -= cfg.travel_step_cost
+                continue
+
+            if i in forced_raid:
+                # Forced retaliation overrides the agent's submitted action.
+                effective[i] = forced_raid[i]
                 continue
 
             a = int(actions.get(i, int(Action.NOOP)))
@@ -570,14 +628,30 @@ class NestedCommonsEnv:
                 continue
             if not self.bonus_apple[r, c]:
                 continue
+            # Apple is consumed regardless of whether the gate fires —
+            # otherwise an unclean clan stalls regrowth on the plaza.
             self.bonus_apple[r, c] = False
+            collector_clan = int(self.agent_clan[i])
+            local_gate_open = (
+                not cfg.plaza_local_clean_gate
+                or float(self.w_q[collector_clan]) <= cfg.bonus_threshold
+            )
+            if not local_gate_open:
+                # Plaza payout denied: collector's home river is too dirty.
+                continue
             rewards[i] += cfg.bonus_value
             bonus_collected_step += 1
             if wp_before_collect <= cfg.bonus_threshold:
-                # Shared bonus: +bonus_value to every other agent.
+                # Shared bonus: +bonus_value to every other agent (or only
+                # to other agents currently in the plaza, if the
+                # plaza_occupant_only_bonus toggle is on).
                 for j in range(self.n_agents):
                     if j == i:
                         continue
+                    if cfg.plaza_occupant_only_bonus:
+                        jr, jc = int(self.agent_pos[j, 0]), int(self.agent_pos[j, 1])
+                        if not self._in_plaza(jr, jc):
+                            continue
                     rewards[j] += cfg.bonus_value
                 shared_bonus_step += 1
 
@@ -643,6 +717,17 @@ class NestedCommonsEnv:
                         self.inventory[i] += 1
                     raid_succeeded_step[i] += 1
                     self._raid_successes_total += 1
+                    if cfg.same_clan_retaliation:
+                        # Queue every clan-mate of the victim (other than
+                        # the victim itself) to auto-RAID the raider on
+                        # the next step.  Adjacency is checked at execute
+                        # time; non-adjacent retaliators silently drop.
+                        victim_clan = int(self.agent_clan[tgt])
+                        for k in range(self.n_agents):
+                            if k == tgt or k == i:
+                                continue
+                            if int(self.agent_clan[k]) == victim_clan:
+                                self._pending_retaliation.append((k, i))
 
             elif is_gift_action(a):
                 tgt = decode_gift_target(a)

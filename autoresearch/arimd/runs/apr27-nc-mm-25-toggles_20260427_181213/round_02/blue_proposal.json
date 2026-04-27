@@ -1,0 +1,16 @@
+{
+  "patch": {
+    "numeric": {
+      "raid_cost": 1.0,
+      "raid_success_prob": 0.4,
+      "bonus_threshold": 0.2
+    },
+    "toggles": {
+      "plaza_local_clean_gate": true,
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Harden the assumption that plaza bonuses are payable to free-riders: the local-clean gate ties plaza payouts to the collector's clan river, so Red (who never CLEANs) silently forfeits picks while Blue's rotating cleaner keeps Blue clans qualified. Retaliation closes opportunistic adjacent raiding, and the modest raid cost/success shifts make raids negative-EV without zeroing held-apple incentives \u2014 preserving the third nested dilemma rather than erasing it.",
+  "parse_ok": true,
+  "gen_time": 101.63001918792725
+}
