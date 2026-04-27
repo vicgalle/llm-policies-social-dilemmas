@@ -418,11 +418,10 @@ async def run_arimd(cfg: ARIMDConfig) -> Dict[str, Any]:
     star = float("nan")
     if last_round_red_path is not None:
         # Reload Red against the FINAL env.
-        from llm_self_play import load_policy
         red_code = last_round_red_path.read_text()
         extra_ns, _, _ = red_mod._env_namespace(cfg.game)
         try:
-            final_red_fn = load_policy(red_code, extra_namespace=extra_ns)
+            final_red_fn = red_mod._load_red_policy(red_code, extra_namespace=extra_ns)
             star, final_table = diag_mod.invasion_barrier(
                 current_factory, coop.fn, final_red_fn,
                 seeds=cfg.seeds, lambdas=cfg.invasion_lambdas,

@@ -1,0 +1,16 @@
+Looking at Red's exploit: it cross-clan raids agents with 1-2 inventory. Each stolen apple feeds Red's `held_apple_per_step_reward` stream (~0.05 × remaining steps ≈ tens of reward per raid) while bleeding Blue victims of the same. The combination of `initial_held=2` (free targets at t=0), `held_apple_per_step_reward=0.05` (a per-step coupon on stolen goods), and a low `raid_cost=0.5` versus `raid_success_prob=0.6` makes raiding strictly dominant for Red and asymmetric harm to Blue.
+
+The structural fix: **eliminate the "stolen apple = perpetual reward" coupling that turns raids from a one-shot transfer into a per-step income stream**. Without that coupon, raids become a capped-capacity transfer with a strictly negative cost, i.e. dominated. I also remove the seeded raid targets and raise raid_cost so any residual raid attempt is loss-making — this hardens the assumption that Blue's held inventory is worth defending without forcing Blue to spend turns on defense.
+
+```json
+{
+  "numeric": {
+    "held_apple_per_step_reward": 0.0,
+    "initial_held": 0,
+    "raid_cost": 2.0,
+    "raid_success_prob": 0.15
+  },
+  "toggles": {},
+  "rationale": "Kill the raid->held->per-step-coupon pipeline that lets Red convert one steal into ~50 future reward (and Blue into −50). Zeroing the holding reward and seed inventory makes raid loot strictly worthless beyond the capacity cap; raising raid_cost to 2.0 and dropping success prob to 0.15 makes any residual raid attempt strictly negative-EV, restoring the maximin floor that the rotating cooperator already attains in self-play."
+}
+```

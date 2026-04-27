@@ -1,0 +1,27 @@
+{
+  "game": "nested_commons",
+  "cooperator": "maximin",
+  "lambda": 0.25,
+  "welfare": "blue",
+  "n_agents": 16,
+  "T": 4,
+  "M_red": 4,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "n_assignments": 1,
+  "blue_model": "claude-opus-4-7",
+  "red_model": "claude-sonnet-4-6",
+  "tag": "apr27-nc-mm",
+  "invasion_lambdas": [
+    0.0,
+    0.1,
+    0.2,
+    0.25,
+    0.4
+  ]
+}

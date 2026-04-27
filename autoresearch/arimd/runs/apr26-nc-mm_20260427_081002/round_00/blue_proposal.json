@@ -1,0 +1,14 @@
+{
+  "patch": {
+    "numeric": {
+      "held_apple_per_step_reward": 0.0,
+      "initial_held": 0,
+      "raid_cost": 2.0,
+      "raid_success_prob": 0.15
+    },
+    "toggles": {}
+  },
+  "rationale": "Kill the raid->held->per-step-coupon pipeline that lets Red convert one steal into ~50 future reward (and Blue into \u221250). Zeroing the holding reward and seed inventory makes raid loot strictly worthless beyond the capacity cap; raising raid_cost to 2.0 and dropping success prob to 0.15 makes any residual raid attempt strictly negative-EV, restoring the maximin floor that the rotating cooperator already attains in self-play.",
+  "parse_ok": true,
+  "gen_time": 35.51976013183594
+}
