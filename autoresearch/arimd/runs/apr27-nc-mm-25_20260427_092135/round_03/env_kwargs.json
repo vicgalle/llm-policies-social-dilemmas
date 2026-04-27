@@ -1,0 +1,16 @@
+{
+  "bonus_value": 2.5,
+  "bonus_threshold": 0.6,
+  "bonus_regrow_threshold": 0.8,
+  "bonus_regrow_prob": 0.15,
+  "apple_regrow_max": 0.2,
+  "wq_growth_per_apple": 0.01,
+  "wp_growth_per_apple": 0.0,
+  "wp_clean_amount": 0.05,
+  "clean_cost": 0.3,
+  "raid_cost": 2.0,
+  "raid_success_prob": 0.1,
+  "held_apple_per_step_reward": 0.0,
+  "initial_held": 0.0,
+  "n_agents": 16
+}

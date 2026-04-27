@@ -1,0 +1,15 @@
+{
+  "patch": {
+    "numeric": {
+      "bonus_value": 1.25,
+      "clean_cost": 0.1,
+      "wp_clean_amount": 0.1,
+      "bonus_threshold": 0.5,
+      "bonus_regrow_threshold": 0.7
+    },
+    "toggles": {}
+  },
+  "rationale": "Red's exploit is plaza self-pickup camping while Blue pays the cleaning cost. Halving bonus_value collapses Red's per-camp edge (which lived in the self-pickup, not the symmetric shared payout). Making CLEAN nearly free and twice as effective lets Blue's cleaner role keep w_P below the (still-generous) bonus_threshold so the shared-bonus regime stays active even under Red's freeride.",
+  "parse_ok": true,
+  "gen_time": 122.35025191307068
+}

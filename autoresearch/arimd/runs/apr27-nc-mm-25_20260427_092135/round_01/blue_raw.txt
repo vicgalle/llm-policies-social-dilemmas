@@ -1,0 +1,24 @@
+Looking at this carefully:
+
+**Red's exploit**: Red is a pure greedy apple-grabber that prioritizes plaza bonuses (value 1.5) and orchard apples by reward/distance. Red doesn't clean at all, free-riding on Blue's cleaning while harvesting from every clan's orchard. Red mean = 1361 vs Blue ≈ 608.
+
+**Key insight**: When Red picks a plaza bonus, the shared payout fires +bonus_value to every *other* agent (12 Blues × bonus_value), but only when w_P ≤ bonus_threshold. So Red's plaza-greed is actually *positive-sum for Blue* — IF the shared-bonus gate stays open. Right now bonus_threshold=0.25 is fragile, so Red's incidental plaza waste collapses the public good.
+
+**Hardening move**: Convert the plaza bonus from a "fragile rare jackpot" into a "robust standing public good" so Red's apple-greed becomes welfare for Blue. Simultaneously decouple orchard harvesting from environmental decay (lower wq/wp_growth_per_apple) so Red can't denial-of-service Blue's home orchard productivity, and cut clean_cost so the Blue rotation pays less to maintain w_P below the (now generous) threshold.
+
+```json
+{
+  "numeric": {
+    "bonus_value": 2.5,
+    "bonus_threshold": 0.6,
+    "bonus_regrow_threshold": 0.8,
+    "bonus_regrow_prob": 0.15,
+    "clean_cost": 0.3,
+    "wq_growth_per_apple": 0.01,
+    "wp_growth_per_apple": 0.0,
+    "apple_regrow_max": 0.2
+  },
+  "toggles": {},
+  "rationale": "Red is a pure apple-grabber; the plaza shared-bonus mechanism turns each of Red's plaza pickups into +bonus_value × 12 for the Blue cohort, but only while w_P ≤ bonus_threshold. I widen and stabilize that gate (high threshold, high regrow threshold/prob, max bonus_value) so Red's greed becomes a public good for Blue, and decouple orchard harvesting from waste growth so Red can't DOS Blue's home orchards. Cheaper CLEAN reduces the rotational burden the Latin-square cooperator pays to keep the gate open."
+}
+```

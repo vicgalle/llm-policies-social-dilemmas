@@ -1,0 +1,16 @@
+{
+  "patch": {
+    "numeric": {
+      "held_apple_per_step_reward": 0.0,
+      "initial_held": 0,
+      "raid_cost": 2.5,
+      "raid_success_prob": 0.1,
+      "bonus_value": 1.5,
+      "wp_clean_amount": 0.05
+    },
+    "toggles": {}
+  },
+  "rationale": "Red's exploit monetizes stolen held-apples via the +0.05/step holding stream (worth up to ~50 per apple over the horizon \u2014 far above any feasible raid_cost). Zero out the holding reward and initial_held so raids have no stealable value, then double-lock with maximal raid_cost and minimal raid_success_prob. Compensate Blue's lost holding income by strengthening the symmetric shared-plaza-bonus channel (higher bonus_value + faster plaza cleaning), which lifts every Blue agent equally and raises the maximin floor.",
+  "parse_ok": true,
+  "gen_time": 39.90438199043274
+}

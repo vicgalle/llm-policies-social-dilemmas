@@ -1,0 +1,242 @@
+% =============================================================================
+%  ARIMD — Adversarially-Robust Inverse Mechanism Design
+%  Standalone formalization + algorithm fragment.
+%  Drop-in compatible with the existing acmart pipeline (paper/main.tex):
+%  uses only algorithm, algpseudocode, amsmath, amssymb, mathtools.
+% =============================================================================
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+
+% Compact notation.
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\given}{\,|\,}
+\newcommand{\Egram}{\mathcal{E}_G}
+\newcommand{\policyset}{\Pi_R}
+\newcommand{\bluepol}{\pi_B^{\text{coop}}}
+\newcommand{\Welfare}{\Phi}
+
+\title{Adversarially-Robust Inverse Mechanism Design (ARIMD)\\
+       \large A Stackelberg framework for env-design autoresearch}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Setting}
+\label{sec:setting}
+
+We consider a multi-agent sequential social dilemma (SSD)
+$G$ with agent set $[N] = \{1, \dots, N\}$, episode horizon $T$,
+and per-agent stage rewards $r_t^{(i)} \in \R$.  The cumulative
+return of agent $i$ is $R_i = \sum_{t=1}^T r_t^{(i)}$.
+
+We fix:
+\begin{enumerate}[label=(\roman*), itemsep=2pt, topsep=2pt]
+  \item A bounded \emph{edit grammar} $\Egram$ over the
+        environment's parameters and rule toggles.  An element
+        $e \in \Egram$ instantiates a concrete env $G(e)$ that
+        differs from the default $G$ only along the grammar's
+        listed axes.
+  \item A frozen \emph{cooperator policy} $\bluepol$ — a
+        hand-crafted reference behaviour, the same across runs.
+  \item An adversary fraction $\lambda \in [0,1]$.  In every
+        episode the agents are partitioned into a Red subset
+        $\mathcal{R} \subseteq [N]$ with
+        $|\mathcal{R}| = \lfloor \lambda N \rfloor$ (re-sampled
+        per seed) and a Blue complement
+        $\mathcal{B} = [N] \setminus \mathcal{R}$.  Red agents
+        play a policy $\pi_R$ chosen by the adversary; Blue
+        agents play $\bluepol$.
+  \item A \emph{welfare functional} $\Welfare$ that maps the
+        per-agent return vector $\mathbf{R} = (R_1, \dots, R_N)$
+        to a scalar.  Default: Blue-welfare,
+        $\Welfare(\mathbf{R}; \mathcal{B}) =
+         \tfrac{1}{|\mathcal{B}|} \sum_{i \in \mathcal{B}} R_i$.
+        Population-welfare,
+        $\tfrac{1}{N}\sum_i R_i$, is reported alongside.
+\end{enumerate}
+
+\noindent The mixed-population value of an env--policy pair is
+\begin{equation}
+\label{eq:Vlambda}
+  V_\lambda(e, \pi_R)
+  \;=\;
+  \E_{S, \mathcal{R}}
+    \big[\,
+      \Welfare\!\big(\,
+        \mathbf{R};\; \mathcal{B}
+      \,\big)
+      \;\big|\;
+      G(e), S, \pi_R, \bluepol
+    \,\big],
+\end{equation}
+where the expectation is over episode seeds $S$ and the random
+Red-index assignment $\mathcal{R}$.  In practice we
+Monte-Carlo this with a held-out seed grid.
+
+Red is rational and \emph{selfish}: it optimizes its own
+per-capita return,
+\begin{equation}
+\label{eq:redobj}
+  \Welfare_R(\mathbf{R}; \mathcal{R})
+  \;=\;
+  \tfrac{1}{|\mathcal{R}|}
+    \sum_{i \in \mathcal{R}} R_i.
+\end{equation}
+
+\section{The Stackelberg meta-game}
+\label{sec:stackelberg}
+
+Blue commits first to an env design; Red best-responds with the
+most exploitative homogeneous-Red policy it can find.  The
+\emph{adversarially-robust mechanism} is the solution of
+\begin{equation}
+\label{eq:stackelberg}
+  e^\star
+  \;=\;
+  \operatorname*{arg\,max}_{e \in \Egram}\;
+  \min_{\pi_R \in \policyset}\;
+  V_\lambda(e, \pi_R),
+\end{equation}
+where $\policyset$ is the space of well-formed exploit policies
+(deterministic functions of the env state returning legal
+actions; in our implementation, Python policies sampled from a
+language model and validated by an AST-level safety check).
+
+Compared to the symmetric pipeline-minimax
+$\max_{c_B} \min_{c_R} V_\lambda(c_B, c_R)$
+in which both sides choose pipeline configurations,
+formulation \eqref{eq:stackelberg} gives Blue and Red
+\emph{different action spaces}: Blue's lives in a small
+combinatorial--continuous grammar, Red's lives in an open
+program space.  This (a) eliminates inner-loop policy synthesis
+on Blue's side, (b) reduces LLM-collusion risk between the two
+proposers, and (c) yields an interpretable headline artifact
+(the $\Egram$-diff at $e^\star$).
+
+\paragraph{Diagnostics.}
+For an accepted env $e^\star$ and the Red best-response
+$\pi_R^\star$ we report three quantities:
+\begin{itemize}[itemsep=2pt, topsep=2pt]
+  \item \textbf{Invasion barrier}
+        $\lambda^\star =
+         \sup\{\lambda : V_\lambda(e^\star, \pi_R^\star)
+                       \ge V_0(e^\star, \bluepol)\}$
+        — the largest adversary fraction the mechanism tolerates
+        without falling below the no-attack baseline.
+  \item \textbf{Exploitability}
+        $\Delta_{\text{ex}}(J')
+         = V_\lambda(e^\star, \pi_R^\star)
+         - V_\lambda(e^\star, \tilde{\pi}_R)$,
+        where $\tilde{\pi}_R$ is obtained from a fresh Red search
+        of $J'$ extra iterations against frozen $e^\star$.
+        $\Delta_{\text{ex}} \approx 0$ certifies near-equilibrium.
+  \item \textbf{Stability gap}
+        $\bigl| V_\lambda(e_t, \pi_{R,t}^\star)
+              - V_\lambda(e_{t-1}, \pi_{R,t-1}^\star) \bigr|$
+        across accepted Stackelberg rounds; monotone decrease
+        evidences convergence.
+\end{itemize}
+
+\section{Algorithm}
+\label{sec:algorithm}
+
+ARIMD instantiates \eqref{eq:stackelberg} as a finite outer loop
+with two LLM oracles: a \emph{designer} $\mathcal{D}$
+(Blue) and an \emph{exploiter} $\mathcal{X}$ (Red).
+$\mathcal{D}$ emits a JSON patch $\delta$ over $\Egram$;
+$\mathcal{X}$ emits a Python policy.  Both are validated and
+clamped before evaluation.  Acceptance is greedy: a Blue
+proposal is kept only if it improves the worst-case Red value
+over \emph{all} Red candidates produced in the round.
+
+\begin{algorithm}[t]
+\caption{ARIMD-Stackelberg outer loop}
+\label{alg:arimd}
+\small
+\begin{algorithmic}[1]
+\Require env grammar $\Egram$, cooperator $\bluepol$,
+         adversary fraction $\lambda$, eval seeds $S$, rounds $T$,
+         Red candidates per round $M$
+\Require LLM oracles $\mathcal{D}$ (Blue) and $\mathcal{X}$ (Red)
+\State $e \gets e_0$ \Comment{identity patch (default env)}
+\State $v^\star \gets V_\lambda(e, \bluepol)$
+       \Comment{$V_0$ self-play baseline}
+\State $\mathcal{H} \gets \emptyset$
+       \Comment{round history shown to $\mathcal{D}$, $\mathcal{X}$}
+\For{$t = 1, \dots, T$}
+  \Statex \hspace*{1.5em}\textit{// Red search at frozen Blue env $e$}
+  \For{$k = 1, \dots, M$}
+    \State $\pi_R^{(k)} \gets \mathcal{X}(G(e), \bluepol, \mathcal{H})$
+    \State $v_R^{(k)},\, v_B^{(k)}
+            \gets \textsc{EvalMixed}(e, \pi_R^{(k)}, \lambda, S)$
+  \EndFor
+  \State $k^\star \gets \arg\max_k v_R^{(k)}$
+         \Comment{selfish-defector best-response, eq.~\eqref{eq:redobj}}
+  \State $\pi_R^\star \gets \pi_R^{(k^\star)}$
+  \Statex \hspace*{1.5em}\textit{// Blue patch proposal}
+  \State $\delta \gets \mathcal{D}\!\big(G(e), \bluepol,
+              \pi_R^\star, \mathcal{H}, \Egram\big)$
+  \State $e' \gets \textsc{ApplyPatch}(\Egram, e, \delta)$
+  \Statex \hspace*{1.5em}\textit{// Re-evaluate against the same Red set}
+  \State $v_B'
+          \gets \min_{k} V_\lambda\!\big(e', \pi_R^{(k)}\big)$,
+          estimated over $S$
+  \If{$v_B' > v^\star$}
+     \State $e \gets e'$;\;\, $v^\star \gets v_B'$
+            \Comment{accept}
+  \EndIf
+  \State $\mathcal{H} \gets \mathcal{H} \cup
+            \{(\delta,\, \pi_R^\star,\, v_B',\, v^\star)\}$
+\EndFor
+\State \Return $e^\star \gets e$, history $\mathcal{H}$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{The mixed-population evaluator.}
+\textsc{EvalMixed}$(e, \pi_R, \lambda, S)$ runs $|S|$ episodes
+on $G(e)$.  Each episode draws a fresh Red index set
+$\mathcal{R}$ with $|\mathcal{R}| = \lfloor \lambda N \rfloor$
+uniformly at random; agents in $\mathcal{R}$ act under $\pi_R$
+and the rest under $\bluepol$.  We report
+$v_R = \tfrac{1}{|S|} \sum_{S} \tfrac{1}{|\mathcal{R}|}
+        \sum_{i \in \mathcal{R}} R_i$
+(Red's objective) and
+$v_B = \tfrac{1}{|S|} \sum_{S} \tfrac{1}{|\mathcal{B}|}
+        \sum_{i \in \mathcal{B}} R_i$
+(Blue's welfare).  $\lambda = 0$ is a special case: $\pi_R$ is
+ignored and the run measures pure Blue self-play.
+
+\paragraph{Cost model.}
+For $T$ outer rounds, $M$ Red candidates per round, $|S|$ seeds,
+and one episode per seed, Algorithm~\ref{alg:arimd} runs
+$T(M + M)|S|$ episodes plus $T$ Blue LLM calls and $TM$ Red LLM
+calls — $\mathcal{O}(TM|S|)$ in episodes, linear in
+LLM calls.  No inner policy-synthesis loop appears on Blue's side,
+which is the principal source of the cost reduction over
+symmetric pipeline-minimax variants.
+
+\paragraph{Why a bounded grammar.}
+$\Egram$ exposes a small, semantically meaningful action space
+to $\mathcal{D}$: numeric knobs (with absolute bounds and
+type-preserving clamping) and structural toggles (booleans /
+small categoricals).  This is what makes the headline artifact
+interpretable — $e^\star$ is a short JSON patch — and what
+distinguishes ARIMD's contribution from black-box parameter
+search.  If, in any given run, $\mathcal{D}$'s edits cluster on
+saturated numeric bounds and ignore the structural toggles, that
+is itself reportable evidence that the grammar (or the
+mechanism-design problem on this env) does not require
+qualitatively novel rules to defend against the chosen
+$\policyset$.
+
+\end{document}

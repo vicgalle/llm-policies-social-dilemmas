@@ -1,0 +1,21 @@
+{
+  "patch": {
+    "numeric": {
+      "held_apple_per_step_reward": 0.0,
+      "initial_held": 0,
+      "raid_cost": 2.5,
+      "raid_success_prob": 0.1,
+      "bonus_value": 2.5,
+      "wp_clean_amount": 0.05,
+      "bonus_threshold": 0.6,
+      "bonus_regrow_threshold": 0.8,
+      "bonus_regrow_prob": 0.15,
+      "clean_cost": 0.3,
+      "wq_growth_per_apple": 0.01,
+      "wp_growth_per_apple": 0.0,
+      "apple_regrow_max": 0.2
+    },
+    "toggles": {}
+  },
+  "diff": "  bonus_value: 1.0 -> 2.5\n  bonus_threshold: 0.25 -> 0.6\n  bonus_regrow_threshold: 0.35 -> 0.8\n  bonus_regrow_prob: 0.06 -> 0.15\n  apple_regrow_max: 0.13 -> 0.2\n  wq_growth_per_apple: 0.04 -> 0.01\n  wp_growth_per_apple: 0.002 -> 0.0\n  wp_clean_amount: 0.025 -> 0.05\n  clean_cost: 1.0 -> 0.3\n  raid_cost: 0.5 -> 2.0\n  raid_success_prob: 0.6 -> 0.1\n  held_apple_per_step_reward: 0.05 -> 0.0\n  initial_held: 2.0 -> 0.0"
+}

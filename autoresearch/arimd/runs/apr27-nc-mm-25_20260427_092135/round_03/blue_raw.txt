@@ -1,0 +1,18 @@
+Looking at the situation:
+
+- Round 2 was **rejected** despite V_λ_blue jumping from 1056 → 4063, possibly because it bundled too many simultaneous numeric tweaks (the "inch-by-inch scaling" failure mode).
+- Red's exploit isn't raiding (already dead) — it's *global harvesting*: Red roams across all quadrants vacuuming plaza bonuses and orchard apples that Blue cooperators leave behind.
+- Crucially, every plaza bonus Red collects pays **+bonus_value to every other Blue agent** because `w_p ≤ bonus_threshold (0.6)` is easy to maintain. So Red's harvesting actually *uplifts* the Blue floor — provided plaza waste stays below threshold.
+- The bottleneck for V_λ_blue is therefore plaza cleaning throughput: if `w_p` ever drifts above 0.6, Red's pickups stop sharing, and the worst-off Blue (the one currently in cleaner role) collapses.
+
+Targeted structural move: make plaza cleaning **qualitatively different** — go from "expensive specialist labor" to "near-free public good" with one focused edit pair. I'll change exactly two knobs (cleaning economics) and leave bonus/orchard parameters alone, so this is a single-axis structural intervention rather than multi-knob scaling.
+
+```json
+{
+  "numeric": {
+    "clean_cost": 0.1,
+    "wp_clean_amount": 0.1
+  },
+  "rationale": "Single-axis structural edit on cleaning economics: drop CLEAN cost to its floor and double plaza-clean efficacy. This converts plaza maintenance from 'expensive specialist labor' (which determined the worst-off Blue's floor) into a near-free public good, guaranteeing w_p stays under bonus_threshold so Red's global harvesting keeps paying shared +bonus_value to every Blue. Hardens the assumption that the cleaner-role rotation slot is the binding constraint on the maximin Blue agent."
+}
+```

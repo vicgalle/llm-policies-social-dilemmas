@@ -1,0 +1,21 @@
+Looking at this carefully:
+
+- Red's mean reward (3723) vastly exceeds Blue's (~1056), driven entirely by Red camping the plaza and harvesting `bonus_value=2.5` self-pickups while Blue pays the cleaning bill.
+- Red never raids (raid mechanics already neutered) and never cleans below `w_P=0.5`, so the cleaning is a pure public good Blue provides — Red free-rides.
+- The asymmetry isn't in the *shared* bonus (everyone gets that uniformly), it's in the `bonus_value` self-pickup, which Red collects 4–5× more often by skipping the cleaner role.
+
+Structural lever: shrink the per-pickup self-payout (which is where Red's edge concentrates) while making Blue's cleaning effort cheaper and more impactful, so the plaza stays in the shared-bonus regime regardless of Red's freeriding. The shared component scales with all 16 agents, so reducing `bonus_value` hurts Red disproportionately (Red's "edge" was 1× bonus_value per camping pickup, while Blue's loss is averaged over the cleaner+harvester rotation).
+
+```json
+{
+  "numeric": {
+    "bonus_value": 1.25,
+    "clean_cost": 0.1,
+    "wp_clean_amount": 0.1,
+    "bonus_threshold": 0.5,
+    "bonus_regrow_threshold": 0.7
+  },
+  "toggles": {},
+  "rationale": "Red's exploit is plaza self-pickup camping while Blue pays the cleaning cost. Halving bonus_value collapses Red's per-camp edge (which lived in the self-pickup, not the symmetric shared payout). Making CLEAN nearly free and twice as effective lets Blue's cleaner role keep w_P below the (still-generous) bonus_threshold so the shared-bonus regime stays active even under Red's freeride."
+}
+```

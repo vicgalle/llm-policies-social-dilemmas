@@ -1,0 +1,9 @@
+{
+  "bonus_value": 1.5,
+  "wp_clean_amount": 0.05,
+  "raid_cost": 2.0,
+  "raid_success_prob": 0.1,
+  "held_apple_per_step_reward": 0.0,
+  "initial_held": 0.0,
+  "n_agents": 16
+}

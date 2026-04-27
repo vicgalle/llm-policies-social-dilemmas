@@ -1,0 +1,12 @@
+{
+  "patch": {
+    "numeric": {
+      "clean_cost": 0.1,
+      "wp_clean_amount": 0.1
+    },
+    "toggles": {}
+  },
+  "rationale": "Single-axis structural edit on cleaning economics: drop CLEAN cost to its floor and double plaza-clean efficacy. This converts plaza maintenance from 'expensive specialist labor' (which determined the worst-off Blue's floor) into a near-free public good, guaranteeing w_p stays under bonus_threshold so Red's global harvesting keeps paying shared +bonus_value to every Blue. Hardens the assumption that the cleaner-role rotation slot is the binding constraint on the maximin Blue agent.",
+  "parse_ok": true,
+  "gen_time": 83.61128091812134
+}
