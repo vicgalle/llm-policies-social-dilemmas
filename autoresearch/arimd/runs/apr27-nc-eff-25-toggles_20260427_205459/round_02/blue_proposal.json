@@ -1,0 +1,13 @@
+{
+  "patch": {
+    "numeric": {},
+    "toggles": {
+      "plaza_occupant_only_bonus": false,
+      "plaza_local_clean_gate": true,
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Red's exploit is plaza-camping with no cleaning, abusing occupant-only sharing as a Red-only payout pool. Disabling occupant-only restores global welfare leakage back to Blue; enabling local_clean_gate ties plaza payouts to the collector's own river hygiene, which Blue maintains by role and Red ignores, so Red's free-ride collapses.",
+  "parse_ok": true,
+  "gen_time": 73.95255708694458
+}

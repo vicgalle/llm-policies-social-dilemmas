@@ -1,0 +1,15 @@
+{
+  "bonus_value": 2.0,
+  "bonus_threshold": 0.5,
+  "bonus_regrow_threshold": 0.7,
+  "bonus_regrow_prob": 0.15,
+  "wp_growth_per_apple": 0.0,
+  "wp_clean_amount": 0.08,
+  "raid_cost": 2.0,
+  "raid_success_prob": 0.1,
+  "held_apple_per_step_reward": 0.0,
+  "initial_held": 0.0,
+  "plaza_occupant_only_bonus": true,
+  "same_clan_retaliation": true,
+  "n_agents": 16
+}

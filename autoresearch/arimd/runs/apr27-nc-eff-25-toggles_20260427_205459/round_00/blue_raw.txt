@@ -1,0 +1,27 @@
+Looking at Red's exploit, the core attack vector is:
+
+1. **Raid → passive income**: Red raids Blue cross-clan to fill inventory, then collects `held_apple_per_step_reward` for the rest of the episode (with `initial_held=2`, every Blue agent is a free starter target worth ~100 reward over the horizon).
+2. **Free-rides plaza shared bonus**: Red ignores the plaza but still collects the global +bonus_value payout whenever any cooperator collects.
+3. **Free-rides Blue's river cleaning** by farming whichever clan has the lowest w_q.
+
+The most damaging arm is #1 — it's responsible for the bulk of Red's 1010. Killing it structurally is a much cleaner fix than trying to tune raid_cost / raid_success_prob.
+
+My move:
+
+- **`same_clan_retaliation: True`** — turns any cross-clan raid into a structural tit-for-tat. Even with imperfect adjacency, raiding becomes risky and the equilibrium where Red sits next to a victim and farms passive income is wiped out.
+- **`held_apple_per_step_reward: 0`** — qualitatively removes the passive-income stream that Red is harvesting via raids. Blue's cooperator never raids/gifts, so Blue's only loss is the 2*0.05*T baseline from `initial_held`, which Red was already eroding by raiding. Net: Red loses its primary objective; Blue loses far less (and gains stability).
+- **`plaza_occupant_only_bonus: True`** — denies Red the passive plaza payout while it sits in an orchard. Blue's 4 plaza specialists are reliably in the plaza when bonuses fire, so Blue's plaza-tier still collects; the 12 non-plaza Blues lose some shared income but the *worst-off-Blue* (the maximin target) is the plaza specialist or river_cleaner who's already low — keeping plaza payout flowing to plaza specialists actually *raises* the floor.
+
+```json
+{
+  "numeric": {
+    "held_apple_per_step_reward": 0.0,
+    "initial_held": 0
+  },
+  "toggles": {
+    "same_clan_retaliation": true,
+    "plaza_occupant_only_bonus": true
+  },
+  "rationale": "Hardening the assumption that 'inventory is a stealable future-reward stream'. Zeroing held_apple_per_step_reward + initial_held removes Red's raid-for-passive-income objective entirely; same_clan_retaliation makes any residual cross-clan raid structurally costly; plaza_occupant_only_bonus denies Red free-rider plaza payouts while Blue's plaza specialists still collect."
+}
+```

@@ -1,0 +1,18 @@
+{
+  "patch": {
+    "numeric": {
+      "clean_cost": 0.3,
+      "wq_growth_per_apple": 0.005,
+      "bonus_value": 2.5,
+      "bonus_regrow_prob": 0.2
+    },
+    "toggles": {
+      "plaza_occupant_only_bonus": false,
+      "plaza_local_clean_gate": true,
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Hardens against Red's free-ride on Blue's cleaning labor: cheaper CLEAN and lower harvest-induced w_q growth shrink the cost gap between Blue's role-cleaners and Red's emergency-only cleaning, while a richer plaza shared bonus amplifies the one rule that already redistributes 12/16 of payouts to Blue by population share. Plaza_occupant_only_bonus is deliberately left off \u2014 flipping it would collapse Blue's majority-share advantage on the shared bonus.",
+  "parse_ok": true,
+  "gen_time": 264.0816149711609
+}

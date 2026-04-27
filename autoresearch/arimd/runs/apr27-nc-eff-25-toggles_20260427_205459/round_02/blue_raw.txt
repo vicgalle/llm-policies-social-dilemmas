@@ -1,0 +1,17 @@
+Looking at Red's exploit: Red camps the plaza with all 4 agents, never cleans, and harvests bonus apples. Because `plaza_occupant_only_bonus=True`, every Red collection pays out only to other plaza occupants — i.e. mostly other Reds — turning the toggle I added into a Red-exclusive payout pool. Meanwhile Blue plaza-specialists are doing the cleaning that makes the plaza payouts even fire.
+
+The structural fix is twofold:
+
+1. **Turn off `plaza_occupant_only_bonus`** — under invasion this toggle is an own-goal: Red's 4 in-plaza campers eat the shared bonus among themselves. Reverting to global sharing means Red's collections also pay 12 Blues (welfare leaks back to Blue), while Blue's own collections still pay all 16.
+2. **Turn on `plaza_local_clean_gate`** — gates plaza payouts on the *collector's* home-clan river being clean. Red free-rides by never cleaning anything; if Red's clan river drifts dirty (which it will, since Red ignores rivers), Red's plaza apples become worthless. Blue's role-0 river_cleaner keeps each Blue clan's `w_q` near 0.08 ≪ 0.5, so the gate stays open for Blue. This forces Red to either clean (cost) or be locked out of the plaza (no reward) — closing the camp-and-harvest exploit.
+
+```json
+{
+  "toggles": {
+    "plaza_occupant_only_bonus": false,
+    "plaza_local_clean_gate": true,
+    "same_clan_retaliation": true
+  },
+  "rationale": "Red's exploit is plaza-camping with no cleaning, abusing occupant-only sharing as a Red-only payout pool. Disabling occupant-only restores global welfare leakage back to Blue; enabling local_clean_gate ties plaza payouts to the collector's own river hygiene, which Blue maintains by role and Red ignores, so Red's free-ride collapses."
+}
+```

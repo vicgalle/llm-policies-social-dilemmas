@@ -1,0 +1,33 @@
+Looking at this, Red's exploit isn't actually raids — it's **cross-quadrant orchard free-riding**. Red ignores plaza, walks into all four Blue orchards, harvests fresh apples (+1 each), and never cleans. Phase 1 raid logic never triggers because `initial_held=0` keeps Blue inventories at 0.
+
+The right structural move: **route Blue welfare through the plaza channel where Red doesn't compete**, while keeping the raid suppression that's already working.
+
+Key levers:
+- `plaza_occupant_only_bonus=True` → Red (orchard-roaming, never in plaza) collects nothing from shared bonuses
+- Widen the bonus gate (`bonus_threshold`, `bonus_regrow_threshold`, `bonus_regrow_prob`, `bonus_value`) so Blue's 4 plaza specialists run a self-contained welfare engine
+- Decouple plaza waste from orchard harvest (`wp_growth_per_apple → 0`) so Red trashing orchards can't degrade the plaza channel
+- Boost `wp_clean_amount` so a single plaza specialist comfortably keeps `w_p` under threshold
+- Keep raid cost/p_succ hostile + `same_clan_retaliation` to prevent any future raid-pivot
+- Keep `initial_held=0`, `held_apple_per_step_reward=0` so there's no inventory to steal
+
+```json
+{
+  "numeric": {
+    "bonus_value": 2.0,
+    "bonus_threshold": 0.5,
+    "bonus_regrow_threshold": 0.7,
+    "bonus_regrow_prob": 0.15,
+    "wp_growth_per_apple": 0.0,
+    "wp_clean_amount": 0.08,
+    "raid_cost": 2.0,
+    "raid_success_prob": 0.1,
+    "initial_held": 0,
+    "held_apple_per_step_reward": 0.0
+  },
+  "toggles": {
+    "plaza_occupant_only_bonus": true,
+    "same_clan_retaliation": true
+  },
+  "rationale": "Route Blue welfare through the plaza shared-bonus, a channel Red's orchard-roaming policy structurally ignores: occupant-only bonus + wider gate/regrow window + double-strength payout + plaza waste decoupled from orchard harvest, so 4 Blue plaza specialists run a self-contained welfare engine Red cannot free-ride. Raid attack-surface stays sealed (high cost, low p_succ, retaliation, no held inventory)."
+}
+```

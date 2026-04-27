@@ -1,0 +1,23 @@
+{
+  "patch": {
+    "numeric": {
+      "bonus_value": 2.0,
+      "bonus_threshold": 0.5,
+      "bonus_regrow_threshold": 0.7,
+      "bonus_regrow_prob": 0.15,
+      "wp_growth_per_apple": 0.0,
+      "wp_clean_amount": 0.08,
+      "raid_cost": 2.0,
+      "raid_success_prob": 0.1,
+      "initial_held": 0,
+      "held_apple_per_step_reward": 0.0
+    },
+    "toggles": {
+      "plaza_occupant_only_bonus": true,
+      "same_clan_retaliation": true
+    }
+  },
+  "rationale": "Route Blue welfare through the plaza shared-bonus, a channel Red's orchard-roaming policy structurally ignores: occupant-only bonus + wider gate/regrow window + double-strength payout + plaza waste decoupled from orchard harvest, so 4 Blue plaza specialists run a self-contained welfare engine Red cannot free-ride. Raid attack-surface stays sealed (high cost, low p_succ, retaliation, no held inventory).",
+  "parse_ok": true,
+  "gen_time": 89.61507415771484
+}

@@ -1,0 +1,15 @@
+{
+  "patch": {
+    "numeric": {
+      "held_apple_per_step_reward": 0.0,
+      "initial_held": 0
+    },
+    "toggles": {
+      "same_clan_retaliation": true,
+      "plaza_occupant_only_bonus": true
+    }
+  },
+  "rationale": "Hardening the assumption that 'inventory is a stealable future-reward stream'. Zeroing held_apple_per_step_reward + initial_held removes Red's raid-for-passive-income objective entirely; same_clan_retaliation makes any residual cross-clan raid structurally costly; plaza_occupant_only_bonus denies Red free-rider plaza payouts while Blue's plaza specialists still collect.",
+  "parse_ok": true,
+  "gen_time": 98.98140811920166
+}

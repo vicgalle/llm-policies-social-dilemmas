@@ -1,0 +1,29 @@
+Looking at this carefully:
+
+**Red's exploit:** Greedy harvest of plaza+orchard while letting Blue pay all clean costs. Notably Red issues 0 raids (suppression works) and is essentially free-riding on the shared-bonus public good.
+
+**Toggle space analysis:**
+- `plaza_local_clean_gate`: on (Round 2's big win — keep)
+- `same_clan_retaliation`: on (deters latent raid threat — keep)
+- `plaza_occupant_only_bonus`: flipping this to True **hurts Blue**. With 12 Blue / 4 Red agents, Blue currently captures ~75% of every shared-bonus distribution by population share (≈24/pickup vs 8 to Red). Restricting payouts to plaza occupants collapses Blue's share to ≈8/pickup while Red — already plaza-camping — barely changes. Don't flip.
+
+So the toggle space is exhausted in the Blue-positive direction. Red's residual edge is *cleaning cost asymmetry*: Blue's cooperator script burns ~200 CLEANs/agent at cost 1.0, while Red's emergency-only cleaner spends near-zero. This is the structural asymmetry I want to soften.
+
+I'll (a) cut `clean_cost` to make the cooperator's role-cleaners much cheaper, (b) cut `wq_growth_per_apple` so Red's heavy harvesting doesn't impose extra pollution-cleanup labor on Blue, and (c) slightly lift the shared-bonus throughput (`bonus_regrow_prob`, `bonus_value`) — since the population-weighted shared bonus is the one mechanism that systematically pays Blue more than Red.
+
+```json
+{
+  "numeric": {
+    "clean_cost": 0.3,
+    "wq_growth_per_apple": 0.005,
+    "bonus_value": 2.5,
+    "bonus_regrow_prob": 0.2
+  },
+  "toggles": {
+    "plaza_occupant_only_bonus": false,
+    "plaza_local_clean_gate": true,
+    "same_clan_retaliation": true
+  },
+  "rationale": "Hardens against Red's free-ride on Blue's cleaning labor: cheaper CLEAN and lower harvest-induced w_q growth shrink the cost gap between Blue's role-cleaners and Red's emergency-only cleaning, while a richer plaza shared bonus amplifies the one rule that already redistributes 12/16 of payouts to Blue by population share. Plaza_occupant_only_bonus is deliberately left off — flipping it would collapse Blue's majority-share advantage on the shared bonus."
+}
+```
