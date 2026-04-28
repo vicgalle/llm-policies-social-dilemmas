@@ -1,0 +1,16 @@
+{
+  "patch": {
+    "numeric": {
+      "waste_spawn_prob": 0.12,
+      "threshold_restoration": 0.25,
+      "threshold_depletion": 0.6,
+      "clean_cost": 0.3
+    },
+    "toggles": {
+      "beam_enabled": false
+    }
+  },
+  "rationale": "Red is a pure free-rider; the worst-off Blue is the cleaner who eats the public-goods cost. I shrink the dilemma itself: lower waste_spawn_prob (less cleaning needed), raise threshold_restoration (apples spawn at full rate even at 25% waste), widen the depletion buffer to 0.6, and slash clean_cost so cleaner-role Blues aren't bled dry. This lifts the worst-off Blue without giving Red's superior harvest-pathfinding extra apples to grab.",
+  "parse_ok": true,
+  "gen_time": 44.71812987327576
+}

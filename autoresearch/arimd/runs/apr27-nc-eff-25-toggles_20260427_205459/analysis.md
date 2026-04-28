@@ -95,3 +95,34 @@ The toggles are real levers, but their welfare sign depends on the cooperator. T
 ## Bottom line
 
 H3 fires positively here for the first time: Blue actively uses the structural toggle action-space, reverts a flip when it backfires, and the final accepted patch carries two structural switches plus saturated numerics. λ\* = 0.25 cleared. The maximin/efficiency divergence is a separate publishable observation — same grammar, opposite outcomes, driven by how each cooperator interacts with the toggles' preconditions.
+
+---
+
+## Appendix — Perolat efficiency metric (U = total reward / T)
+
+`n_agents=16`, `T=1000`. U is computed from `v_pop * n_agents / T`.
+
+**Trajectory of the chosen Red's pop-mean per round** (each Red plays against the env state up to that round):
+
+| Round | v_pop | U |
+|---|---:|---:|
+| Original env, self-play (V_0) | 945.51 | 15.13 |
+| Round 0 chosen Red on original env | 744.17 | 11.91 |
+| Round 1 chosen Red on round-0 patched env | 762.02 | 12.19 |
+| Round 2 chosen Red on round-2 patched env | 1404.59 | 22.47 |
+| Round 3 chosen Red on round-3 patched env | 3487.66 | 55.80 |
+
+**Final env, invasion sweep** (post-T=4 patch):
+
+| λ | v_pop | U |
+|---:|---:|---:|
+| 0.000 | 5358.01 | **85.73** ← self-play efficiency, **5.67× original V_0** |
+| 0.100 | 5364.27 | 85.83 |
+| 0.200 | 5345.22 | 85.52 |
+| 0.250 | 5369.65 | 85.91 |
+| 0.400 | 5228.94 | 83.66 |
+
+**Two things to flag for the paper:**
+
+1. **Self-play efficiency lifted 5.67×** (15.13 → 85.73). Blue didn't just defend — it shifted the entire reward landscape upward. Same §6.1 concern flagged in the prior `apr27-nc-mm-25` analysis, only larger.
+2. **U is essentially flat across λ ∈ [0, 0.25]** (85.73 / 85.83 / 85.52 / 85.91), then dips slightly at λ=0.4 (83.66). Red's presence neither helps nor hurts collective welfare on the final env. That's the "saturated public good" failure mode: the env is rich enough that cooperators *and* defectors converge to similar per-agent payoffs. Cooperator-relative efficiency (population fraction of theoretical ceiling) is the cleaner thing to report — otherwise the headline reads as "Blue made the game easier" rather than "Blue hardened the mechanism."

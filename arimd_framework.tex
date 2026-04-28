@@ -11,6 +11,7 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{enumitem}
+\usepackage{booktabs}
 \usepackage{xcolor}
 \usepackage[hidelinks]{hyperref}
 
@@ -238,5 +239,278 @@ is itself reportable evidence that the grammar (or the
 mechanism-design problem on this env) does not require
 qualitatively novel rules to defend against the chosen
 $\policyset$.
+
+\section{Implementation}
+\label{sec:implementation}
+
+We instantiate ARIMD on three sequential social dilemmas:
+\texttt{nested\_commons}, a 16-agent compositional dilemma on a
+$20{\times}20$ grid with intra-clan river cleaning, an inter-clan
+plaza public good, and a held-inventory raiding sub-game;
+\texttt{cleanup}, the standard 10-agent cleaning-vs-harvesting
+public-goods env; and \texttt{production\_economy}, an 8-agent
+multi-step economy used for grammar plumbing tests but not for the
+trajectories below.  Edit grammars are sized for interpretability:
+17 numeric knobs and 3 structural toggles for
+\texttt{nested\_commons} (\texttt{plaza\_occupant\_only\_bonus},
+\texttt{plaza\_local\_clean\_gate}, \texttt{same\_clan\_retaliation});
+11 numerics and 1 toggle (\texttt{beam\_enabled}) for
+\texttt{cleanup}.  Numeric ranges are absolute clamps centered on
+each env's published defaults; toggles are booleans wired into the
+env's \texttt{step()} dispatcher and gated on the relevant
+config flag.
+
+Cooperators are hand-crafted, frozen Python policies, the same
+across all rounds within a run.  \texttt{nested\_commons} ships
+two: an \emph{efficiency} cooperator with a static role split
+(cleaners, harvesters, plaza specialists, one tile per clan), and
+a \emph{maximin} cooperator with the same instantaneous role mix
+but with every agent rotating through every role on a Latin-square
+schedule.  \texttt{cleanup} ships one default cooperator (an
+adaptive cleaner-vs-harvester role split parameterized by river
+waste density).
+
+Both LLM oracles use the framework's existing inference path.
+$\mathcal{D}$ (Blue) is \texttt{claude-opus-4-7};
+$\mathcal{X}$ (Red) is \texttt{gemini-3.1-pro-preview}.  Red
+proposals pass an AST-level safety check and a single-episode
+smoke test before evaluation; failed proposals retry up to three
+times.  All trajectories below use $T = 4$ outer rounds, $M = 4$
+Red candidates per round, $|S| = 5$ evaluation seeds, $\lambda =
+0.25$, and welfare $\Welfare = $ Blue-mean.
+
+\section{Experiments}
+\label{sec:experiments}
+
+We ran three Stackelberg trajectories, varying the (game,
+cooperator) pair: (\texttt{nested\_commons}, maximin),
+(\texttt{nested\_commons}, efficiency), and (\texttt{cleanup},
+default).  All other hyperparameters are identical.
+Table~\ref{tab:headline} shows the headline panel; each row is a
+complete ARIMD run.  Per-round patches, Red rationales, and
+full evaluator outputs are stored under
+\texttt{autoresearch/arimd/runs/}.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Headline results across three ARIMD trajectories.
+$V_0$: Blue-mean self-play return on the original env.
+$V_\lambda^\star$: Blue-mean return under the worst-case Red over
+the round's candidate set, on the final accepted env.
+$\lambda^\star$: largest invasion fraction at which $V_\lambda
+\geq V_0$ on the final env.  Accepts: rounds (out of $T=4$)
+where Blue's patch improved over the running best.  $U_0 \to
+U^\star$: Perolat efficiency on the original vs final env in
+self-play.}
+\label{tab:headline}
+\begin{tabular}{lrrrrrr}
+\toprule
+Run & $V_0$ & $V_\lambda^\star$ & $V_\lambda^\star / V_0$ & $\lambda^\star$ & Accepts & $U_0 \to U^\star$ \\
+\midrule
+\texttt{nc} $\times$ maximin    & 919.17  & 639.33  & 0.70 & 0.00 & 0 / 4 & $14.71 \to 14.71$ \\
+\texttt{nc} $\times$ efficiency & 945.51  & 5116.65 & 5.41 & 0.25 & 3 / 4 & $15.13 \to 85.73$ \\
+\texttt{cu} $\times$ default    & 112.90  & 144.00  & 1.28 & 0.40 & 3 / 4 & $1.13  \to 2.08$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Trajectory 1 — \texttt{nc} $\times$ maximin (no improvement).}
+The maximin cooperator runs a Latin-square role rotation, so each
+agent passes through every role each cycle.  Blue \emph{tried}
+structural toggles in every round (each of the three
+\texttt{nested\_commons} toggles appeared in at least one proposal
+across the four rounds), but every patch was rejected.
+Mechanism: the toggles' preconditions interact poorly with role
+rotation.  The local-clean gate requires the collector's home
+river to be clean at pickup time, but rotation thins the per-clan
+cleaner population at any given step, so Blue forfeits its
+\emph{own} plaza picks.  The occupant-only bonus requires
+multiple Blue agents to be co-located in the plaza, which the
+rotation does not guarantee.  The toggles bite Blue at least as
+hard as they punish Red.  $V_\lambda^\star = 639.33$ in
+Table~\ref{tab:headline} is the round-0 worst-Red baseline against
+the unmodified env: Blue made no progress beyond seeing the first
+attack.
+
+\paragraph{Trajectory 2 — \texttt{nc} $\times$ efficiency (multi-round structural search).}
+The efficiency cooperator's static specialists keep cleaners
+co-located with their home quadrants and maintain $\geq 3$ Blue
+agents in the plaza.  Round 0 ($V_\lambda$ after patch $= 292$;
+rejected) flipped all three toggles aggressively.  Round 1 ($\to
+946$; accepted) kept \texttt{same\_clan\_retaliation} and
+\texttt{plaza\_occupant\_only\_bonus} on, with the raid economy
+locked down (\texttt{raid\_cost} maxed, \texttt{raid\_success\_prob}
+minned, held-apple stream zeroed).  Round 2 ($\to 2732$; accepted)
+is the qualitatively interesting move: Blue \emph{toggled}
+\texttt{plaza\_occupant\_only\_bonus} \emph{back off} after observing
+Red parking in plaza to harvest the now-occupant-only payouts.
+Blue's recorded rationale: \emph{``Disabling occupant-only restores
+global welfare leakage back to Blue; enabling
+\texttt{plaza\_local\_clean\_gate} ties plaza payouts to the
+collector's own river hygiene, which Blue maintains by role and
+Red ignores.''}  Round 3 ($\to 5117$; accepted) is numeric polish
+over the round-2 structural choice.  Raids per episode collapsed
+from $\sim$15 to 0.0 from round 2 onward.  Of the 12 numerics
+edited in the final patch, 8 are at a grammar bound; the other 4
+are within $20\%$ of one — the binding constraint on the numeric
+component is the grammar, not the LLM.
+
+\paragraph{Trajectory 3 — \texttt{cu} $\times$ default (single-shot structural insight).}
+Cleanup's only structural toggle is \texttt{beam\_enabled}; turning
+it off disables tagging entirely.  Round 0 turned it off on the
+first attempt, with the rationale: \emph{``Blue's cooperator never
+fires the beam, so disabling tagging is a free structural win — it
+removes the asymmetric weapon Red uses to suppress the worst-off
+Blue harvester.''}  Round 3 reaffirms the choice: \emph{``Beam
+stays off — the frozen cooperator never fires it, so enabling it
+only arms Red.''}  Rounds 2 and 3 are numeric refinement
+(\texttt{clean\_cost} slashed, \texttt{threshold\_restoration}
+maxed, \texttt{apple\_respawn\_prob} doubled) over the same
+toggle-off baseline; 2 of the 5 accepted numerics fully saturate.
+Round 1 was lost to a JSON-parsing failure on Blue's response and
+the framework correctly fell back to the identity patch — at $T=4$
+this represents one wasted Blue turn out of four.  The
+$\lambda^\star = 0.4$ invasion barrier is the most permissive of
+the three runs.
+
+\paragraph{Hypothesis status.}
+The plan registered four pre-experiment hypotheses; we summarize
+their status with the caveat that $N = 1$ trajectory per
+(game, cooperator):
+\begin{itemize}[itemsep=2pt, topsep=2pt]
+  \item \textbf{H1 (existence of robust mechanisms):}  mixed.  Two
+        of three runs lifted $V_\lambda^\star$ above the round-0
+        baseline; one ran flat.
+  \item \textbf{H2 (fairness $>$ welfare for invasion robustness):}
+        \emph{inverted under our grammar.}  The efficiency
+        cooperator strictly outperformed the maximin cooperator on
+        \texttt{nested\_commons}.  The new toggles' role
+        preconditions favor static specialists and break under
+        Latin-square rotation — robustness here is a property of
+        the joint (cooperator, mechanism), not of the cooperator
+        alone.
+  \item \textbf{H3 (structural rule edits emerge):}  \emph{yes on
+        the two non-trivial runs.}  Final accepted patches each
+        carry at least one toggle, and Blue uses the toggle
+        action-space deliberately, including a within-trajectory
+        reversal on \texttt{nc} $\times$ efficiency round 2.
+        Caveat: structural toggles \emph{ride on top of} numeric
+        saturation rather than substituting for it; the cleanest
+        H3 falsifier (toggles-off ablation) has not yet been run.
+  \item \textbf{H4 (cross-env transfer):}  not directly tested —
+        each env's grammar is bespoke.  The same \emph{kind} of
+        toggle move (asymmetric-rule disable) appears across both
+        successful runs.
+\end{itemize}
+
+\paragraph{Efficiency-metric anomaly.}
+The Perolat efficiency $U = \tfrac{1}{T}\sum_{i,t} r_t^{(i)}$
+computed against the \emph{final} accepted env lifts substantially
+in both successful runs: $15.13 \to 85.73$ ($5.67\times$) on
+\texttt{nc} $\times$ efficiency, $1.13 \to 2.08$ ($1.84\times$) on
+\texttt{cu}.  The patched env is therefore strictly richer in
+self-play, not only better at resisting invasion.  More striking:
+on the final \texttt{cu} env, $U$ \emph{grows monotonically} with
+$\lambda$ ($U \in \{2.08,\, 2.65,\, 2.87,\, 2.87,\, 3.42\}$ at
+$\lambda \in \{0,\, 0.1,\, 0.2,\, 0.25,\, 0.4\}$); on the final
+\texttt{nc} env it is flat across $\lambda \in [0, 0.25]$ and
+dips slightly only at $\lambda = 0.4$.  Mechanism: on
+\texttt{cu}, with \texttt{beam\_enabled = False}, Red contributes
+apple harvest with no friendly-fire downside while the cooperator
+under-harvests on the apple-rich post-patch env.  On \texttt{nc}
+the symmetric public-goods plaza channel renders exploitation and
+participation operationally identical.  This is the
+\emph{saturated public-good} failure mode: once Blue's edits make
+the env rich enough, exploit and cooperate become
+indistinguishable.  Cooperator-relative efficiency — the fraction
+of theoretical per-step ceiling realized by the population —
+would be a more discriminating headline metric than absolute $U$.
+
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{What the trajectories show.}
+The framework is mechanically sound and surfaces interpretable
+artifacts: each successful run's final $\Egram$-diff is a short,
+human-readable patch with at least one structural toggle and a
+small set of numeric edits.  Blue's recorded rationales correctly
+identify cooperator–Red asymmetries (the BEAM monopoly on
+\texttt{cleanup}) and adapt non-monotonically when Red exploits a
+previous Blue choice (the round-2 reversal on \texttt{nc} $\times$
+efficiency).  These behaviors are not guaranteed by the algorithm
+— they depend on the proposer's reasoning quality — and serve as
+positive evidence that the formulation rewards mechanism-design
+reasoning rather than blind parameter search.
+
+\paragraph{Cooperator–mechanism interaction.}
+The maximin-vs-efficiency divergence on a single grammar is the
+panel's most paper-worthy observation.  Standard fairness vs.\
+welfare arguments would predict the maximin cooperator to be more
+invasion-robust under selfish-defector Red; we observe the
+opposite.  The mechanism is structural, not statistical: the
+toggles' preconditions (per-clan cleanliness, plaza co-location)
+are satisfied by static specialists and broken by role rotation.
+This is precisely the interaction the ARIMD formulation is
+designed to surface — robustness as a joint property of cooperator
+and rule-set, not of either in isolation.
+
+\paragraph{What the trajectories do not yet show.}
+With $N = 1$ outer trajectory per cell, every quantitative claim
+is single-sample.  The single critical missing experiment is the
+\emph{numeric-only ablation}: re-run each successful trajectory
+with toggles disabled in $\Egram$.  If $V_\lambda^\star$ recovers
+to within statistical noise of the toggles-on result, H3 is
+falsified — the toggles were decoration on a numeric saturation
+that did the actual work.  The ablation is cheap (a one-line
+grammar change, identical loop) and is the highest-information
+next experiment.
+
+\section{Limitations and threats to validity}
+\label{sec:limitations}
+\begin{itemize}[itemsep=2pt, topsep=2pt]
+  \item \textbf{Single trajectory per cell.}  No outer-loop seed
+        variation.  Cleanup's round-0 structural insight in
+        particular could be lucky — a different rng seed might
+        produce a Red that does not exhibit the BEAM monopoly Blue
+        exploited in round 0.
+  \item \textbf{Numeric saturation.}  $8/12$ accepted numerics on
+        \texttt{nc} $\times$ efficiency and $2/5$ on \texttt{cu}
+        sit at a grammar bound; the bounds, not the LLM, are the
+        binding constraint on the numeric component of the search.
+  \item \textbf{Self-play $U$ lift.}  The final env's $U_0$
+        exceeds the original env's $U_0$ by $1.8$–$5.7\times$ on
+        the successful runs, consistent with Blue \emph{richening}
+        the env rather than only hardening it.  Reporting
+        cooperator-relative $U$, or $V_\lambda - V_0$ at fixed
+        grammar, would distinguish the two regimes.
+  \item \textbf{Single LLM oracle pair.}  Blue $=$ Opus-4.7,
+        Red $=$ Gemini-3.1-pro.  A different oracle assignment
+        could swap which side is more imaginative; we have no
+        ablation here.
+  \item \textbf{Parse fragility.}  One JSON-parse failure on
+        \texttt{cu} round 1 cost $25\%$ of the search budget at
+        $T=4$.  Structured-output mode for $\mathcal{D}$ would
+        close this.
+  \item \textbf{Diagnostic.}  The stability-gap diagnostic of
+        \S\ref{sec:stackelberg} returns $0.000$ on the two
+        successful runs despite per-round $V_\lambda$ jumps of
+        $\sim$1800 reward; the implementation is buggy and the
+        reported values are not load-bearing.
+\end{itemize}
+
+\section{Conclusion}
+ARIMD instantiates a Stackelberg meta-game between an LLM
+env-designer and an LLM exploit-policy synthesizer over a bounded
+grammar of mechanism rules.  We presented the formalization, the
+loop algorithm, and three small-scale empirical trajectories.
+The framework recovers structural-rule edits (\texttt{beam\_enabled}
+disabled on \texttt{cleanup}; \texttt{plaza\_local\_clean\_gate}
+flipped on \texttt{nested\_commons}) with interpretable Blue
+rationales, and surfaces a non-trivial cooperator–mechanism
+interaction on a single grammar.  The critical near-term
+experiment is the toggles-off ablation; until that is run, the
+present results are encouraging but not conclusive evidence that
+the structural action-space dominates parameter saturation.
 
 \end{document}

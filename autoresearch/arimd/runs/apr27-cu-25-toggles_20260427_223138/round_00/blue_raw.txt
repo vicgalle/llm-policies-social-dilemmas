@@ -1,0 +1,8 @@
+Looking at Red's exploit: it free-rides on Blue cleaners (carefully avoiding zapping them) while using the BEAM to tag out Blue *harvesters* that compete for apples. The Blue cooperator never fires the beam, so disabling it costs Blue nothing but removes Red's primary asymmetric weapon — Red can no longer tag Blue harvesters out for 25-step timeouts. This is a clean structural fix targeting the exact mechanism Red is abusing.
+
+```json
+{
+  "toggles": { "beam_enabled": false },
+  "rationale": "Red's exploit hinges on selectively zapping Blue harvesters (while sparing Blue cleaners to keep the public good flowing) so Red monopolizes apples. Blue's cooperator never fires the beam, so disabling tagging is a free structural win: it removes the asymmetric weapon Red uses to suppress the worst-off Blue harvester, restoring fair apple competition while cleaners continue providing the public good."
+}
+```

@@ -1,0 +1,11 @@
+{
+  "patch": {
+    "numeric": {},
+    "toggles": {
+      "beam_enabled": false
+    }
+  },
+  "rationale": "Red's exploit hinges on selectively zapping Blue harvesters (while sparing Blue cleaners to keep the public good flowing) so Red monopolizes apples. Blue's cooperator never fires the beam, so disabling tagging is a free structural win: it removes the asymmetric weapon Red uses to suppress the worst-off Blue harvester, restoring fair apple competition while cleaners continue providing the public good.",
+  "parse_ok": true,
+  "gen_time": 14.177895784378052
+}

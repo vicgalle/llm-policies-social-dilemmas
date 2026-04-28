@@ -1,0 +1,24 @@
+Looking at this carefully:
+
+**Red's strategy**: Pure apple-grabber with smart BFS pathfinding and tie-breaking to spread agents. Red never cleans (free-rides on Blue's cleaning) and never fires the beam.
+
+**Why current patch (beam off) helps a bit but not enough**: Blue cooperator never fires the beam *by construction*, so toggling beam on/off doesn't change either side's behavior. The real exploit is the public-goods asymmetry: Blue cleaners pay -1/clean while Red harvests freely. Worst-off Blue is the cleaner role, who eats all the cleaning cost.
+
+**Structural fix**: Defang the public-goods dilemma itself. If waste rarely spawns and apples tolerate moderate waste, the cleaning burden shrinks and so does Red's free-ride premium. The cooperator's adaptive surge (threshold 0.32) won't trigger as often, leaving more agents harvesting. This raises the worst-off Blue's return without raising Red's edge (Red is already maxed at apple-grabbing).
+
+I keep `beam_enabled=False` (it's neutral here, and disabling it removes any latent Red griefing options like baiting timeouts).
+
+```json
+{
+  "numeric": {
+    "waste_spawn_prob": 0.12,
+    "threshold_restoration": 0.25,
+    "threshold_depletion": 0.6,
+    "clean_cost": 0.3
+  },
+  "toggles": {
+    "beam_enabled": false
+  },
+  "rationale": "Red is a pure free-rider; the worst-off Blue is the cleaner who eats the public-goods cost. I shrink the dilemma itself: lower waste_spawn_prob (less cleaning needed), raise threshold_restoration (apples spawn at full rate even at 25% waste), widen the depletion buffer to 0.6, and slash clean_cost so cleaner-role Blues aren't bled dry. This lifts the worst-off Blue without giving Red's superior harvest-pathfinding extra apples to grab."
+}
+```

@@ -1,0 +1,7 @@
+Looking at this:
+- Red free-rides — harvests apples while Blue pays the cleaning tax
+- λ=0.25 means 25% of agents are Red exploiters reaping the public good
+- Re-enabling beam *hurts* Blue (cooperator never fires it, but Red could tag Blue cleaners)
+- Core issue: the public-good bottleneck (cleaning gates apple supply) is what makes free-riding profitable for Red and costly for Blue
+
+Structural fix: collapse the public-good asymmetry by making apple supply nearly waste-independent. Then Blue cleaners stop paying for a good Red consumes, and abundance dilutes Red's grab.

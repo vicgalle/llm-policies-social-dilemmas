@@ -1,0 +1,12 @@
+{
+  "v_blue": 112.9,
+  "v_pop": 112.9,
+  "metrics": {
+    "efficiency": 1.129,
+    "equality": -0.4807152087636382,
+    "sustainability": 225.5038569312835,
+    "peace": 10.0,
+    "maximin": -306.8
+  },
+  "n_episodes": 5
+}

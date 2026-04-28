@@ -1,0 +1,17 @@
+Looking at Red's exploit: it's a pure apple-competition strategy that *predicts cooperator targets and races them*. Red wins because (a) cleaners eat clean_cost while Red doesn't, and (b) apples are scarce relative to active harvesters. Beam stays disabled because the cooperator never fires it, so re-enabling beam only gives Red a new attack vector.
+
+Best structural moves: cut the cleaner tax further, widen the "pristine" band so cleaners can rest more, and slightly raise apple supply so the apple-race is less zero-sum.
+
+```json
+{
+  "numeric": {
+    "clean_cost": 0.1,
+    "threshold_restoration": 0.4,
+    "apple_respawn_prob": 0.1
+  },
+  "toggles": {
+    "beam_enabled": false
+  },
+  "rationale": "Red exploits cleaner-vs-harvester asymmetry by racing the cooperator for apples; I minimize clean_cost (cleaners are the worst-off Blue), widen the maximal-spawn band (threshold_restoration=0.4) so cleaners spend more time as harvesters, and double apple_respawn_prob to dilute the zero-sum apple race. Beam stays off — the frozen cooperator never fires it, so enabling it only arms Red."
+}
+```

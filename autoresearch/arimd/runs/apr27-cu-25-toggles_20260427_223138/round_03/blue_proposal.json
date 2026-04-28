@@ -1,0 +1,15 @@
+{
+  "patch": {
+    "numeric": {
+      "clean_cost": 0.1,
+      "threshold_restoration": 0.4,
+      "apple_respawn_prob": 0.1
+    },
+    "toggles": {
+      "beam_enabled": false
+    }
+  },
+  "rationale": "Red exploits cleaner-vs-harvester asymmetry by racing the cooperator for apples; I minimize clean_cost (cleaners are the worst-off Blue), widen the maximal-spawn band (threshold_restoration=0.4) so cleaners spend more time as harvesters, and double apple_respawn_prob to dilute the zero-sum apple race. Beam stays off \u2014 the frozen cooperator never fires it, so enabling it only arms Red.",
+  "parse_ok": true,
+  "gen_time": 37.16008996963501
+}

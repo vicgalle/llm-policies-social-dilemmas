@@ -1,0 +1,129 @@
+{
+  "game": "cleanup",
+  "cooperator": "default",
+  "lambda": 0.25,
+  "welfare": "blue",
+  "T": 4,
+  "M_red": 4,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "v0_baseline_v_blue": 112.9,
+  "v0_baseline_metrics": {
+    "efficiency": 1.129,
+    "equality": -0.4807152087636382,
+    "sustainability": 225.5038569312835,
+    "peace": 10.0,
+    "maximin": -306.8
+  },
+  "best_v_for_blue_after_T": 144.0,
+  "final_patch": {
+    "numeric": {
+      "waste_spawn_prob": 0.12,
+      "threshold_restoration": 0.4,
+      "threshold_depletion": 0.6,
+      "clean_cost": 0.1,
+      "apple_respawn_prob": 0.1
+    },
+    "toggles": {
+      "beam_enabled": false
+    }
+  },
+  "final_patch_diff": "  clean_cost: 1.0 -> 0.1\n  threshold_depletion: 0.4 -> 0.6\n  threshold_restoration: 0.0 -> 0.4\n  waste_spawn_prob: 0.5 -> 0.12\n  apple_respawn_prob: 0.05 -> 0.1\n  beam_enabled: True -> False",
+  "final_invasion_barrier": 0.4,
+  "final_invasion_table": [
+    {
+      "lambda": 0.0,
+      "v_blue": 208.11399999999998,
+      "v_red": 0.0,
+      "v_pop": 208.11399999999998,
+      "n_red_per_ep": 0
+    },
+    {
+      "lambda": 0.1,
+      "v_blue": 211.8088888888889,
+      "v_red": 747.4,
+      "v_pop": 265.36800000000005,
+      "n_red_per_ep": 1
+    },
+    {
+      "lambda": 0.2,
+      "v_blue": 247.96999999999997,
+      "v_red": 443.4,
+      "v_pop": 287.056,
+      "n_red_per_ep": 2
+    },
+    {
+      "lambda": 0.25,
+      "v_blue": 247.96999999999997,
+      "v_red": 443.4,
+      "v_pop": 287.056,
+      "n_red_per_ep": 2
+    },
+    {
+      "lambda": 0.4,
+      "v_blue": 277.02333333333337,
+      "v_red": 440.05,
+      "v_pop": 342.23400000000004,
+      "n_red_per_ep": 4
+    }
+  ],
+  "stability_gaps": [
+    0.0,
+    0.0
+  ],
+  "rounds": [
+    {
+      "round": 0,
+      "patch_diff": "  beam_enabled: True -> False",
+      "blue_rationale": "Red's exploit hinges on selectively zapping Blue harvesters (while sparing Blue cleaners to keep the public good flowing) so Red monopolizes apples. Blue's cooperator never fires the beam, so disabling tagging is a free structural win: it removes the asymmetric weapon Red uses to suppress the worst-off Blue harvester, restoring fair apple competition while cleaners continue providing the public good.",
+      "v_blue_under_red": -549.45,
+      "v_pop_under_red": -338.44,
+      "v_red_under_red": 505.6,
+      "raid_attempts": 0.0,
+      "v_blue_after_patch": 58.1,
+      "accepted": true,
+      "red_rationale": ""
+    },
+    {
+      "round": 1,
+      "patch_diff": "  beam_enabled: True -> False",
+      "blue_rationale": "(parse failed; identity patch used)",
+      "v_blue_under_red": 73.625,
+      "v_pop_under_red": 136.3,
+      "v_red_under_red": 387.0,
+      "raid_attempts": 0.0,
+      "v_blue_after_patch": 22.075,
+      "accepted": false,
+      "red_rationale": ""
+    },
+    {
+      "round": 2,
+      "patch_diff": "  clean_cost: 1.0 -> 0.3\n  threshold_depletion: 0.4 -> 0.6\n  threshold_restoration: 0.0 -> 0.25\n  waste_spawn_prob: 0.5 -> 0.12\n  beam_enabled: True -> False",
+      "blue_rationale": "Red is a pure free-rider; the worst-off Blue is the cleaner who eats the public-goods cost. I shrink the dilemma itself: lower waste_spawn_prob (less cleaning needed), raise threshold_restoration (apples spawn at full rate even at 25% waste), widen the depletion buffer to 0.6, and slash clean_cost so cleaner-role Blues aren't bled dry. This lifts the worst-off Blue without giving Red's superior harvest-pathfinding extra apples to grab.",
+      "v_blue_under_red": 89.375,
+      "v_pop_under_red": 184.04,
+      "v_red_under_red": 562.7,
+      "raid_attempts": 0.0,
+      "v_blue_after_patch": 134.8525,
+      "accepted": true,
+      "red_rationale": ""
+    },
+    {
+      "round": 3,
+      "patch_diff": "  clean_cost: 1.0 -> 0.1\n  threshold_depletion: 0.4 -> 0.6\n  threshold_restoration: 0.0 -> 0.4\n  waste_spawn_prob: 0.5 -> 0.12\n  apple_respawn_prob: 0.05 -> 0.1\n  beam_enabled: True -> False",
+      "blue_rationale": "Red exploits cleaner-vs-harvester asymmetry by racing the cooperator for apples; I minimize clean_cost (cleaners are the worst-off Blue), widen the maximal-spawn band (threshold_restoration=0.4) so cleaners spend more time as harvesters, and double apple_respawn_prob to dilute the zero-sum apple race. Beam stays off \u2014 the frozen cooperator never fires it, so enabling it only arms Red.",
+      "v_blue_under_red": 196.82250000000002,
+      "v_pop_under_red": 265.898,
+      "v_red_under_red": 542.2,
+      "raid_attempts": 0.0,
+      "v_blue_after_patch": 144.0,
+      "accepted": true,
+      "red_rationale": ""
+    }
+  ]
+}

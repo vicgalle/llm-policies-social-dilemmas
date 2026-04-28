@@ -1,0 +1,8 @@
+{
+  "clean_cost": 0.3,
+  "threshold_depletion": 0.6,
+  "threshold_restoration": 0.25,
+  "waste_spawn_prob": 0.12,
+  "beam_enabled": false,
+  "n_agents": 10
+}
