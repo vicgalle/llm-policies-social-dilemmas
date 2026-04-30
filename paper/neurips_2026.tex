@@ -68,6 +68,63 @@
 \setlist{nosep,leftmargin=*}
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, fit, backgrounds, calc}
+\usepackage{listings}
+
+%% Python listings style for appendix policy excerpts
+\definecolor{pykw}{RGB}{0,90,180}
+\definecolor{pycom}{RGB}{34,139,34}
+\definecolor{pystr}{RGB}{170,55,55}
+\definecolor{pyann}{RGB}{120,40,160}
+\lstdefinestyle{pythonpolicy}{
+  language=Python,
+  basicstyle=\ttfamily\scriptsize,
+  keywordstyle=\color{pykw}\bfseries,
+  commentstyle=\color{pycom}\itshape,
+  stringstyle=\color{pystr},
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=2,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=4pt,
+  xleftmargin=14pt,
+  framexleftmargin=4pt,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{black!30},
+  belowskip=2pt,
+  aboveskip=2pt,
+  emph={waste_fraction,find_best_clean_orientation,bfs_toward,bfs_to_target_set,
+        bfs_nearest_apple,bfs_to_waste,best_clean_orientation,count_waste_in_beam,
+        zone_boundaries,_rotation_distance,direction_to_action,voronoi_zones,
+        my_zone_apples,assign_apple_zones,bfs_nearest_apple_in_zone,
+        get_waste_cells,get_my_apples,nearest_respawning_apple,get_waste_positions,
+        deque,np},
+  emphstyle=\color{pyann}
+}
+
+%% Plain text style for prompt / feedback excerpts (no Python keywords)
+\lstdefinestyle{prompttext}{
+  basicstyle=\ttfamily\scriptsize,
+  showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=2,
+  numbers=none,
+  xleftmargin=4pt,
+  framexleftmargin=2pt,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{black!30},
+  belowskip=2pt,
+  aboveskip=2pt,
+  columns=fullflexible,
+  keepspaces=true,
+  morecomment=[l][\color{pyann}\itshape]{\#\#},
+  morecomment=[s][\color{pycom}\itshape]{[}{]},
+  moredelim=[is][\color{pyann}\bfseries]{**}{**}
+}
 
 %% Figure colors
 \definecolor{rescolor}{RGB}{245, 127, 32}
@@ -466,7 +523,7 @@ Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize/2.52} & 0.96{\scriptsize/0.98} & 576{\s
 \end{table}
 
 \paragraph{Finding 1: The researcher reliably improves over hand-designed baselines and outperforms prompt-only optimization.}
-All 12 runs show substantial improvement regardless of starting point (Figure~\ref{fig:efficiency}). In Cleanup, the researcher exceeds the unmodified pipeline baseline by 66\% with Gemini ($U$: $1.93 \to 3.20$) and 263\% with Sonnet ($U$: $0.86 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($0.86$ vs.\ $1.93$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM. Beyond improving the mean, the researcher yields remarkably consistent results: under efficiency optimization, Gemini's runs cluster within $U{=}3.20$--$3.25$ (gap $0.05$) despite baselines spanning $1.15$--$2.70$, and Sonnet's within $3.12$--$3.14$ (gap $0.02$) from baselines of $0.38$--$1.56$. In Gathering, all four runs converge to $U{=}2.47$--$2.52$ from baselines ranging $0.03$--$2.42$. The researcher discovers pipeline modifications---structured helpers, strategic hints, tailored feedback---that constrain the policy LLM toward consistently good solutions, reducing dependence on inner-loop stochasticity.
+All 12 runs show substantial improvement regardless of starting point (Figure~\ref{fig:efficiency}). In Cleanup, the researcher exceeds the unmodified pipeline baseline by 66\% with Gemini ($U$: $1.93 \to 3.20$) and 263\% with Sonnet ($U$: $0.86 \to 3.12$). Strikingly, the Sonnet improvement nearly closes the gap with Gemini ($U{=}3.12$ vs.\ $3.20$), despite a $2\times$ baseline disadvantage ($0.86$ vs.\ $1.93$). Final efficiency values cluster tightly around $U \approx 3.1$--$3.2$ despite baselines varying from $0.29$ to $2.70$ across individual runs, suggesting the researcher reliably discovers the performance ceiling of each policy LLM. Beyond improving the mean, the researcher yields remarkably consistent results: under efficiency optimization, Gemini's runs cluster within $U{=}3.20$--$3.25$ (gap $0.05$) despite baselines spanning $1.15$--$2.70$, and Sonnet's within $3.12$--$3.14$ (gap $0.02$) from baselines of $0.38$--$1.56$. In Gathering, all four runs converge to $U{=}2.47$--$2.52$ from baselines ranging $0.03$--$2.42$. The researcher discovers pipeline modifications---structured helpers (App.~\ref{app:art-helpers}), strategic hints (App.~\ref{app:art-prompts}), tailored feedback (App.~\ref{app:art-feedback})---that constrain the policy LLM toward consistently good solutions.
 
 Compared to GEPA (Table~\ref{tab:results}), autoresearch achieves $2.4{\times}$ higher efficiency under $\Phi_U$ in Cleanup ($U{=}3.20$ vs.\ $1.34$), $2{\times}$ higher maximin under $\Phi_{\min}$ ($290$ vs.\ $143$), and $20\%$ higher efficiency in Gathering ($U{=}2.49$ vs.\ $2.08$). Critically, GEPA shows far wider spread across runs on the harder fairness objective ($\Phi_{\min}$ maximin in Cleanup: $245$/$41$ vs.\ autoresearch's $296$/$284$). The gap widens further with Sonnet: on Cleanup $\Phi_U$, GEPA stalls at $U{=}1.04$ ($3\times$ below autoresearch's $3.12$), and on $\Phi_{\min}$ its two runs split between a modestly positive solution ($\min_i R_i{=}6$, $U{=}1.60$) and a pathological ``everyone cleans, nobody eats'' regime (perfect equality $E{=}1.00$ but negative efficiency $U{=}-2.87$ and $\min_i R_i{=}-299$), while autoresearch with the same model reaches $\min_i R_i{=}179$/$200$ reliably. This highlights the advantage of modifying the full pipeline---helpers, feedback, and iteration logic provide structured scaffolding that reduces run-to-run variance, whereas prompt-only optimization cannot address the underlying stochasticity of code generation.
 
@@ -478,7 +535,7 @@ Compared to GEPA (Table~\ref{tab:results}), autoresearch achieves $2.4{\times}$ 
 \end{figure}
 
 \paragraph{Finding 2: No efficiency--fairness tradeoff in Cleanup (Gemini).}
-Maximin-optimized Gemini pipelines sacrifice only $1\%$ efficiency ($U$: $3.16$ vs.\ $3.20$) while achieving near-perfect equality ($E$: $0.98$ vs.\ $0.55$) and transforming maximin from deeply negative baselines ($-99$ to $-84$) to $\min_i R_i = 290$. The researcher discovers that \emph{fair duty rotation}---time-based cycling of cleaning responsibilities using \texttt{agent\_id} and \texttt{env.\_step\_count}---simultaneously improves worst-off welfare \emph{and} collective output. Because cleaning is a public good, distributing the cleaning cost fairly ensures enough cleaners to sustain apple production.
+Maximin-optimized Gemini pipelines sacrifice only $1\%$ efficiency ($U$: $3.16$ vs.\ $3.20$) while achieving near-perfect equality ($E$: $0.98$ vs.\ $0.55$) and transforming maximin from deeply negative baselines ($-99$ to $-84$) to $\min_i R_i = 290$. The researcher discovers \emph{fair duty rotation} (Listing~\ref{lst:min-gemini}; primed by the prompt rewrite of Listing~\ref{lst:prompt-min})---time-based cycling using \texttt{agent\_id} and \texttt{env.\_step\_count}---simultaneously improving worst-off welfare \emph{and} collective output. Because cleaning is a public good, distributing the cleaning cost fairly ensures enough cleaners to sustain apple production.
 
 For Sonnet, there is a moderate tradeoff: efficiency drops from $3.12$ to $2.57$ under maximin optimization. The gap reflects Sonnet's harder time implementing complex coordination mechanisms (role rotation, zone assignment) from strategic hints alone.
 
@@ -488,12 +545,12 @@ In Cleanup, where cleaning costs are borne asymmetrically (cleaners pay $-1$, fr
 This generalizes: in \emph{provision} dilemmas with asymmetric costs, fairness requires designed mechanisms (role rotation, duty sharing); in \emph{restraint} dilemmas with symmetric costs, fairness emerges as a free byproduct of efficient coordination. The researcher independently discovers this---it creates role differentiation pipelines only for Cleanup, and pure spatial-coordination pipelines for Gathering.
 
 \paragraph{Finding 4: Convergent discovery of qualitatively different strategies per objective.}
-Despite fully independent runs, the researcher converges on the same core strategies within each condition (Table~\ref{tab:strategies}, Appendix~\ref{app:additional}). In Cleanup, waste-counting helpers and spatial zone partitioning appear across all 8 runs. The key qualitative difference: \emph{role rotation}---time-based cycling of cleaning duty---appears in 4/4 maximin runs but 0/4 efficiency runs. Under efficiency optimization, the researcher assigns static cleaning roles (some agents always clean), achieving high collective output at the cost of equality. Under maximin optimization, it discovers rotation as a fairness mechanism.
+Despite fully independent runs, the researcher converges on the same core strategies within each condition (Table~\ref{tab:strategies}, Appendix~\ref{app:additional}). In Cleanup, waste-counting helpers and spatial zone partitioning appear across all 8 runs. The key qualitative difference is \emph{role rotation}, appearing in 4/4 maximin runs (Listings~\ref{lst:min-gemini},~\ref{lst:min-sonnet}) but 0/4 efficiency runs (Listing~\ref{lst:eff-gemini}). Under efficiency optimization, the researcher assigns static cleaning roles (some agents always clean), achieving high collective output at the cost of equality. Under maximin optimization, it discovers rotation as a fairness mechanism.
 
-In Gathering, the researcher discovers BFS-based Voronoi territory partitioning and respawn-timer awareness, with no role differentiation needed---the entire optimization is spatial (who collects which apples) and temporal (respawn-aware positioning).
+In Gathering, the researcher discovers BFS-Voronoi territory partitioning and respawn-timer awareness (Listings~\ref{lst:helper-vor},~\ref{lst:gather-gemini}), with no role differentiation---optimization is purely spatial (who collects which apples) and temporal (respawn-aware positioning).
 
 \paragraph{Common failure modes.}
-Several patterns led to discarded experiments across all runs: (1)~\emph{over-prescription}---adding too many strategic hints confuses the policy LLM, causing generation failures; (2)~\emph{iteration regression}---$K{=}4$ or $K{=}5$ inner iterations often cause catastrophic regression as the LLM ``over-refines'' a working policy; (3)~\emph{feedback overload}---dense per-agent diagnostics cause over-correction rather than gradual improvement; (4)~\emph{variance exposure}---identical configurations can yield $U{=}3.2$ then $U{=}0.09$ on different seeds, requiring multi-seed evaluation for stable signals.
+Several patterns led to discarded experiments across all runs: (1)~\emph{over-prescription}---adding too many strategic hints confuses the policy LLM, causing generation failures; (2)~\emph{iteration regression}---$K{=}4$ or $K{=}5$ inner iterations often cause catastrophic regression as the LLM ``over-refines'' a working policy; (3)~\emph{feedback overload}---dense per-agent diagnostics cause over-correction rather than gradual improvement; (4)~\emph{variance exposure}---identical configurations can yield $U{=}3.2$ then $U{=}0.09$ on different seeds, requiring multi-seed evaluation for stable signals (per-run $K, |S|$ in Table~\ref{tab:iota}).
 
 %% ============================================================
 \section{Discussion and Conclusion}
@@ -502,7 +559,7 @@ Several patterns led to discarded experiments across all runs: (1)~\emph{over-pr
 We have presented a two-level framework where an AI coding agent autonomously discovers pipeline configurations that improve the output of an inner-loop LLM system. Applied to multi-agent policy synthesis in social dilemmas, the researcher agent reliably exceeds hand-designed baselines across 12 independent runs, and converges on qualitatively similar strategies within each game--objective condition. The framework requires no domain-specific scaffolding: the agent operates on a standard software repository using the same tools (file editing, shell commands, git) available to a human researcher.
 
 \paragraph{Mechanism design in action.}
-Our results empirically support the mechanism design interpretation of Section~3. The researcher acts as an information designer: under $\Phi_U$, it reveals efficiency-oriented information (waste counts, zone assignments) that guides $\cM$ toward productive but potentially unequal role allocation. Under $\Phi_{\min}$, it additionally reveals fairness-oriented structure (rotation schedules, per-agent equity feedback) that guides $\cM$ toward egalitarian coordination. The striking absence of a fairness--efficiency tradeoff with Gemini suggests that in public goods provision, the mechanism design problem has a cooperative optimum where both objectives align---the researcher discovers this independently.
+Our results empirically support the mechanism design interpretation of Section~3. The researcher acts as an information designer: under $\Phi_U$, it reveals efficiency-oriented information (waste counts, zone assignments) that guides $\cM$ toward productive but unequal role allocation (Listing~\ref{lst:eff-gemini}). Under $\Phi_{\min}$, it additionally reveals fairness-oriented structure---rotation schedules and per-agent equity feedback (Listings~\ref{lst:prompt-min},~\ref{lst:feedback-adapt})---guiding $\cM$ toward egalitarian coordination. The striking absence of a fairness--efficiency tradeoff with Gemini suggests that in public goods provision, the mechanism design problem has a cooperative optimum where both objectives align---the researcher discovers this independently.
 
 \paragraph{Two types of dilemma.}
 The Cleanup--Gathering contrast reveals a structural insight about social dilemmas: \emph{provision} dilemmas (asymmetric costs, one agent's contribution benefits all) require explicit fairness mechanisms, while \emph{restraint} dilemmas (symmetric costs, each agent faces the same temptation) achieve fairness naturally when coordination improves. This distinction, well-known in the common-pool resource literature, is rediscovered here by an autonomous AI agent---suggesting it is a robust structural feature of these environments.
@@ -638,6 +695,416 @@ This suggests that \emph{for models below a capability threshold, fairness objec
 
 \paragraph{Gathering: full recovery on a simpler game.}
 On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$ with $E{=}0.98$ and $\min_i R_i{=}580$, after 10 outer iterations (4 kept). These values nearly match frontier models (Gemini: $U{=}2.49$, Sonnet: $U{=}2.52$; Table~\ref{tab:results}). The researcher discovers the same Voronoi partitioning and respawn-aware camping strategies found in the main experiments, and increases inner-loop iterations to $K{=}5$ to allow sufficient refinement. The contrast with Cleanup---where Gemma peaks at $U{=}0.87$/$1.71$ versus frontier $U{\approx}3.2$---suggests that the researcher can fully compensate for model weakness on simpler coordination tasks (4 agents, symmetric costs) but not on harder provision dilemmas (10 agents, asymmetric costs).
+
+%% ============================================================
+\section{Researcher-Authored Pipeline Artifacts}
+\label{app:artifacts}
+%% ============================================================
+
+The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \ell, \phi, \mathcal{H}, \iota, v)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering).
+
+\subsection{Helper library $\mathcal{H}$: coordination primitives}
+\label{app:art-helpers}
+
+The researcher adds primitives that the policy LLM can call as black boxes, sparing it from re-implementing tricky logic on every iteration. Two patterns dominate: (i)~\emph{state inspection} (waste counts, fractions, beam-yield scoring) and (ii)~\emph{coordination primitives} (zone assignment, role rotation). We show one of each.
+
+\begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_{\min}$ -- band-based apple zoning helper added by the researcher in exp5. This is the primitive that lets the policy in Listing~\ref{lst:min-gemini} keep collectors within their own row band, preventing all 7 gatherers from racing to the same apple.}, label={lst:helper-zone}]
+def get_my_apples(env, agent_id):
+    """Alive apples in this agent's horizontal row band.
+    Divides the orchard into n_agents bands; falls back to all apples if empty."""
+    aid    = int(agent_id)
+    n      = int(env.n_agents)
+    band_h = env.height / n
+    band_lo, band_hi = aid * band_h, (aid + 1) * band_h
+
+    my_apples, all_apples = set(), set()
+    for i in range(env.n_apples):
+        if env.apple_alive[i]:
+            ar = int(env._apple_pos[i, 0]); ac = int(env._apple_pos[i, 1])
+            all_apples.add((ar, ac))
+            if band_lo <= ar < band_hi:
+                my_apples.add((ar, ac))
+    return my_apples if my_apples else all_apples
+\end{lstlisting}
+
+\begin{lstlisting}[style=pythonpolicy, caption={Gathering -- BFS-Voronoi territory + respawn-aware waiting helpers added by the researcher in gather-exp3. These are the primitives that Listing~\ref{lst:gather-gemini} composes into a one-line policy: ``go to my\_zone\_apples, otherwise nearest\_respawning\_apple.''}, label={lst:helper-vor}]
+def voronoi_zones(env):
+    """Multi-source BFS Voronoi over walkable cells.
+    Returns (row, col) -> agent_id; ties broken by lower agent_id."""
+    queue, visited = deque(), {}
+    for a_id in range(env.n_agents):
+        if int(env.agent_timeout[a_id]) == 0:
+            ar = int(env.agent_pos[a_id][0]); ac = int(env.agent_pos[a_id][1])
+            queue.append((ar, ac, a_id))
+            visited[(ar, ac)] = a_id
+    while queue:
+        r, c, a_id = queue.popleft()
+        for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+            nr, nc = r + dr, c + dc
+            if 0 <= nr < env.height and 0 <= nc < env.width \
+                    and not env.walls[nr, nc] and (nr, nc) not in visited:
+                visited[(nr, nc)] = a_id
+                queue.append((nr, nc, a_id))
+    return visited
+
+def nearest_respawning_apple(env, agent_id, zones=None, max_timer=10):
+    """Nearest dead apple in MY zone respawning within max_timer steps.
+    Returns (row, col) of best wait spot, or None."""
+    if zones is None: zones = voronoi_zones(env)
+    best_pos, best_t, best_d = None, max_timer + 1, float('inf')
+    ar = int(env.agent_pos[agent_id][0]); ac = int(env.agent_pos[agent_id][1])
+    for i in range(env.n_apples):
+        if not env.apple_alive[i]:
+            pos = (int(env._apple_pos[i][0]), int(env._apple_pos[i][1]))
+            if zones.get(pos) == agent_id:
+                t = int(env.apple_timer[i])
+                if t <= max_timer:
+                    d = abs(pos[0] - ar) + abs(pos[1] - ac)
+                    if t < best_t or (t == best_t and d < best_d):
+                        best_pos, best_t, best_d = pos, t, d
+    return best_pos
+\end{lstlisting}
+
+The choice of helper depends on the dilemma's geometry: row-bands suffice when fairness is the main concern (Cleanup maximin) but full BFS-Voronoi is needed when wall-aware territory ownership matters (Gathering). The researcher does not fix this in advance --- it picks the simpler primitive whenever it works.
+
+\subsection{System prompt $p$: from neutral framing to strategic briefing}
+\label{app:art-prompts}
+
+The unmodified system prompt is a neutral API description: \emph{``Write a policy that maximizes per-agent reward.''} Under maximin optimization, the researcher rewrites the prompt into a multi-section strategic briefing. The excerpt below shows the pieces it added to the Cleanup prompt in exp5; the full prompt grew from 165 to 325 lines.
+
+\begin{lstlisting}[style=prompttext, caption={Cleanup, $\Phi_{\min}$ -- excerpts from the researcher-rewritten system prompt (exp5). The unmodified baseline contained only API documentation; everything below was added by $\cR$.}, label={lst:prompt-min}]
+## CRITICAL OBJECTIVE: Rawlsian Fairness (Maximin)
+
+Your goal is to **maximize the minimum per-agent total return** across all
+agents. This is the "maximin" or Rawlsian welfare criterion.
+
+This means: it is NOT enough for the *average* agent to do well. The
+**worst-off agent** must do as well as possible. A policy where 8 agents
+each earn +200 but 2 agents each earn -100 is TERRIBLE (maximin = -100).
+
+**Key implication**: cleaning costs (-1 per CLEAN action) must be shared
+equitably among ALL agents. If you assign fixed "cleaner" roles, those
+agents will accumulate large negative rewards and destroy your maximin score.
+
+## Strategy for Maximin: ROLE ROTATION + APPLE ZONING
+
+The optimal strategy for maximin involves:
+1. **Shared cleaning duty**: ALL agents take turns cleaning using a rotation
+   schedule based on `agent_id` and `env._step_count`. For example:
+   `is_my_cleaning_turn = (agent_id + env._step_count // SHIFT) % env.n_agents < NUM_CLEANERS`
+   where SHIFT is ~50 steps and NUM_CLEANERS is 2-3.
+2. **When NOT your turn**: collect apples from YOUR ZONE using
+   `get_my_apples(env, agent_id)` -- prevents all gatherers competing
+   for the same nearest apple.
+3. **NEVER use BEAM (action 6)**: it costs -1 and causes -50 to the target.
+4. **Keep waste density low**: aim for ~2-3 active cleaners at any time.
+
+[... API documentation, helper documentation, working example ...]
+
+IMPORTANT:
+- NEVER assign permanent cleaning roles to specific agents -- this kills maximin.
+- Use env._step_count for time-based role rotation so all agents share cleaning duty.
+- NEVER use BEAM (action 6) -- it destroys both agents' rewards.
+\end{lstlisting}
+
+Two things stand out. First, the researcher writes the formula it expects $\cM$ to use almost verbatim --- \texttt{(agent\_id + env.\_step\_count // SHIFT) \% env.n\_agents < NUM\_CLEANERS} --- and the policy in Listing~\ref{lst:min-gemini} uses essentially this template. Second, the researcher \emph{teaches by counter-example}: the explicit ``8 agents earn +200, 2 earn -100, maximin = -100'' makes the failure mode of $\Phi_U$-style static roles (Listing~\ref{lst:eff-gemini}) concretely visible to $\cM$. This is the information-design move predicted by the mechanism-design framing in Section~3.
+
+The Gathering prompt evolves along a different axis (no maximin, no rotation). Its researcher-added ``Key Strategic Insights'' section instead emphasizes \emph{(i)~self-play implies never beam} and \emph{(ii)~Voronoi partition each step}, exactly matching what the policy in Listing~\ref{lst:gather-gemini} implements.
+
+
+\subsection{Feedback $\phi$: adaptive diagnostics}
+\label{app:art-feedback}
+
+The baseline feedback function (\cite{gallego2026}, dense mode) shows reward + four social metrics with definitions and stops there. The researcher turns it into a state machine: it inspects the latest metrics and conditionally injects different hints. Two different runs produced two qualitatively different diagnostics --- the same metric ($\bar r_k$ or $\min_i R_i$) is repurposed to either \emph{stabilize} a working policy or \emph{redirect} a failing one.
+
+\begin{lstlisting}[style=pythonpolicy, caption={Adaptive feedback diagnostics. \emph{Top}: efficiency-optimized run (exp1) -- a stability guard prevents iter-3 regression once $U$ is high. \emph{Bottom}: maximin-optimized run (exp5) -- two fairness diagnostics that fire when the worst-off agent loses reward.}, label={lst:feedback-adapt}]
+# --- Cleanup, Phi_U feedback (exp1, pipeline/feedback.py final) ---
+last_eff = history[-1]["metrics"]["efficiency"]
+if last_eff >= 2.5:
+    parts.append(
+        "**CRITICAL -- DO NOT REGRESS**: The current policy achieves high "
+        "efficiency (>=2.5). You MUST output a policy that is nearly identical "
+        "to the current one. Copy the current policy code and make AT MOST "
+        "one small targeted improvement (e.g., adjust a single numeric "
+        "threshold). If you are not confident a change will help, output the "
+        "current policy UNCHANGED. A regression here means the run fails.")
+
+# --- Cleanup, Phi_min feedback (exp5, pipeline/feedback.py final) ---
+last_maximin = history[-1]["metrics"].get("maximin", 0)
+last_avg     = history[-1]["reward_avg"]
+if last_maximin < 0:
+    parts.append(
+        f"**FAIRNESS ALERT**: maximin={last_maximin:.1f} is NEGATIVE. "
+        f"The worst-off agent lost reward overall while average was {last_avg:.1f}. "
+        "This means cleaning duties are NOT shared equitably. "
+        "Use time-based role rotation (env._step_count) so ALL agents share "
+        "cleaning costs equally. NEVER assign permanent cleaner roles.")
+elif last_maximin < last_avg * 0.5:
+    parts.append(
+        f"**FAIRNESS WARNING**: maximin={last_maximin:.1f} is much lower than "
+        f"average={last_avg:.1f}. The gap suggests unequal cleaning burden. "
+        "Ensure ALL agents rotate through cleaning duty.")
+\end{lstlisting}
+
+The two diagnostics are written by independent researcher runs but converge on a common pattern: \emph{thresholded interventions on a primary metric}. They are also a common cause of the low run-to-run variance reported in Finding~1: when a working policy lands in the high-$U$ basin, the stability guard prevents the LLM from over-refining and tipping out of it (the $K{=}3$ regressions visible in Section~\ref{sec:experiments}'s ``Common failure modes'' (4)), and when an unfair policy lands in the negative-maximin region, the alert injects exactly the rotation hint that recovers it.
+
+
+\subsection{Iteration logic $\iota$: per-condition hyperparameters}
+\label{app:art-config}
+
+Although $\iota$ has the smallest source surface, the researcher's edits to it explain a meaningful fraction of the variance reduction noted in Finding~1. Table~\ref{tab:iota} summarizes the values shipped in the final commit of each best-performing run.
+
+\begin{table}[h]
+\caption{Iteration-logic ($\iota$) values in the final commit of selected runs. $K$ = inner-loop iterations, $|S|$ = evaluation seeds, ``thinking'' = extended-thinking token budget passed to $\cM$. Baseline (\cite{gallego2026}) is $K{=}3$, $|S|{=}5$, thinking $16$k.}
+\label{tab:iota}
+\centering
+\footnotesize
+\begin{tabular}{@{}llccc l@{}}
+\toprule
+Run & Game / objective & $K$ & $|S|$ & thinking & Researcher's stated rationale \\
+\midrule
+exp1 (Gemini)  & Cleanup, $\Phi_U$    & 3 & 5  & 16k & default; stability comes from feedback hint \\
+exp4 (Sonnet)  & Cleanup, $\Phi_U$    & 3 & 5  & 32k & ``Sonnet was over-refining at 16k thinking'' \\
+exp5 (Gemini)  & Cleanup, $\Phi_{\min}$ & \textbf{2} & \textbf{12} & 16k & ``$K{=}2$ avoids iter-3 regression; 12 seeds for variance control'' \\
+exp7 (Sonnet)  & Cleanup, $\Phi_{\min}$ & 3 & 5  & \textbf{10k} & ``reduced thinking from 16k -- Sonnet was generating runaway code at 16k'' \\
+gather-exp3 (Gemini) & Gathering, $\Phi_U$ & 3 & 5  & 16k & default; Gathering converges in $K{\le}3$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The maximin Gemini run is the most informative case: the researcher discovered that with $K{=}3$ and $|S|{=}5$, identical configurations could yield $\min_i R_i {=} 295$ on one set of seeds and $\min_i R_i {=} 100$ on another (this is the ``variance exposure'' failure mode of Section~\ref{sec:experiments}'s common failures). It then walked $|S|$ from $5 \to 8 \to 12$ over three outer iterations until the seed-averaged signal was stable enough that the policy LLM stopped chasing noise. The policy in Listing~\ref{lst:min-gemini} is sampled at $|S|{=}12$.
+
+
+\subsection{Cross-artifact observations}
+\label{app:art-cross}
+
+\begin{itemize}
+  \item \emph{Helpers do the algebra; prompts pick the strategy class.} The researcher uses helpers (\ref{lst:helper-zone},~\ref{lst:helper-vor}) to put non-trivial primitives at $\cM$'s fingertips, and the prompt (\ref{lst:prompt-min}) to tell $\cM$ \emph{which} primitive to compose. Neither is sufficient alone --- prompts without supporting helpers produced policies that ``mention rotation'' but failed to implement it; helpers without prompt updates often went unused.
+  \item \emph{Feedback is the only adaptive component.} $p$, $\mathcal{H}$, and $\iota$ are static within a run; $\phi$ is the only place where the researcher gets to change what $\cM$ sees \emph{during} the inner loop, and it uses thresholded diagnostics (Listing~\ref{lst:feedback-adapt}) to do so. This is what mostly drives the run-to-run variance reduction.
+  \item \emph{The same artifact has different content under each objective.} The Cleanup prompt under $\Phi_U$ omits ``rotation'' and ``maximin'' entirely; the same prompt under $\Phi_{\min}$ devotes its entire opening section to it. The configuration $c$ is genuinely a function of the welfare objective $\Phi$, not a fixed pipeline parameterized by it --- consistent with the information-design framing of Section~3.
+  \item \emph{The researcher's edits are short and targeted.} The full diff between the dense-feedback baseline and the best maximin Gemini configuration totals ${\sim}300$ added lines spread over four files; ${\sim}80$ of them appear in the listings above. The remaining content is API documentation and worked examples, included for completeness but not strategically novel.
+\end{itemize}
+
+%% ============================================================
+\section{Selected Generated Policies}
+\label{app:policies}
+%% ============================================================
+
+The code excerpts below are verbatim outputs of the policy synthesizer $\cM$, taken from the final inner-loop iteration of the best-performing run in each condition. To fit the page, we elide repeated boilerplate (BFS scaffolding, fallback branches) with \texttt{...} and add commentary in \texttt{[brackets]}; nothing else has been edited. The listings illustrate the qualitative differences highlighted in Findings 2--4 of Section~\ref{sec:experiments}: \emph{static} vs.\ \emph{rotating} cleaning roles in Cleanup, and the \emph{Voronoi + respawn-timer} structure in Gathering. All four policies were independently generated by the LLM under different seeds, models, and outer-loop runs.
+
+\subsection{Cleanup, $\Phi_U$ (Gemini): static interleaved roles + dynamic threshold}
+\label{app:policy-eff-gemini}
+
+Best run: $U{=}3.25$, $E{=}0.61$, $\min_i R_i{=}-182$. The synthesizer assigns \emph{permanent} cleaning roles via $\texttt{agent\_id} \bmod n {<} \tau$, where the threshold $\tau$ depends smoothly on the current waste fraction. Higher pollution recruits more cleaners, but the \emph{identity} of each cleaner is fixed --- agents 0--$\tau{-}1$ always pay the cost. This drives $U$ to its ceiling but leaves equality at $0.61$ and pushes the worst-off agent to $\min_i R_i{=}{-}182$.
+
+\begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_U$ -- Gemini 3.1 Pro. Static role assignment with waste-tiered threshold (verbatim, abridged).}, label={lst:eff-gemini}]
+def policy(env, agent_id) -> int:
+    if int(env.agent_timeout[agent_id]) > 0:
+        return 7  # STAND while removed
+
+    waste_frac = waste_fraction(env)
+    n_agents = env.n_agents
+
+    # [Smooth dynamic threshold: more pollution -> more cleaners]
+    if   waste_frac > 0.35: threshold_cleaners = n_agents
+    elif waste_frac > 0.25: threshold_cleaners = int(n_agents * 0.7)
+    elif waste_frac > 0.15: threshold_cleaners = int(n_agents * 0.5)
+    elif waste_frac > 0.05: threshold_cleaners = int(n_agents * 0.3)
+    else:                   threshold_cleaners = max(1, int(n_agents * 0.2))
+
+    # [STATIC role: cleaners are ALWAYS the lowest-id agents -- no rotation]
+    is_cleaner = (agent_id % n_agents) < threshold_cleaners
+
+    if is_cleaner:
+        best_orient, n_waste = find_best_clean_orientation(env, agent_id)
+        if n_waste >= 1:
+            cur_orient = int(env.agent_orient[agent_id])
+            if best_orient == cur_orient: return 8  # CLEAN
+            if (cur_orient + 1) % 4 == best_orient: return 5  # ROTATE_RIGHT
+            elif (cur_orient - 1) % 4 == best_orient: return 4  # ROTATE_LEFT
+            else: return 4
+        # [Competitor-aware BFS toward waste in own row band]
+        c_idx = agent_id % n_agents
+        target_r = int(((c_idx + 0.5) / threshold_cleaners) * env.height)
+        # ... pick waste cell minimizing dist + |row - target_r| + 50 * #closer_cleaners
+        # ... bfs_toward and direction_to_action
+    else:
+        # GATHERER: row-banded sweep, competitor-aware
+        # assigned_row = ((g_idx + 0.5) / n_gatherers) * env.height
+        # ... pick alive apple minimizing dist + |row - assigned_row| + 50 * #closer_gatherers
+        ...
+\end{lstlisting}
+
+
+\subsection{Cleanup, $\Phi_{\min}$ (Gemini): time-rotated, geographically interleaved roles}
+\label{app:policy-min-gemini}
+
+Best run: $U{=}3.19$, $E{=}0.98$, $\min_i R_i{=}296$. Switching the outer objective from $U$ to $\min_i R_i$ flips the role-assignment scheme entirely: \texttt{role\_idx} now depends on $\texttt{agent\_id} + \texttt{step}/{50}$, so every agent rotates through cleaner and gatherer duty in a 50-step cycle. The cleaner indices ${\{1,4,8\}}$ are spatially \emph{interleaved} along the river (rather than contiguous) so that whoever is on duty has a short walk to their assigned river slice. This single change accounts for the $E{=}0.55 \to 0.98$ jump and the $\min_i R_i {=} {-}182 \to 296$ swing reported in Table~\ref{tab:results}, with negligible efficiency loss.
+
+\begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_{\min}$ -- Gemini 3.1 Pro. Time-rotated roles with interleaved geography (verbatim, abridged).}, label={lst:min-gemini}]
+def policy(env, agent_id) -> int:
+    if int(env.agent_timeout[agent_id]) > 0:
+        return 7  # STAND while removed
+
+    aid  = int(agent_id)
+    step = int(env._step_count)
+    n    = int(env.n_agents)
+
+    # [TIME ROTATION: every 50 steps each agent's role index advances]
+    if n == 10:
+        role_idx = (aid + step // 50) % 10
+        # [Cleaner indices {1,4,8} are SPATIALLY INTERLEAVED, not contiguous,
+        #  so each on-duty cleaner has a short walk to its river slice]
+        if   role_idx == 1: role_type, zone_idx = 'C', 0
+        elif role_idx == 4: role_type, zone_idx = 'C', 1
+        elif role_idx == 8: role_type, zone_idx = 'C', 2
+        else:
+            role_type = 'G'
+            g_map = {0:0, 2:1, 3:2, 5:3, 6:4, 7:5, 9:6}
+            zone_idx = g_map[role_idx]
+        num_cleaners, num_gatherers = 3, 7
+
+    if role_type == 'C':
+        # [Each on-duty cleaner owns one horizontal slice of the river]
+        row_min = int( zone_idx      * env.height / num_cleaners)
+        row_max = int((zone_idx + 1) * env.height / num_cleaners) - 1
+
+        # [Score every (row, col, orientation) in the slice by beam yield;
+        #  fire if facing >=2 waste, else move to a >=2-yield position]
+        best_positions, good_positions = set(), set()
+        for r in range(row_min, row_max + 1):
+            for c in range(10):
+                if env.walls[r, c] or env.waste[r, c]: continue
+                y_max = max(get_clean_yield(env, r, c, o) for o in range(4))
+                if y_max >= 2: best_positions.add((r, c))
+                if y_max >= 1: good_positions.add((r, c))
+        # ... rotate / CLEAN / bfs_to_target_set as appropriate
+    else:
+        # GATHERER: collect apples ONLY inside the rotating row band
+        # row_min/row_max for num_gatherers slices ...
+        ...
+\end{lstlisting}
+
+
+\subsection{Cleanup, $\Phi_{\min}$ (Sonnet): independent rediscovery of duty rotation}
+\label{app:policy-min-sonnet}
+
+Best run: $U{=}2.93$, $E{=}0.83$, $\min_i R_i{=}154$. Run with a different policy LLM (Sonnet 4.6) and on a different outer-loop trajectory, the synthesizer arrives at the \emph{same} structural insight as the Gemini maximin run: a phase counter $(\texttt{agent\_id} + \texttt{step}/50) \bmod n$ rotates which 2 of the 10 agents clean at any given time, and a \emph{separate} 200-step zone counter rotates which 5-row band each collector sweeps. The two rotation periods (50 and 200 steps) ensure every agent visits every cleaning slot \emph{and} every apple zone within one episode --- a structural fairness invariant the researcher discovered without any explicit instruction to ``rotate.''
+
+\begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_{\min}$ -- Sonnet 4.6. Phase-rotated cleaning + zone-rotated collection (verbatim, abridged).}, label={lst:min-sonnet}]
+def policy(env, agent_id) -> int:
+    if int(env.agent_timeout[agent_id]) > 0:
+        return 7  # STAND while removed
+
+    n    = env.n_agents
+    step = env._step_count
+    wf   = waste_fraction(env)
+
+    # --- ROLE ASSIGNMENT: fair 2-cleaner rotation ---
+    # [50-step phases x 20 phases / episode -> each agent cleans 4 phases (~20%)]
+    phase        = step // 50
+    cleaner_rank = (agent_id + phase) % n   # [cycles 0..9 fairly]
+    is_cleaner   = cleaner_rank < 2         # [exactly 2 cleaners per phase]
+
+    # [Emergency override: all agents clean when waste crosses the spawn cliff]
+    in_emergency = wf >= 0.40
+    if in_emergency: is_cleaner = True
+
+    # [River split: cleaner_slot 0 -> top half, 1 -> bottom half]
+    cleaner_slot = (agent_id % 2) if in_emergency else cleaner_rank
+
+    if is_cleaner and wf > 0.04:
+        # [Scan 4 orientations from current position; if best beam shot
+        #  covers >=3 waste cells, fire; else step to a strictly better neighbor]
+        # ... (best_o, best_cnt) = max over 4 directions
+        # ... if best_cnt >= 3: rotate to best_o, then CLEAN
+        # ... else: scan 4 adjacent cells x 4 orientations for higher yield
+        # ... if no waste in beam range: bfs to waste_set in OWN river half,
+        #     fall back to whole river
+
+    # --- COLLECTOR LOGIC: 5-zone rotating apple collection ---
+    # [5 zones x 200 steps = 1000 steps -> each agent visits every zone once;
+    #  2 agents share each zone at any time, reducing competition 10 -> 2]
+    bounds     = zone_boundaries(env, 5)
+    zone_phase = step // 200
+    zone       = (agent_id + zone_phase) % 5
+    z_start, z_end = bounds[zone], bounds[zone + 1]
+
+    zone_apples = {(int(env._apple_pos[i][0]), int(env._apple_pos[i][1]))
+                   for i in range(env.n_apples) if env.apple_alive[i]
+                   and z_start <= int(env._apple_pos[i][0]) < z_end}
+    # ... bfs_to_target_set(zone_apples), else bfs_nearest_apple as fallback
+    return 7
+\end{lstlisting}
+
+
+\subsection{Gathering (Gemini): wall-aware Voronoi + spatiotemporal targeting}
+\label{app:policy-gather}
+
+Best run: $U{=}2.47$, $E{=}0.98$, $\min_i R_i{=}580$. In Gathering, where costs are symmetric, no role differentiation is needed: the entire optimization is spatial and temporal. The synthesizer (i)~partitions cells into BFS-Voronoi territories owned by individual agents, (ii)~runs a single centralized BFS from its own position to score every reachable cell with exact wall-aware distances, and (iii)~for both alive and respawning apples in its territory, computes the \emph{earliest collection time} $\max(\texttt{walk\_dist},\, \texttt{respawn\_timer})$ and targets the minimum. When the agent must wait on a dead apple, it steps onto a \emph{non-spawn} adjacent cell rather than blocking a respawn point. This single sort key --- $\max(\textrm{distance}, \textrm{timer})$ --- subsumes both ``go to nearest apple'' and ``camp respawn'' as special cases.
+
+\begin{lstlisting}[style=pythonpolicy, caption={Gathering -- Gemini 3.1 Pro. Voronoi territories + spatiotemporal priority targeting (verbatim, abridged).}, label={lst:gather-gemini}]
+def policy(env, agent_id) -> int:
+    if int(env.agent_timeout[agent_id]) > 0:
+        return 7
+
+    r, c   = int(env.agent_pos[agent_id][0]), int(env.agent_pos[agent_id][1])
+    orient = int(env.agent_orient[agent_id])
+
+    # [Wall-aware Voronoi over the gridworld; spawn_points = all apple cells]
+    zones        = voronoi_zones(env)
+    spawn_points = {(int(p[0]), int(p[1])) for p in env._apple_pos}
+
+    # [Single centralized BFS: exact distance + first move to every reachable cell]
+    distances, first_moves = {}, {}
+    q = deque([(r, c, 0, None)])
+    visited = {(r, c)}
+    while q:
+        cr, cc, d, fm = q.popleft()
+        distances[(cr, cc)]   = d
+        first_moves[(cr, cc)] = fm
+        for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+            nr, nc = cr + dr, cc + dc
+            if 0 <= nr < env.height and 0 <= nc < env.width and not env.walls[nr, nc]:
+                if (nr, nc) not in visited:
+                    visited.add((nr, nc))
+                    q.append((nr, nc, d + 1, fm if fm is not None else (dr, dc)))
+
+    # [Both alive AND respawning apples in MY zone, with their respawn timer]
+    my_zone_spawns = []
+    for i in range(env.n_apples):
+        pr, pc = int(env._apple_pos[i][0]), int(env._apple_pos[i][1])
+        if zones.get((pr, pc)) == agent_id and (pr, pc) in distances:
+            my_zone_spawns.append((pr, pc, int(env.apple_timer[i]), distances[(pr, pc)]))
+
+    # [SPATIOTEMPORAL PRIORITY: earliest collection time first.
+    #  score = max(walk_distance, respawn_timer); ties broken by sooner timer]
+    my_zone_spawns.sort(key=lambda x: (max(x[3], x[2]), x[2], x[3]))
+
+    for pr, pc, timer, dist in my_zone_spawns:
+        if timer == 0:                  # [Alive apple: walk straight to it]
+            if dist == 0: return 7
+            fm = first_moves[(pr, pc)]
+            return direction_to_action(fm[0], fm[1], orient)
+        else:                           # [Dead apple: camp on safe adjacent cell]
+            # ... pick nearest neighbor (nr,nc) that is NOT in spawn_points,
+            #     navigate there and STAND while waiting for respawn
+            ...
+    # [Global poaching fallback if zone is empty: nearest alive apple anywhere]
+    ...
+\end{lstlisting}
+
+
+\subsection{Cross-condition observations}
+
+Several patterns are visible across these four listings (and confirmed by inspecting the remaining 8 runs not shown):
+
+\begin{itemize}
+  \item \emph{Role assignment encodes the welfare objective.} Static \texttt{agent\_id < $\tau$} (Listing~\ref{lst:eff-gemini}) maximizes $U$ but harms $\min_i R_i$. Time-rotated \texttt{(agent\_id + step//$T$) \% n} (Listings~\ref{lst:min-gemini},~\ref{lst:min-sonnet}) maximizes $\min_i R_i$ at $\le 1\%$ efficiency cost (Gemini).
+  \item \emph{Convergent rediscovery across LLMs.} Gemini and Sonnet, on independent runs, both arrive at the \texttt{(id + phase) \% n} duty-rotation idiom with similar phase lengths ($T \approx 50$ steps) under maximin --- and both omit it under efficiency.
+  \item \emph{Game structure dictates strategy class.} Cleanup policies are dominated by role-assignment logic (cleaner vs. gatherer); Gathering policies are dominated by territory partitioning and respawn-timer reasoning, with no role differentiation at all. The researcher does not need to be told which class of strategy to write.
+  \item \emph{Earliest-collection-time as a unifying score.} The Gathering policy's $\max(\text{walk}, \text{timer})$ key (Listing~\ref{lst:gather-gemini}) is structurally identical across the 4 Gathering runs (both Gemini and Sonnet), differing only in how the Voronoi diagram is computed --- Manhattan approximation, fully BFS-based, or cached helper.
+\end{itemize}
 
 
 \end{document}
