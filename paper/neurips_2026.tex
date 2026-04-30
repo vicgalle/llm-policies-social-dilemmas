@@ -1,15 +1,66 @@
-%%
-%% Converted to acmart sigconf template from autoresearch_ssd.tex
-%%
-\documentclass[sigconf,authordraft]{acmart}
+\documentclass{article}
 
-%% Rights management — update with values from your rights confirmation email
-\setcopyright{none}
-%\acmDOI{XXXXXXX.XXXXXXX}
-%\acmConference[Workshop 'XX]{Workshop Title}{Date, Year}{Location}
-%\acmISBN{978-1-4503-XXXX-X/20XX/XX}
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2026
+
+% The authors should use one of these tracks.
+% Before accepting by the NeurIPS conference, select one of the options below.
+% 0. "default" for submission
+\usepackage{neurips_2026}
+% the "default" option is equal to the "main" option, which is used for the Main Track with double-blind reviewing.
+% 1. "main" option is used for the Main Track
+%  \usepackage[main]{neurips_2026}
+% 2. "position" option is used for the Position Paper Track
+%  \usepackage[position]{neurips_2026}
+% 3. "eandd" option is used for the Evaluations & Datasets Track
+ % \usepackage[eandd]{neurips_2026}
+ % if you need to opt-in for a single-blind submission in the E&D track:
+ %\usepackage[eandd, nonanonymous]{neurips_2026}
+% 4. "creativeai" option is used for the Creative AI Track
+%  \usepackage[creativeai]{neurips_2026}
+% 5. "sglblindworkshop" option is used for the Workshop with single-blind reviewing
+ % \usepackage[sglblindworkshop]{neurips_2026}
+% 6. "dblblindworkshop" option is used for the Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop]{neurips_2026}
+
+% After being accepted, the authors should add "final" behind the track to compile a camera-ready version.
+% 1. Main Track
+ % \usepackage[main, final]{neurips_2026}
+% 2. Position Paper Track
+%  \usepackage[position, final]{neurips_2026}
+% 3. Evaluations & Datasets Track
+ % \usepackage[eandd, final]{neurips_2026}
+% 4. Creative AI Track
+%  \usepackage[creativeai, final]{neurips_2026}
+% 5. Workshop with single-blind reviewing
+%  \usepackage[sglblindworkshop, final]{neurips_2026}
+% 6. Workshop with double-blind reviewing
+%  \usepackage[dblblindworkshop, final]{neurips_2026}
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote.
+% For workshops (5., 6.), the authors should add the name of the workshop, "\workshoptitle" command is used to set the workshop title.
+% \workshoptitle{WORKSHOP TITLE}
+
+% "preprint" option is used for arXiv or other preprint submissions
+ % \usepackage[preprint]{neurips_2026}
+
+% to avoid loading the natbib package, add option nonatbib:
+%    \usepackage[nonatbib]{neurips_2026}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{xcolor}         % colors
+
 
 %% Additional packages (not already loaded by acmart)
+\usepackage{amsmath}
+\usepackage{amssymb}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{multirow}
@@ -33,51 +84,61 @@
 \newcommand{\cC}{\mathcal{C}}
 \newcommand{\bm}{\mathbf{m}}
 
-\begin{document}
-
+% Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
 \title{Two-Level Autoresearch: Optimizing LLM Policy Synthesis in Sequential Social Dilemmas}
 
-\author{V\'ictor Gallego}
-\email{victor.gallego@komorebi.ai}
-\affiliation{%
-  \institution{Komorebi AI Technologies}
-  \city{Madrid}
-  \country{Spain}
+
+% The \author macro works with any number of authors. There are two commands
+% used to separate the names and addresses of multiple authors: \And and \AND.
+%
+% Using \And between authors leaves it to LaTeX to determine where to break the
+% lines. Using \AND forces a line break at that point. So, if LaTeX puts 3 of 4
+% authors names on the first line, and the last on the second line, try using
+% \AND instead of \And before the third author name.
+
+
+\author{%
+  David S.~Hippocampus\thanks{Use footnote for providing further information
+    about author (webpage, alternative address)---\emph{not} for acknowledging
+    funding agencies.} \\
+  Department of Computer Science\\
+  Cranberry-Lemon University\\
+  Pittsburgh, PA 15213 \\
+  \texttt{hippo@cs.cranberry-lemon.edu} \\
+  % examples of more authors
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \AND
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+  % \And
+  % Coauthor \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
 }
 
-\renewcommand{\shortauthors}{Gallego}
 
-\begin{abstract}
-We demonstrate an autonomous AI agent that discovers effective configurations for a complex multi-agent system---without human intervention. A \emph{researcher agent} $\cR$ (Claude Opus 4.6) iteratively modifies the synthesis pipeline---system prompts, feedback construction, helper libraries, iteration logic---under which a \emph{policy-synthesizer} LLM $\cM$ generates cooperative strategies for Sequential Social Dilemmas. The researcher reads code, edits source files, runs evaluations, and decides what to try next, following the \emph{autoresearch} paradigm. We conduct 12 autonomous runs across two games (Cleanup and Gathering), two policy LLMs (Gemini 3.1 Pro and Claude Sonnet 4.6), and two social welfare objectives (utilitarian efficiency and Rawlsian maximin). The researcher reliably exceeds baselines: in Cleanup, efficiency improves by 66\% (Gemini) and 263\% (Sonnet), while dramatically tightening run-to-run spread (max/mean gap: $0.05$ for Gemini and $0.02$ for Sonnet, vs.\ baseline ranges of ${\sim}1.5$). Most strikingly, maximin-optimized pipelines achieve near-perfect equality ($E{=}0.98$) with negligible efficiency loss ($-1\%$), discovering duty rotation as the key fairness mechanism---never found under efficiency optimization. The full-pipeline approach substantially outperforms prompt-only optimization (GEPA), achieving $3{\times}$ higher efficiency in Cleanup and $37\%$ higher in Gathering, as prompt-level search cannot overcome the high variance of LLM code generation. The contrast with Gathering, where efficiency optimization alone yields $E{>}0.94$, reveals that game structure determines whether fairness requires explicit optimization: in provision dilemmas fairness needs designed mechanisms, while in restraint dilemmas it emerges as a byproduct of coordination.
-\end{abstract}
+\begin{document}
 
-\begin{CCSXML}
-<ccs2012>
- <concept>
-  <concept_id>10010147.10010178.10010187</concept_id>
-  <concept_desc>Computing methodologies~Multi-agent systems</concept_desc>
-  <concept_significance>500</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010147.10010178.10010187.10010192</concept_id>
-  <concept_desc>Computing methodologies~Cooperation and coordination</concept_desc>
-  <concept_significance>500</concept_significance>
- </concept>
- <concept>
-  <concept_id>10010147.10010257</concept_id>
-  <concept_desc>Computing methodologies~Machine learning</concept_desc>
-  <concept_significance>300</concept_significance>
- </concept>
-</ccs2012>
-\end{CCSXML}
-
-\ccsdesc[500]{Computing methodologies~Multi-agent systems}
-\ccsdesc[500]{Computing methodologies~Cooperation and coordination}
-\ccsdesc[300]{Computing methodologies~Machine learning}
-
-\keywords{sequential social dilemmas, LLM policy synthesis, multi-agent systems, automated research, mechanism design}
 
 \maketitle
+
+
+\begin{abstract}
+  We demonstrate an autonomous AI agent that discovers effective configurations for a complex multi-agent system---without human intervention. A \emph{researcher agent} $\cR$ (Claude Opus 4.6) iteratively modifies the synthesis pipeline---system prompts, feedback construction, helper libraries, iteration logic---under which a \emph{policy-synthesizer} LLM $\cM$ generates cooperative strategies for Sequential Social Dilemmas. The researcher reads code, edits source files, runs evaluations, and decides what to try next, following the \emph{autoresearch} paradigm. We conduct 12 autonomous runs across two games (Cleanup and Gathering), two policy LLMs (Gemini 3.1 Pro and Claude Sonnet 4.6), and two social welfare objectives (utilitarian efficiency and Rawlsian maximin). The researcher reliably exceeds baselines: in Cleanup, efficiency improves by 66\% (Gemini) and 263\% (Sonnet), while dramatically tightening run-to-run spread (max/mean gap: $0.05$ for Gemini and $0.02$ for Sonnet, vs.\ baseline ranges of ${\sim}1.5$). Most strikingly, maximin-optimized pipelines achieve near-perfect equality ($E{=}0.98$) with negligible efficiency loss ($-1\%$), discovering duty rotation as the key fairness mechanism---never found under efficiency optimization. The full-pipeline approach substantially outperforms prompt-only optimization (GEPA), achieving $3{\times}$ higher efficiency in Cleanup and $37\%$ higher in Gathering, as prompt-level search cannot overcome the high variance of LLM code generation. The contrast with Gathering, where efficiency optimization alone yields $E{>}0.94$, reveals that game structure determines whether fairness requires explicit optimization: in provision dilemmas fairness needs designed mechanisms, while in restraint dilemmas it emerges as a byproduct of coordination.
+\end{abstract}
+
 
 %% ============================================================
 \section{Background}
@@ -181,7 +242,6 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
   at ([shift={(0.2cm,-0.3cm)}]D.south east) {$j = 1,\ldots,J$};
 \end{tikzpicture}
 \caption{Two-level automated research framework (Algorithm~\ref{alg:outer}). \emph{Outer loop}: the researcher $\cR$ modifies the pipeline configuration $c_j$, runs the inner loop, and keeps or discards based on $\Phi$. \emph{Inner loop}: the policy LLM $\cM$ iteratively synthesizes, validates, and evaluates policies in the frozen environment $\cG$.}
-\Description{Diagram showing the two-level framework. The outer loop has a Researcher agent that modifies the Pipeline configuration, which feeds into an Inner Loop containing Synthesize, Validate, Evaluate, and Feedback stages. Metrics are computed and a keep/discard decision feeds back to the Researcher. The environment, objective, and policy LLM are marked as frozen.}
 \label{fig:framework}
 \end{figure}
 
@@ -412,9 +472,8 @@ Compared to GEPA (Table~\ref{tab:results}), autoresearch achieves $2.4{\times}$ 
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.49\textwidth]{../autoresearch/figures/fig1_efficiency_trajectory.png}
+\includegraphics[width=0.79\textwidth]{images/fig1_efficiency_trajectory.png}
 \caption{Efficiency ($U$) across researcher iterations for all 12 runs. \emph{Left}: Cleanup ($N{=}10$) with 8 runs across 2 LLMs $\times$ 2 objectives (solid lines = kept experiments, open circles = discarded). Dashed horizontal line: hand-designed baseline from~\cite{gallego2026}. All runs converge to $U \approx 3.1$--$3.2$ despite diverse starting points. \emph{Right}: Gathering ($N{=}4$) with 4 runs (2 per LLM). All converge to $U \approx 2.5$ within 2--4 iterations despite baselines ranging from $0.03$ to $2.42$.}
-\Description{Two line plots showing efficiency trajectories. Left panel shows 8 Cleanup runs converging from diverse starting points to U approximately 3.1-3.2. Right panel shows 4 Gathering runs converging to U approximately 2.5 within a few iterations.}
 \label{fig:efficiency}
 \end{figure}
 
@@ -457,8 +516,11 @@ Our experiments use only 2 replications per condition, yielding high uncertainty
 \paragraph{Future work.}
 Five directions emerge: (1)~\emph{new domains}---apply the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; (2)~\emph{ablation}---freeze all configuration components except one to isolate the relative importance of prompt, feedback, helpers, and iteration logic; (3)~\emph{adversarial objectives}---set $\Phi = R_0$ (agent~0's reward only) to test whether the researcher discovers exploitative pipeline configurations, connecting to the reward hacking analysis of~\cite{gallego2026}; (4)~\emph{cross-game transfer}---run the best Cleanup configuration on Gathering and vice versa, testing game-generality; (5)~\emph{heterogeneous policies}---extend to settings where agents run different code, enabling richer role specialization. Code is available at \url{https://github.com/vicgalle/llm-policies-social-dilemmas}.
 
-\bibliographystyle{ACM-Reference-Format}
+
+\bibliographystyle{unsrt}
 \bibliography{references}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \appendix
 
@@ -486,17 +548,15 @@ Cleaning cost economics & 2/4 & 3/4 \\
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\columnwidth]{../autoresearch/figures/fig2_maximin_trajectory.png}
+\includegraphics[width=0.79\columnwidth]{./images/fig2_maximin_trajectory.png}
 \caption{Maximin ($\min_i R_i$) across researcher iterations for the 4 Cleanup maximin-optimized runs. All runs transform deeply negative baselines (worst-off agents losing reward) into substantially positive values. Gemini reaches ${\sim}290$ while Sonnet reaches ${\sim}160$--$200$. The dashed line marks $\min_i R_i = 0$ (no agent loses reward overall).}
-\Description{Line plot showing maximin trajectories for 4 Cleanup runs improving from negative to positive values across researcher iterations.}
 \label{fig:maximin}
 \end{figure}
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=\columnwidth]{../autoresearch/figures/fig3_efficiency_equality.png}
+\includegraphics[width=\columnwidth]{./images/fig3_efficiency_equality.png}
 \caption{Final metrics across all conditions. (a)~Efficiency: all conditions converge to $U \approx 2.5$--$3.2$. (b)~Equality: maximin-optimized Cleanup runs achieve $E \approx 1.0$, while efficiency-optimized runs show $E \approx 0.5$--$0.7$; Gathering achieves high equality regardless. (c)~Maximin: the sharpest contrast---efficiency optimization leaves the worst-off agent deeply negative ($\min_i R_i \approx {-}200$), while maximin optimization transforms it to $+290$ (Gemini) or $+179$ (Sonnet). Gathering achieves high maximin (${\sim}580$) under efficiency optimization alone. Error bars show s.d.\ across runs.}
-\Description{Three grouped bar charts showing efficiency, equality, and maximin across all experimental conditions.}
 \label{fig:eff_eq}
 \end{figure}
 
@@ -578,5 +638,6 @@ This suggests that \emph{for models below a capability threshold, fairness objec
 
 \paragraph{Gathering: full recovery on a simpler game.}
 On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$ with $E{=}0.98$ and $\min_i R_i{=}580$, after 10 outer iterations (4 kept). These values nearly match frontier models (Gemini: $U{=}2.49$, Sonnet: $U{=}2.52$; Table~\ref{tab:results}). The researcher discovers the same Voronoi partitioning and respawn-aware camping strategies found in the main experiments, and increases inner-loop iterations to $K{=}5$ to allow sufficient refinement. The contrast with Cleanup---where Gemma peaks at $U{=}0.87$/$1.71$ versus frontier $U{\approx}3.2$---suggests that the researcher can fully compensate for model weakness on simpler coordination tasks (4 agents, symmetric costs) but not on harder provision dilemmas (10 agents, asymmetric costs).
+
 
 \end{document}
