@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+
+autoresearch/meta_archive
+
 # C extensions
 *.so
 

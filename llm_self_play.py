@@ -93,7 +93,7 @@ EVAL_TIMEOUT = 600  # seconds per matchup
 
 def _is_gemini_model(model: str) -> bool:
     """Check if the model name refers to a Gemini model."""
-    return model.startswith("gemini")
+    return model.startswith("gemini") or model.startswith("gemma")
 
 
 async def _call_llm(system_prompt: str, user_prompt: str, model: str) -> tuple[str, str]:
@@ -501,6 +501,112 @@ COOP_MINING_CONFIG = GameConfig(
     ),
 )
 
+from nested_commons_env import (
+    Action as NestedAction,
+    NUM_ACTIONS as NUM_NESTED_ACTIONS,
+    MAX_ACTION as NESTED_MAX_ACTION,
+    RAID_BASE as NESTED_RAID_BASE,
+    GIFT_BASE as NESTED_GIFT_BASE,
+    TRAVEL_BASE as NESTED_TRAVEL_BASE,
+    NUM_CLANS as NESTED_NUM_CLANS,
+    CLAN_A as NESTED_CLAN_A,
+    CLAN_B as NESTED_CLAN_B,
+    CLAN_C as NESTED_CLAN_C,
+    CLAN_D as NESTED_CLAN_D,
+    raid as nested_raid,
+    gift as nested_gift,
+    travel as nested_travel,
+    is_raid_action as nested_is_raid_action,
+    is_gift_action as nested_is_gift_action,
+    is_travel_action as nested_is_travel_action,
+    decode_raid_target as nested_decode_raid_target,
+    decode_gift_target as nested_decode_gift_target,
+    decode_travel_quadrant as nested_decode_travel_quadrant,
+)
+
+
+def _nested_move_to(dr, dc) -> int:
+    if dr == -1 and dc == 0:
+        return int(NestedAction.MOVE_N)
+    if dr == 1 and dc == 0:
+        return int(NestedAction.MOVE_S)
+    if dr == 0 and dc == 1:
+        return int(NestedAction.MOVE_E)
+    if dr == 0 and dc == -1:
+        return int(NestedAction.MOVE_W)
+    return int(NestedAction.NOOP)
+
+
+NESTED_COMMONS_CONFIG = GameConfig(
+    name="nested_commons",
+    system_prompt_reward=SYSTEM_PROMPT_REWARD,  # legacy path only; autoresearch uses pipeline/prompts.py
+    max_action=NESTED_MAX_ACTION,
+    extra_namespace={
+        "NestedAction": NestedAction,
+        "NUM_NESTED_ACTIONS": NUM_NESTED_ACTIONS,
+        "RAID_BASE": NESTED_RAID_BASE,
+        "GIFT_BASE": NESTED_GIFT_BASE,
+        "TRAVEL_BASE": NESTED_TRAVEL_BASE,
+        "NUM_CLANS": NESTED_NUM_CLANS,
+        "CLAN_A": NESTED_CLAN_A,
+        "CLAN_B": NESTED_CLAN_B,
+        "CLAN_C": NESTED_CLAN_C,
+        "CLAN_D": NESTED_CLAN_D,
+        "raid": nested_raid,
+        "gift": nested_gift,
+        "travel": nested_travel,
+        "is_raid_action": nested_is_raid_action,
+        "is_gift_action": nested_is_gift_action,
+        "is_travel_action": nested_is_travel_action,
+        "decode_raid_target": nested_decode_raid_target,
+        "decode_gift_target": nested_decode_gift_target,
+        "decode_travel_quadrant": nested_decode_travel_quadrant,
+        "move_to": _nested_move_to,
+    },
+    env_hint=(
+        "16 agents in 4 clans on a 20x20 grid. Each clan has a home quadrant "
+        "with a river, a 5x5 orchard, and spawn cells; a 4x4 plaza in the centre "
+        "is shared. Actions include MOVE/CLEAN, parameterised RAID(j)/GIFT(j) "
+        "between adjacent agents, and TRAVEL(q) toward a quadrant. Use the "
+        "raid/gift/travel helpers to build action codes."
+    ),
+)
+
+
+from production_economy_env import (
+    Action as ProductionAction,
+    NUM_ACTIONS as NUM_PRODUCTION_ACTIONS,
+    MAX_ACTION as PRODUCTION_MAX_ACTION,
+    WOOD as PE_WOOD,
+    STONE as PE_STONE,
+    PLANK as PE_PLANK,
+    BRICK as PE_BRICK,
+)
+
+PRODUCTION_ECONOMY_CONFIG = GameConfig(
+    name="production_economy",
+    # The system_prompt_reward is only used by the legacy paths in this file;
+    # the autoresearch path picks its system prompt from pipeline/prompts.py.
+    system_prompt_reward=SYSTEM_PROMPT_REWARD,
+    max_action=PRODUCTION_MAX_ACTION,
+    extra_namespace={
+        "ProductionAction": ProductionAction,
+        "NUM_PRODUCTION_ACTIONS": NUM_PRODUCTION_ACTIONS,
+        "WOOD": PE_WOOD,
+        "STONE": PE_STONE,
+        "PLANK": PE_PLANK,
+        "BRICK": PE_BRICK,
+    },
+    env_hint=(
+        "Gather wood (forests) and stone (quarries), craft planks at sawmills and "
+        "bricks at masonries, then at forges craft either a TOOL (2 planks + 1 brick; "
+        "+2/step for 80 steps; doubles GATHER yield) or a SHELTER piece (3 planks + "
+        "3 bricks). At step 200 all agents get +50 if global shelter_count >= 6 else -50. "
+        "Inventory cap: 3 items. Items can be dropped/picked up on cells (cap 5 per cell). "
+        "Horizon: 300 steps. No aggression or tagging."
+    ),
+)
+
 
 # ---------------------------------------------------------------------------
 # PolicyRecord
@@ -596,8 +702,19 @@ def validate_code_safety(code: str) -> list[str]:
     return violations
 
 
-def load_policy(code: str, extra_namespace: dict | None = None) -> callable:
-    """Execute policy code in a sandboxed namespace and return the function."""
+def load_policy(
+    code: str,
+    extra_namespace: dict | None = None,
+    tag: str | None = None,
+) -> callable:
+    """Execute policy code in a sandboxed namespace and return the function.
+
+    When ``tag`` is given, the code is compiled with a stable pseudo-filename
+    ``<policy_{tag}>`` and registered in ``linecache`` so that
+    :mod:`pipeline.profile` can (a) filter ``sys.settrace`` events to this
+    policy's frames, and (b) look up source by line number for dead-branch
+    reports.
+    """
     namespace = {
         # Environment types
         "GatheringEnv": GatheringEnv,
@@ -632,12 +749,30 @@ def load_policy(code: str, extra_namespace: dict | None = None) -> callable:
     if extra_namespace:
         namespace.update(extra_namespace)
 
-    exec(code, namespace)
+    if tag is not None:
+        import linecache
+        filename = f"<policy_{tag}>"
+        # Register source with linecache so introspection (and sys.settrace
+        # filtering) can resolve this virtual filename.
+        lines = [ln + "\n" for ln in code.splitlines()]
+        linecache.cache[filename] = (len(code), None, lines, filename)
+        compiled = compile(code, filename, "exec")
+        exec(compiled, namespace)
+        namespace.setdefault("__policy_filename__", filename)
+    else:
+        exec(code, namespace)
 
     if "policy" not in namespace:
         raise ValueError("Code does not define 'policy' function")
 
-    return namespace["policy"]
+    fn = namespace["policy"]
+    if tag is not None:
+        # Stash the tag on the function so callers can retrieve source lines.
+        try:
+            fn.__policy_filename__ = namespace["__policy_filename__"]
+        except Exception:
+            pass
+    return fn
 
 
 def smoke_test_policy(fn: callable, env_factory: callable = None, max_action: int = 7,

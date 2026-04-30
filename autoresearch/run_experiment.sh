@@ -82,6 +82,10 @@ elif [[ "$GAME" == "gathering" ]]; then
     GAME_ARGS="--game gathering --n-agents 4"
     GAME_DESC="Gathering with 4 agents on large map (common pool resource)"
     ENV_FILE="gathering_env.py"
+elif [[ "$GAME" == "nested_commons" ]]; then
+    GAME_ARGS="--game nested_commons --n-agents 16"
+    GAME_DESC="Nested Commons with 16 agents in 4 clans on a 20x20 grid (intra-clan + inter-clan public goods + raid restraint)"
+    ENV_FILE="nested_commons_env.py"
 fi
 
 PROMPT="Read autoresearch/program.md carefully. This is your research program.
