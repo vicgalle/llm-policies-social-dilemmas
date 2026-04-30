@@ -11,6 +11,7 @@ This implements the framework from Gallego (2026), "Cooperation and Exploitation
 - **Cleanup** (public goods): agents must clean pollution (costly, -1) to enable apple growth (rewarding, +1). The dilemma: free-ride on others' cleaning vs. contribute.
 - **Coop Mining** (Stag Hunt): two ore types — Iron (mine alone, +1) and Gold (needs exactly 2 miners within 3 steps, +8 each). The dilemma: safe solo iron vs. risky coordinated gold.
 - **Gathering** (common pool): agents collect apples and can tag rivals. The dilemma: over-harvest vs. sustainable restraint.
+- **Nested Commons**: 16 agents partitioned into 4 clans on a shared 20×20 grid. Mechanics live in `nested_commons_env.py` — read the source to understand the game before designing pipeline changes.
 
 ### The two levels
 
@@ -48,7 +49,7 @@ Secondary metrics to monitor (not the optimization target, but informative):
 
 1. **Agree on a run tag** with the user (e.g., `mar30-dense`). The branch `ar/<tag>` must not already exist.
 2. **Create the branch**: `git checkout -b ar/<tag>` from current main/master.
-3. **Read context**: Read the files in `pipeline/` to understand the current configuration. Read the environment source code (e.g. `cleanup_env.py`, `coop_mining_env.py`) to understand the game mechanics. Read `run_inner_loop.py` to understand the orchestrator (but DO NOT modify it).
+3. **Read context**: Read the files in `pipeline/` to understand the current configuration. Read the environment source code (e.g. `cleanup_env.py`, `coop_mining_env.py`, `nested_commons_env.py`) to understand the game mechanics. Read `run_inner_loop.py` to understand the orchestrator (but DO NOT modify it).
 4. **Establish baseline**: Run `./autoresearch/measure.sh dense` and record the baseline efficiency.
 5. **Initialize results.tsv**: Create `autoresearch/results.tsv` with the header row (see Logging).
 6. **Start the experiment loop**.
@@ -73,6 +74,7 @@ All files in `pipeline/`:
 - `cleanup_env.py` — the Cleanup game environment (frozen)
 - `coop_mining_env.py` — the Coop Mining game environment (frozen)
 - `gathering_env.py` — the Gathering game environment (frozen)
+- `nested_commons_env.py` — the Nested Commons game environment (frozen)
 - `gathering_policy.py` — base policy utilities (frozen)
 - `autoresearch/measure.sh` — the measurement script (frozen)
 
@@ -188,7 +190,7 @@ experiment	commit	efficiency	maximin	equality	sustainability	peace	reward_avg	de
 
 ## Tips
 
-- **Start by reading the game mechanics.** Read the environment source code (`cleanup_env.py` or `coop_mining_env.py`) to understand the dynamics deeply. The better you understand the game, the better hints you can encode.
+- **Start by reading the game mechanics.** Read the environment source code (`cleanup_env.py`, `coop_mining_env.py`, or `nested_commons_env.py`) to understand the dynamics deeply. The better you understand the game, the better hints you can encode.
 - **Read the generated policies.** After each run, read the policies in `autoresearch/runs/<timestamp>/` to understand what the policy LLM is producing. This tells you what information it's missing.
 - **Dense feedback helps, but what dense feedback?** The baseline (reward+social) already shows efficiency/equality/sustainability/peace. Can you add MORE informative metrics?
 - **Helpers reduce the LLM's search space.** If the LLM has to write BFS from scratch, it might fail. If you provide pathfinding helpers, it can focus on the coordination logic.
