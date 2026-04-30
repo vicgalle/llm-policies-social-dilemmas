@@ -198,11 +198,3 @@ experiment	commit	efficiency	maximin	equality	sustainability	peace	reward_avg	de
 **Cleanup-specific tips:**
 - The key tension is: cleaning costs -1 but enables apple growth for everyone. Balance cleaning and collecting.
 - Policies that never clean → waste accumulates → no apples → low efficiency.
-
-**Coop Mining-specific tips:**
-- The key tension is: Iron is safe (+1, solo) but Gold is 8× better (+8, needs coordination).
-- Random policies mine only iron — getting gold requires partner-finding and synchronization.
-- Gold ore "flashes" for 3 steps after first mine — this is the coordination signal. Policies must detect `env.ore_activated` and rush to join.
-- With N agents, at most N/2 pairs can mine gold simultaneously. Odd agents out must mine iron.
-- Key env state: `env.ore_pos`, `env.ore_type` (0=iron, 1=gold), `env.ore_alive`, `env.ore_activated`, `env.ore_activator`, `env.ore_activation_timer`.
-- No tagging/timeout in this game — peace is always perfect. Focus on efficiency and equality.
