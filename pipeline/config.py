@@ -11,7 +11,7 @@ The researcher can modify these to change the inner loop behavior:
 
 # Number of inner-loop iterations (policy refinement steps).
 # The policy LLM generates K+1 policies (iteration 0 = from scratch, then K refinements).
-N_ITERATIONS = 3
+N_ITERATIONS = 2
 
 # Number of random seeds for evaluation. More seeds = less variance but more cost.
 N_EVAL_SEEDS = 5
