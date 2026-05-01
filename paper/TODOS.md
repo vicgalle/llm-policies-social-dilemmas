@@ -1,0 +1,1 @@
+* New figures: plot average metric instead of final metric across iterations. 
