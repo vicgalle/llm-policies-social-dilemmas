@@ -157,8 +157,12 @@ class NestedCommonsConfig:
     wp_growth_per_apple: float = 0.002        # was 0.001 — stronger global coupling
     wp_clean_amount: float = 0.025            # was 0.020 — matched cleaning power
 
-    # Apple regrowth (orchard)
-    apple_regrow_max: float = 0.13            # was 0.10 — orchard a real income source
+    # Apple regrowth (orchard) — per-clan to break self-play symmetry.
+    # Index q gives the orchard regrow_max for clan q (A=0, B=1, C=2, D=3).
+    # The wealth gradient creates a persistent reason to engage other clans
+    # via TRAVEL/RAID/GIFT rather than treating each clan as an independent
+    # public-goods problem.
+    apple_regrow_max_per_clan: Tuple[float, ...] = (0.20, 0.14, 0.10, 0.06)
     apple_regrow_slope: float = 2.0
 
     # Plaza bonus (de-emphasised so it doesn't dominate)
@@ -166,6 +170,13 @@ class NestedCommonsConfig:
     bonus_regrow_threshold: float = 0.35      # was 0.50 — regrowth disappears earlier
     bonus_regrow_prob: float = 0.06           # was 0.08
     bonus_value: float = 1.0                  # was 2.0 — half-strength shared payout
+    # Plaza bonus is forfeited (collector + shared-bonus recipients) by any
+    # agent whose held inventory at start-of-step is below this threshold.
+    # Couples held-inventory to the public-goods payout, making RAID/GIFT
+    # strategically meaningful: stealing held inventory denies the victim's
+    # plaza eligibility, gifting confers it. Apple is still consumed even
+    # when the gate fails, to avoid stalling plaza regrowth.
+    plaza_bonus_held_min: int = 1
 
     # Action costs / probabilities
     clean_cost: float = 1.0
@@ -360,7 +371,8 @@ class NestedCommonsEnv:
         # Counts used by gathering_policy.run_episode in verbose mode.
         self.n_apples = len(self.orchard_cells_list) + len(self.plaza_cells)
         # Approximate respawn time = 1 / mean regrow probability.
-        self.apple_respawn_time = int(round(1.0 / max(config.apple_regrow_max, 1e-6)))
+        _mean_regrow = float(np.mean(config.apple_regrow_max_per_clan))
+        self.apple_respawn_time = int(round(1.0 / max(_mean_regrow, 1e-6)))
 
         # Random state
         self.rng = np.random.default_rng(seed)
@@ -639,12 +651,19 @@ class NestedCommonsEnv:
             if not local_gate_open:
                 # Plaza payout denied: collector's home river is too dirty.
                 continue
+            # Held-inventory gate: collector forfeits payout if start-of-step
+            # held inventory is below the threshold.  Couples plaza payouts
+            # to the held-stream economics so RAID/GIFT have public-goods
+            # consequences beyond redistribution.
+            if int(held_at_start[i]) < cfg.plaza_bonus_held_min:
+                continue
             rewards[i] += cfg.bonus_value
             bonus_collected_step += 1
             if wp_before_collect <= cfg.bonus_threshold:
                 # Shared bonus: +bonus_value to every other agent (or only
                 # to other agents currently in the plaza, if the
-                # plaza_occupant_only_bonus toggle is on).
+                # plaza_occupant_only_bonus toggle is on).  Each recipient
+                # must also satisfy the held-inventory gate.
                 for j in range(self.n_agents):
                     if j == i:
                         continue
@@ -652,6 +671,8 @@ class NestedCommonsEnv:
                         jr, jc = int(self.agent_pos[j, 0]), int(self.agent_pos[j, 1])
                         if not self._in_plaza(jr, jc):
                             continue
+                    if int(held_at_start[j]) < cfg.plaza_bonus_held_min:
+                        continue
                     rewards[j] += cfg.bonus_value
                 shared_bonus_step += 1
 
@@ -793,7 +814,7 @@ class NestedCommonsEnv:
             for j in range(self.n_agents)
         )
         for q, cells in enumerate(self.orchard_cells_per_q):
-            p_regrow = max(0.0, cfg.apple_regrow_max * (1.0 - cfg.apple_regrow_slope * float(self.w_q[q])))
+            p_regrow = max(0.0, cfg.apple_regrow_max_per_clan[q] * (1.0 - cfg.apple_regrow_slope * float(self.w_q[q])))
             if p_regrow <= 0:
                 continue
             for r, c in cells:
