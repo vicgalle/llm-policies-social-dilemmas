@@ -210,7 +210,6 @@ This shifts where the design problem lives, rather than removing it. The inner-l
 We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent) edits the source files of an \emph{inner-loop policy synthesizer} (another LLM), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository (reading code, writing diffs, running shell commands, etc) without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining. Although the inner-loop SSDs are gridworld benchmarks rather than physical systems, the outer-loop discovery process itself runs under conditions a deployed discovery agent faces: noisy multi-seed evaluations, stochastic code generation, an LLM-evaluation budget that bounds how often $\Phi$ can be queried, and a heterogeneous code repository the agent must navigate end-to-end on its own.
 
 Our contributions are: i) a general two-level framework that delegates the design of an LLM synthesis pipeline to a coding agent operating on a real software repository (Section~\ref{sec:framework}); ii) the first instantiation of the autoresearch paradigm in a multi-agent decision-making domain, with experiments across two SSDs (Cleanup and Gathering), two policy LLMs, and two welfare objectives (utilitarian efficiency $U$ and Rawlsian maximin $\min_i R_i$) (Section~\ref{sec:experiments}); and iii) a mechanism-design interpretation supported by the qualitatively different pipelines the agent produces under different welfare objectives, including the autonomous discovery of \emph{time-based duty rotation} as a fairness mechanism, never found under efficiency optimization.
-\end{itemize}
 
 %% ============================================================
 \section{Background}
@@ -383,19 +382,19 @@ Let $\cC$ denote the space of \emph{pipeline configurations}. Each configuration
 where $p$ is the system prompt, $\phi$ is the feedback construction function (which metrics and diagnostics to include, how to frame it, whether to inject adaptive hints), $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
 
 \begin{table}[t]
-\caption{Configuration components modifiable by the researcher. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
+\caption{Configuration components modifiable by the researcher, with concrete edits that $\cR$ made in our runs. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
 \label{tab:config}
 \centering
 \small
-\begin{tabular}{@{}lll@{}}
+\begin{tabular}{@{}llp{0.60\linewidth}@{}}
 \toprule
- & Scope & Examples \\
+ & Scope & Concrete edits by $\cR$ (see appendix) \\
 \midrule
-$p$ & System prompt & Hints, worked examples \\
-$\phi$ & Feedback fn & Metric subset, framing, derived metrics, trends \\
-$\mathcal{H}$ & Helper library & Pathfinding, zones \\
-$\iota$ & Iteration logic & $K$, eval seeds, best-of-$n$ \\
-$v$ & Validation & Safety checks, smoke tests \\
+$p$ & System prompt & Multi-section strategic briefing with explicit duty-rotation template \texttt{(agent\_id + step//T) \% n} (App.~\ref{app:art-prompts}, Listing~\ref{lst:prompt-min}) \\
+$\phi$ & Feedback fn & Thresholded diagnostics: ``FAIRNESS ALERT'' fires when $\min_i R_i {<} 0$; ``DO NOT REGRESS'' guard fires when $U {\geq} 2.5$ (App.~\ref{app:art-feedback}, Listing~\ref{lst:feedback-adapt}) \\
+$\mathcal{H}$ & Helper library & BFS-Voronoi territories with respawn-timer awareness; band-based apple zoning by \texttt{agent\_id} (App.~\ref{app:art-helpers}, Listings~\ref{lst:helper-vor},~\ref{lst:helper-zone}) \\
+$\iota$ & Iteration logic & Per-condition $K{\in}\{2,3\}$; $|S|$ walked $5{\to}8{\to}12$ for variance control; thinking budget $10$--$32$k (App.~\ref{app:art-config}, Table~\ref{tab:iota}) \\
+$v$ & Validation & AST blocks \texttt{eval}/file I/O/network; 50-step smoke test; retry $\leq R$ on failure \\
 \bottomrule
 \end{tabular}
 \end{table}
