@@ -203,17 +203,13 @@
 \section{Introduction}
 %% ============================================================
 
-Sequential Social Dilemmas (SSDs)~\cite{leibo2017} are the multi-agent analogue of the prisoner's dilemma in temporally rich Markov games: individually rational play leads to collectively suboptimal outcomes through pollution, over-harvesting, or open conflict. Standard multi-agent reinforcement learning (MARL) struggles in this regime due to credit assignment, non-stationarity, and large joint action spaces~\cite{busoniu2008}. A complementary approach, recently introduced by Gallego~\cite{gallego2026}, replaces parameter-space optimization with \emph{algorithm-space synthesis}: a frozen LLM writes a Python policy function, evaluates it in self-play, and iteratively refines it from performance feedback. A single generation step can produce coordination logic (territory partitioning, role assignment, conditional cooperation) that would take millions of RL steps to discover.
+Sequential Social Dilemmas (SSDs)~\cite{leibo2017} are the multi-agent analogue of the prisoner's dilemma in temporally rich Markov games: individually rational play leads to collectively suboptimal outcomes through pollution, over-harvesting, or open conflict. Standard multi-agent reinforcement learning (MARL) struggles in this regime due to credit assignment, non-stationarity, and large joint action spaces~\cite{busoniu2008}. A complementary approach, recently introduced by Gallego~\cite{gallego2026}, replaces parameter-space optimization with \emph{algorithm-space synthesis}: a frozen LLM writes a Python policy function, evaluates it in self-play, and iteratively refines it from performance feedback. A single generation step can produce coordination logic (territory partitioning, role assignment, conditional cooperation) at a sample efficiency several orders of magnitude beyond what gradient-based MARL achieves on the same environments.
 
 This shifts where the design problem lives, rather than removing it. The inner-loop pipeline that drives the synthesizer has many free parameters: which system prompt, which feedback variables, which helper functions, how many refinement steps. Each materially affects the resulting policies, and prior work tuned them by hand. A natural question follows: \emph{can an AI agent design the pipeline?}
 
-We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent via the Claude Code CLI) edits the source files of an \emph{inner-loop policy synthesizer} (Gemini 3.1 Pro or Claude Sonnet 4.6), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository---reading code, writing diffs, running shell commands---without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining. Although the inner-loop SSDs are gridworld benchmarks rather than physical systems, the outer-loop discovery process itself runs under conditions a deployed discovery agent faces: noisy multi-seed evaluations, stochastic code generation, an LLM-evaluation budget that bounds how often $\Phi$ can be queried, and a heterogeneous Python repository the agent must navigate end-to-end on its own.
+We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent) edits the source files of an \emph{inner-loop policy synthesizer} (another LLM), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository (reading code, writing diffs, running shell commands, etc) without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining. Although the inner-loop SSDs are gridworld benchmarks rather than physical systems, the outer-loop discovery process itself runs under conditions a deployed discovery agent faces: noisy multi-seed evaluations, stochastic code generation, an LLM-evaluation budget that bounds how often $\Phi$ can be queried, and a heterogeneous code repository the agent must navigate end-to-end on its own.
 
-Our contributions are:
-\begin{itemize}
-  \item A general two-level framework that delegates the design of an LLM synthesis pipeline to a coding agent operating on a real software repository (Section~\ref{sec:framework}).
-  \item The first instantiation of the autoresearch paradigm in a multi-agent decision-making domain, with 12 autonomous runs across two SSDs (Cleanup and Gathering), two policy LLMs, and two welfare objectives (utilitarian efficiency $U$ and Rawlsian maximin $\min_i R_i$). The researcher reliably exceeds hand-designed baselines and dominates prompt-only optimization (GEPA)~\cite{agrawal2026} (Section~\ref{sec:experiments}).
-  \item A mechanism-design interpretation supported by the qualitatively different pipelines the agent produces under different welfare objectives---including the autonomous discovery of \emph{time-based duty rotation} as a fairness mechanism, never found under efficiency optimization.
+Our contributions are: i) a general two-level framework that delegates the design of an LLM synthesis pipeline to a coding agent operating on a real software repository (Section~\ref{sec:framework}); ii) the first instantiation of the autoresearch paradigm in a multi-agent decision-making domain, with experiments across two SSDs (Cleanup and Gathering), two policy LLMs, and two welfare objectives (utilitarian efficiency $U$ and Rawlsian maximin $\min_i R_i$) (Section~\ref{sec:experiments}); and iii) a mechanism-design interpretation supported by the qualitatively different pipelines the agent produces under different welfare objectives, including the autonomous discovery of \emph{time-based duty rotation} as a fairness mechanism, never found under efficiency optimization.
 \end{itemize}
 
 %% ============================================================
@@ -232,7 +228,7 @@ We study two canonical SSDs that capture complementary dilemma types.
 
 \textbf{Gathering}~\cite{leibo2017,perolat2017} is a \emph{common pool resource} game ($N{=}4$). Agents collect shared apples on a fixed respawn timer and may fire tagging beams to temporarily remove rivals. The dilemma: agents can coexist and share resources, or aggress to monopolize them; aggression wastes time and reduces total welfare.
 
-Both games use $8$--$9$ discrete actions (movement, rotation, beam, stand, optionally clean) and episodes of $H{=}1000$ steps. The two dilemmas differ in cost structure---asymmetric provision (cleaners pay, all benefit) vs.\ symmetric restraint (every agent faces the same temptation)---a distinction that drives our key findings.
+Both games use $8$--$9$ discrete actions (movement, rotation, beam, stand, optionally clean) and episodes of $H{=}1000$ steps. The two dilemmas differ in cost structure: asymmetric provision (cleaners pay, all benefit) vs.\ symmetric restraint (every agent faces the same temptation), a distinction that drives our experimental findings.
 
 \paragraph{Social metrics.} Following Perolat et al.~\cite{perolat2017}, let $R_i = \sum_{t=0}^{H-1} r_i^t$ denote agent $i$'s episode return. We evaluate four social outcomes:
 \begin{align}
@@ -245,7 +241,7 @@ where $\bar t_i$ is the mean timestep at which agent $i$ collects positive rewar
 
 \subsection{Iterative LLM Policy Synthesis}
 
-Let $\Pi$ denote the space of \emph{programmatic policies}: deterministic functions $\pi: \mathcal{S} \times [N] \to \mathcal{A}$ expressed as executable Python code. Each policy has access to the full environment state and a library of helpers (BFS pathfinding, beam targeting, coordinate transforms). This state access is a deliberate design choice: programmatic policies operate in algorithm space rather than the reactive observation-to-action space of neural policies, which lets a single LLM generation step encode rich coordination logic.
+Let $\Pi$ denote the space of \emph{code-based policies}: deterministic functions $\pi: \mathcal{S} \times [N] \to \mathcal{A}$ expressed as executable Python code. Each policy has access to the full environment state and a library of helpers (BFS pathfinding, beam targeting, coordinate transforms). This state access is a deliberate design choice: programmatic policies operate in algorithm space rather than the reactive observation-to-action space of neural policies, which lets a single LLM generation step encode rich coordination logic.
 
 A frozen LLM $\cM$ acts as the \emph{policy synthesizer}. Given a system prompt $p$ describing the environment API and a feedback prompt $q_k$, it produces a new policy
 \[
@@ -257,14 +253,14 @@ where $\pi_k$ is the previous policy (its source code) and $\mathcal{F}_k$ is th
 \begin{equation}
   \mathcal{F}_k = \big(\textrm{code}(\pi_k),\; \bar r_k,\; \bm_k,\; \mathbf{d}\big),
 \end{equation}
-where $\mathbf{d}$ contains natural-language definitions of each social metric. Exposing the full social-metrics vector (rather than the scalar reward alone) disambiguates distinct failure modes that share the same average return---e.g., under- vs.\ over-cleaning in Cleanup---and consistently improves cooperative outcomes. On Cleanup, this baseline feedback reaches $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. The choice of feedback content is a single design decision within a much larger pipeline configuration space; our two-level framework (Section~\ref{sec:framework}) opens the full space to automated search.
+where $\mathbf{d}$ contains natural-language definitions of each social metric. Exposing the full social-metrics vector (rather than the scalar reward alone) disambiguates distinct failure modes that share the same average return (e.g., under- vs.\ over-cleaning in Cleanup) and consistently improves cooperative outcomes. On Cleanup, this baseline feedback reaches $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. The choice of feedback content is a single design decision within a much larger pipeline configuration space; our two-level framework (Section~\ref{sec:framework}) opens the full space to automated search.
 
 %% ============================================================
 \section{Two-Level Framework}
 \label{sec:framework}
 %% ============================================================
 
-We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The key insight is that the entire inner-loop codebase---not just the feedback level---is a designable artifact that an AI agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
+We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The key insight is that the entire inner-loop codebase is a designable artifact that an AI agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
 
 \begin{figure}[t]
 \centering
@@ -384,7 +380,7 @@ Let $\cC$ denote the space of \emph{pipeline configurations}. Each configuration
 \begin{equation}
   c = (p,\, \phi,\, \mathcal{H},\, \iota,\, v)
 \end{equation}
-where $p$ is the system prompt, $\phi$ is the feedback construction function (which content to include, how to frame it, whether to inject adaptive hints), $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
+where $p$ is the system prompt, $\phi$ is the feedback construction function (which metrics and diagnostics to include, how to frame it, whether to inject adaptive hints), $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
 
 \begin{table}[t]
 \caption{Configuration components modifiable by the researcher. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
