@@ -1,1 +1,1 @@
-* New figures: plot average metric instead of final metric across iterations. 
+* higher in Gathering than GEPA at matched compute: aclarar esto, que son evaluaciones del env etc. 
