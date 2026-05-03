@@ -61,8 +61,10 @@
 %% Additional packages (not already loaded by acmart)
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{float}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
+\usepackage{caption}
 \usepackage{multirow}
 \usepackage{enumitem}
 \setlist{nosep,leftmargin=*}
@@ -266,14 +268,17 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 
 \begin{figure}[t]
 \centering
+\begin{minipage}[t]{0.45\linewidth}
+\vspace{0pt}
+\centering
 \begin{tikzpicture}[
   >={Stealth[length=3.5pt]},
   node distance=0.4cm,
   % --- Styles ---
   mbox/.style={
     rectangle, rounded corners=3.5pt, draw=#1!85!black, fill=#1!15,
-    line width=0.7pt, minimum height=0.62cm, minimum width=4.2cm,
-    align=center, inner sep=3pt, font=\small},
+    line width=0.7pt, minimum height=0.55cm, minimum width=3.6cm,
+    align=center, inner sep=2.5pt, font=\footnotesize},
   sbox/.style={
     rectangle, rounded corners=2pt, draw=ilcolor!65!black, fill=ilcolor!10,
     line width=0.5pt, minimum height=0.38cm,
@@ -318,10 +323,6 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
   {\scriptsize\textcolor{metcolor!80!black}{\textbf{keep}}%
    \;$\mid$\;%
    \textcolor{deccolor!80!black}{\textbf{discard}}}};
-% Frozen annotation — more spacing from inner loop
-\node[frzbox, right=0.35cm of IL.north east, anchor=north west] (F) {%
-  $\cG$,\,$\Phi$,\,$\cM$\\[-1pt]\textbf{frozen}};
-
 % === ARROWS ===
 % Main vertical flow
 \draw[myarr] (R) -- node[albl, right] {modify} (P);
@@ -333,8 +334,6 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 \draw[myarr=ilcolor] (V) -- (Ev);
 \draw[myarr=ilcolor, rounded corners=2pt] (Ev.south) |- (FB);
 \draw[myarr=ilcolor, rounded corners=2pt] (FB) -| (S.south);
-% Frozen pointer
-\draw[myarr=frzcolor, dashed] (F.west) -- (IL.east |- F.west);
 % Outer loop feedback
 \draw[myarr=rescolor, rounded corners=5pt, line width=0.55pt]
   (D.west) -- ++(-1.1,0) |-
@@ -349,8 +348,34 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 \node[font=\tiny\itshape, text=rescolor!45!black, anchor=south east]
   at ([shift={(0.2cm,-0.3cm)}]D.south east) {$j = 1,\ldots,J$};
 \end{tikzpicture}
-\caption{Two-level automated research framework (Algorithm~\ref{alg:outer}). \emph{Outer loop}: the researcher $\cR$ modifies the pipeline configuration $c_j$, runs the inner loop, and keeps or discards based on $\Phi$. \emph{Inner loop}: the policy LLM $\cM$ iteratively synthesizes, validates, and evaluates policies in the frozen environment $\cG$.}
+\captionof{figure}{Two-level automated research framework (Algorithm~\ref{alg:outer}).}
 \label{fig:framework}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.52\linewidth}
+\vspace{0pt}
+\begin{algorithm}[H]
+\caption{Two-Level Automated Research}
+\label{alg:outer}
+\begin{algorithmic}[1]
+\footnotesize
+\Require Game $\cG$, policy synthesizer $\cM$, researcher $\cR$, system prompt $p_{\cR}$, initial config $c_0$, outer iterations $J$, ground-truth objective $\Phi$, held-out seeds $S_{\textrm{ho}}$
+\Ensure Best configuration $c^*$, best policy $\pi^*$
+\State $\pi^*_0 \leftarrow \textsc{InnerLoop}(\cM, \cG, c_0)$
+\State $\Phi_0 \leftarrow \textsc{Eval}(\pi^*_0;\, \cG,\, S_{\textrm{ho}})$
+\State $\textit{history} \leftarrow \{(c_0, \Phi_0, \bm_0, \varnothing)\}$
+\For{$j = 1, \dots, J$}
+  \State $c_j \leftarrow \cR\!\left(p_{\cR},\, \textsc{code}(c_{j-1}),\, \textit{history}\right)$
+  \State \textbf{if} $\neg\,\textsc{ValidateConfig}(c_j)$ \textbf{then} retry $\leq R$
+  \State $\pi^*_j \leftarrow \textsc{InnerLoop}(\cM, \cG, c_j)$
+  \State $\Phi_j \leftarrow \textsc{Eval}(\pi^*_j;\, \cG,\, S_{\textrm{ho}})$
+  \State $\Delta_j \leftarrow \textsc{Diff}(c_{j-1}, c_j)$ \hfill {\scriptsize\textit{// code diff}}
+  \State $\textit{history} \leftarrow \textit{history} \cup \{(c_j, \Phi_j, \bm_j, \Delta_j)\}$
+\EndFor
+\State $j^* \leftarrow \arg\max_j \Phi_j$
+\State \Return $c_{j^*},\, \pi^*_{j^*}$
+\end{algorithmic}
+\end{algorithm}
+\end{minipage}
 \end{figure}
 
 \subsection{Configuration Space}
@@ -409,28 +434,6 @@ where $\Phi$ maps from social outcomes to a scalar. We consider two objectives:
 \subsection{Outer Loop (Automated Research)}
 
 The researcher agent $\cR$ iteratively modifies the pipeline configuration. Following the autoresearch paradigm~\cite{karpathy2026}, $\cR$ operates on the inner-loop codebase as a modifiable artifact, proposing changes, observing outcomes, and refining. The procedure is formalized in Algorithm~\ref{alg:outer}.
-
-\begin{algorithm}[t]
-\caption{Two-Level Automated Research}
-\label{alg:outer}
-\begin{algorithmic}[1]
-\Require Game $\cG$, policy synthesizer $\cM$, researcher $\cR$, system prompt for researcher $p_{\cR}$, initial configuration $c_0$, outer iterations $J$, ground-truth objective $\Phi$, held-out seeds $S_{\text{held-out}}$
-\Ensure Best configuration $c^*$, best policy $\pi^*$
-\State $\pi^*_0 \leftarrow \textsc{InnerLoop}(\cM, \cG, c_0)$
-\State $\Phi_0 \leftarrow \textsc{Eval}(\pi^*_0;\; \cG,\; S_{\text{held-out}})$
-\State $\textit{history} \leftarrow \{(c_0, \Phi_0, \bm_0, \varnothing)\}$
-\For{$j = 1, \dots, J$}
-  \State $c_j \leftarrow \cR\!\left(p_{\cR},\; \textsc{code}(c_{j-1}),\; \textit{history}\right)$
-  \State \textbf{if} $\neg\,\textsc{ValidateConfig}(c_j)$ \textbf{then} retry $\leq R$ times
-  \State $\pi^*_j \leftarrow \textsc{InnerLoop}(\cM, \cG, c_j)$
-  \State $\Phi_j \leftarrow \textsc{Eval}(\pi^*_j;\; \cG,\; S_{\text{held-out}})$
-  \State $\Delta_j \leftarrow \textsc{Diff}(c_{j-1}, c_j)$ \hfill \textit{// code diff}
-  \State $\textit{history} \leftarrow \textit{history} \cup \{(c_j, \Phi_j, \bm_j, \Delta_j)\}$
-\EndFor
-\State $j^* \leftarrow \arg\max_j \Phi_j$
-\State \Return $c_{j^*},\; \pi^*_{j^*}$
-\end{algorithmic}
-\end{algorithm}
 
 At each outer iteration $j$, the researcher $\cR$ receives:
 \begin{itemize}
