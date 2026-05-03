@@ -7,7 +7,7 @@
 % The authors should use one of these tracks.
 % Before accepting by the NeurIPS conference, select one of the options below.
 % 0. "default" for submission
-\usepackage{neurips_2026}
+\usepackage[dblblindworkshop]{neurips_2026}
 % the "default" option is equal to the "main" option, which is used for the Main Track with double-blind reviewing.
 % 1. "main" option is used for the Main Track
 %  \usepackage[main]{neurips_2026}
@@ -142,7 +142,7 @@
 \newcommand{\bm}{\mathbf{m}}
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
-\title{Two-Level Autoresearch: Optimizing LLM Policy Synthesis in Sequential Social Dilemmas}
+\title{Discovering Cooperative Pipelines: Autoresearch for Sequential Social Dilemmas}
 
 
 % The \author macro works with any number of authors. There are two commands
@@ -193,7 +193,7 @@
 
 
 \begin{abstract}
-  We demonstrate an autonomous AI agent that discovers effective configurations for a complex multi-agent system---without human intervention. A \emph{researcher agent} $\cR$ (Claude Opus 4.6) iteratively modifies the synthesis pipeline---system prompts, feedback construction, helper libraries, iteration logic---under which a \emph{policy-synthesizer} LLM $\cM$ generates cooperative strategies for Sequential Social Dilemmas. The researcher reads code, edits source files, runs evaluations, and decides what to try next, following the \emph{autoresearch} paradigm. We conduct 12 autonomous runs across two games (Cleanup and Gathering), two policy LLMs (Gemini 3.1 Pro and Claude Sonnet 4.6), and two social welfare objectives (utilitarian efficiency and Rawlsian maximin). The researcher reliably exceeds baselines: in Cleanup, efficiency improves by 66\% (Gemini) and 263\% (Sonnet), while dramatically tightening run-to-run spread (max/mean gap: $0.05$ for Gemini and $0.02$ for Sonnet, vs.\ baseline ranges of ${\sim}1.5$). Most strikingly, maximin-optimized pipelines achieve near-perfect equality ($E{=}0.98$) with negligible efficiency loss ($-1\%$), discovering duty rotation as the key fairness mechanism---never found under efficiency optimization. The full-pipeline approach substantially outperforms prompt-only optimization (GEPA), achieving $3{\times}$ higher efficiency in Cleanup and $37\%$ higher in Gathering, as prompt-level search cannot overcome the high variance of LLM code generation. The contrast with Gathering, where efficiency optimization alone yields $E{>}0.94$, reveals that game structure determines whether fairness requires explicit optimization: in provision dilemmas fairness needs designed mechanisms, while in restraint dilemmas it emerges as a byproduct of coordination.
+  We study \emph{two-level autoresearch}: an outer-loop AI agent that autonomously redesigns the inner-loop pipeline of an LLM policy-synthesis system for multi-agent Sequential Social Dilemmas (SSDs). A \emph{researcher agent} $\cR$ (Claude Opus 4.6, run as a coding agent) reads the inner-loop source code, edits system prompts, feedback functions, helper libraries, and iteration logic, runs evaluations, and decides what to keep, following the \emph{autoresearch} paradigm. Across 12 autonomous runs spanning two games (Cleanup and Gathering), two policy-synthesizer LLMs (Claude Sonnet 4.6, Gemini 3.1 Pro), and two welfare objectives (utilitarian efficiency and Rawlsian maximin), the researcher reliably exceeds hand-designed baselines, sharply tightens run-to-run variance, and substantially outperforms prompt-only optimization (GEPA), which cannot overcome the stochasticity of LLM code generation. The discovered pipelines are genuinely a function of the welfare objective: under maximin the researcher independently rediscovers \emph{duty rotation}---never found under efficiency optimization---supporting an \emph{information-design} interpretation in which the researcher chooses what to expose to the boundedly rational synthesizer. The Cleanup--Gathering contrast further reveals that \emph{game structure} dictates whether fairness needs explicit optimization: in \emph{provision} dilemmas it requires designed mechanisms, while in \emph{restraint} dilemmas it emerges as a byproduct of coordination. Code at \url{https://github.com/anon590/llm-policies-social-dilemmas}.
 \end{abstract}
 
 
@@ -205,7 +205,7 @@ Sequential Social Dilemmas (SSDs)~\cite{leibo2017} are the multi-agent analogue 
 
 This shifts where the design problem lives, rather than removing it. The inner-loop pipeline that drives the synthesizer has many free parameters: which system prompt, which feedback variables, which helper functions, how many refinement steps. Each materially affects the resulting policies, and prior work tuned them by hand. A natural question follows: \emph{can an AI agent design the pipeline?}
 
-We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent via the Claude Code CLI) edits the source files of an \emph{inner-loop policy synthesizer} (Gemini 3.1 Pro or Claude Sonnet 4.6), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository---reading code, writing diffs, running shell commands---without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining.
+We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent via the Claude Code CLI) edits the source files of an \emph{inner-loop policy synthesizer} (Gemini 3.1 Pro or Claude Sonnet 4.6), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository---reading code, writing diffs, running shell commands---without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining. Although the inner-loop SSDs are gridworld benchmarks rather than physical systems, the outer-loop discovery process itself runs under conditions a deployed discovery agent faces: noisy multi-seed evaluations, stochastic code generation, an LLM-evaluation budget that bounds how often $\Phi$ can be queried, and a heterogeneous Python repository the agent must navigate end-to-end on its own.
 
 Our contributions are:
 \begin{itemize}
