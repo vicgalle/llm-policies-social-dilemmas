@@ -198,17 +198,68 @@
 
 
 %% ============================================================
+\section{Introduction}
+%% ============================================================
+
+Sequential Social Dilemmas (SSDs)~\cite{leibo2017} are the multi-agent analogue of the prisoner's dilemma in temporally rich Markov games: individually rational play leads to collectively suboptimal outcomes through pollution, over-harvesting, or open conflict. Standard multi-agent reinforcement learning (MARL) struggles in this regime due to credit assignment, non-stationarity, and large joint action spaces~\cite{busoniu2008}. A complementary approach, recently introduced by Gallego~\cite{gallego2026}, replaces parameter-space optimization with \emph{algorithm-space synthesis}: a frozen LLM writes a Python policy function, evaluates it in self-play, and iteratively refines it from performance feedback. A single generation step can produce coordination logic---territory partitioning, role assignment, conditional cooperation---that would take millions of RL episodes to discover.
+
+This shifts where the design problem lives, rather than removing it. The inner-loop pipeline that drives the synthesizer has many free parameters: which system prompt, which feedback variables, which helper functions, how many refinement steps. Each materially affects the resulting policies, and prior work tuned them by hand. A natural question follows: \emph{can an AI agent design the pipeline?}
+
+We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent via the Claude Code CLI) edits the source files of an \emph{inner-loop policy synthesizer} (Gemini 3.1 Pro or Claude Sonnet 4.6), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository---reading code, writing diffs, running shell commands---without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining.
+
+Our contributions are:
+\begin{itemize}
+  \item A general two-level framework that delegates the design of an LLM synthesis pipeline to a coding agent operating on a real software repository (Section~\ref{sec:framework}).
+  \item The first instantiation of the autoresearch paradigm in a multi-agent decision-making domain, with 12 autonomous runs across two SSDs (Cleanup and Gathering), two policy LLMs, and two welfare objectives (utilitarian efficiency $U$ and Rawlsian maximin $\min_i R_i$). The researcher reliably exceeds hand-designed baselines and dominates prompt-only optimization (GEPA)~\cite{agrawal2026} (Section~\ref{sec:experiments}).
+  \item A mechanism-design interpretation supported by the qualitatively different pipelines the agent produces under different welfare objectives---including the autonomous discovery of \emph{time-based duty rotation} as a fairness mechanism, never found under efficiency optimization.
+\end{itemize}
+
+%% ============================================================
 \section{Background}
 %% ============================================================
 
-We build on the iterative LLM policy synthesis framework of Gallego~\cite{gallego2026}. An SSD is a partially observable Markov game $\cG = \langle N, \mathcal{S}, \{A_i\}_{i=1}^{N}, T, \{R_i\}_{i=1}^{N}, H \rangle$. Social outcomes are evaluated via four metrics~\cite{perolat2017}: efficiency $U$, equality $E$, sustainability $S$, and peace $P$. We additionally consider the \emph{maximin} (Rawlsian) welfare criterion $\min_i R_i$, which maximizes the return of the worst-off agent.
+We build on the iterative LLM policy synthesis framework of Gallego~\cite{gallego2026}, which serves as the (frozen) inner loop of our two-level system. This section recalls the SSD formalism, the social outcome metrics, and the base synthesis loop.
 
-We study two SSDs that represent complementary dilemma types. \textbf{Cleanup}~\cite{hughes2018} is a \emph{public goods provision} game ($N{=}10$): a river accumulates waste while an orchard grows apples. Cleaning costs $-1$ per beam but enables apple regrowth for everyone ($+1$ per apple). The dilemma: free-ride on cleaning vs.\ contribute. \textbf{Gathering}~\cite{leibo2017,perolat2017} is a \emph{common pool resource} game ($N{=}4$): agents collect shared apples and may tag rivals to temporarily remove them. The dilemma: over-harvest and aggress vs.\ cooperate and share. The games differ in their cost structure---asymmetric provision vs.\ symmetric restraint---a distinction that drives our key findings.
+\subsection{Sequential Social Dilemmas}
 
-A frozen LLM $\cM$ acts as a policy synthesizer. Given a system prompt $p$ and a feedback prompt $q_k$, it generates a Python policy $\pi_{k+1} = \cM(p, q(\pi_k, \mathcal{F}_k^\ell))$, where $\ell$ specifies the feedback level and $\mathcal{F}_k = (\bar{r}_k, \bm_k)$ contains the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. All $N$ agents execute the same policy (homogeneous self-play). Gallego~\cite{gallego2026} compared two hand-designed feedback levels---sparse (reward-only) and dense (reward + social metrics)---and showed that dense feedback consistently improves cooperative outcomes. The dense feedback configuration achieves $U{=}1.93$ (mean) / $2.70$ (max) with Gemini and $U{=}0.86$ / $1.56$ with Sonnet on Cleanup (4 runs each).
+A Sequential Social Dilemma is a partially observable Markov game $\cG = \langle N, \mathcal{S}, \{\mathcal{A}_i\}_{i=1}^{N}, T, \{R_i\}_{i=1}^{N}, H \rangle$ with $N$ agents, state space $\mathcal{S}$ (the gridworld configuration), per-agent action spaces $\mathcal{A}_i$, transition function $T$, reward functions $R_i$, and episode horizon $H$~\cite{leibo2017}. Beyond the dilemma's matrix-game structure, SSDs add temporal richness: agents must learn \emph{when} and \emph{where} to cooperate, not just \emph{whether} to.
+
+We study two canonical SSDs that capture complementary dilemma types.
+
+\textbf{Cleanup}~\cite{hughes2018} is a \emph{public goods provision} game ($N{=}10$). The map has two regions: a river that accumulates waste, and an orchard where apples grow. Apples regrow only when river pollution is below threshold. Each agent can fire a cleaning beam (cost $-1$) that removes waste, collect apples ($+1$ each), or fire a tagging beam (cost $-1$, inflicting $-50$ on the target and removing it for $25$ steps). The dilemma: cleaning is costly but its benefits are public, so purely self-interested agents free-ride.
+
+\textbf{Gathering}~\cite{leibo2017,perolat2017} is a \emph{common pool resource} game ($N{=}4$). Agents collect shared apples on a fixed respawn timer and may fire tagging beams to temporarily remove rivals. The dilemma: agents can coexist and share resources, or aggress to monopolize them; aggression wastes time and reduces total welfare.
+
+Both games use $8$--$9$ discrete actions (movement, rotation, beam, stand, optionally clean) and episodes of $H{=}1000$ steps. The two dilemmas differ in cost structure---asymmetric provision (cleaners pay, all benefit) vs.\ symmetric restraint (every agent faces the same temptation)---a distinction that drives our key findings.
+
+\paragraph{Social metrics.} Following Perolat et al.~\cite{perolat2017}, let $R_i = \sum_{t=0}^{H-1} r_i^t$ denote agent $i$'s episode return. We evaluate four social outcomes:
+\begin{align}
+U &= \tfrac{1}{H}\sum_{i=1}^{N} R_i & \text{(efficiency)} \\
+E &= 1 - \frac{\sum_{i,j} |R_i - R_j|}{2N \sum_i R_i} & \text{(equality)} \\
+S &= \tfrac{1}{N}\sum_{i=1}^{N} \bar t_i & \text{(sustainability)} \\
+P &= \tfrac{1}{H}\sum_{t=0}^{H-1} \big|\{i : \textrm{active}_i^t\}\big| & \text{(peace)}
+\end{align}
+where $\bar t_i$ is the mean timestep at which agent $i$ collects positive reward (higher $\Rightarrow$ resources preserved later) and $\textrm{active}_i^t$ indicates that agent $i$ is not tagged out at step $t$. We additionally consider the \emph{maximin} (Rawlsian) welfare criterion $\min_i R_i$, which optimizes the worst-off agent's return and serves as the second objective in our experiments.
+
+\subsection{Iterative LLM Policy Synthesis}
+
+Let $\Pi$ denote the space of \emph{programmatic policies}: deterministic functions $\pi: \mathcal{S} \times [N] \to \mathcal{A}$ expressed as executable Python code. Each policy has access to the full environment state and a library of helpers (BFS pathfinding, beam targeting, coordinate transforms). This state access is a deliberate design choice: programmatic policies operate in algorithm space rather than the reactive observation-to-action space of neural policies, which lets a single LLM generation step encode rich coordination logic.
+
+A frozen LLM $\cM$ acts as the \emph{policy synthesizer}. Given a system prompt $p$ describing the environment API and a feedback prompt $q_k$, it produces a new policy
+\[
+  \pi_{k+1} = \cM\!\left(p,\; q(\pi_k, \mathcal{F}_k)\right),
+\]
+where $\pi_k$ is the previous policy (its source code) and $\mathcal{F}_k$ is the evaluation feedback. All $N$ agents execute the same policy in homogeneous self-play, and evaluation over a set of random seeds $S$ yields the mean per-agent return $\bar r_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. Each generated policy passes an AST-based safety check (blocking \texttt{eval}, file I/O, network access) followed by a short smoke test; failures trigger regeneration (up to $R$ attempts) with the error message appended to the prompt.
+
+\paragraph{Feedback.} The hand-designed feedback used by Gallego~\cite{gallego2026} as our starting point packages the previous policy's source code together with all available evaluation signals:
+\begin{equation}
+  \mathcal{F}_k = \big(\textrm{code}(\pi_k),\; \bar r_k,\; \bm_k,\; \mathbf{d}\big),
+\end{equation}
+where $\mathbf{d}$ contains natural-language definitions of each social metric. Exposing the full social-metrics vector (rather than the scalar reward alone) disambiguates distinct failure modes that share the same average return---e.g., under- vs.\ over-cleaning in Cleanup---and consistently improves cooperative outcomes. On Cleanup, this baseline feedback reaches $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. The choice of feedback content is a single design decision within a much larger pipeline configuration space; our two-level framework (Section~\ref{sec:framework}) opens the full space to automated search.
 
 %% ============================================================
 \section{Two-Level Framework}
+\label{sec:framework}
 %% ============================================================
 
 We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The key insight is that the entire inner-loop codebase---not just the feedback level---is a designable artifact that an AI agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
@@ -242,13 +293,13 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 % 2. Pipeline
 \node[mbox=pipcolor, below=0.42cm of R] (P) {%
   \textbf{Pipeline} $c_j$%
-  \;\;{\scriptsize $p,\;\ell,\;\phi,\;\mathcal{H},\;\iota,\;v$}};
+  \;\;{\scriptsize $p,\;\phi,\;\mathcal{H},\;\iota,\;v$}};
 % 3. Inner loop sub-nodes — center Validate under Pipeline
 \node[sbox, below=0.8cm of P] (V) {Validate};
 \node[sbox, left=0.12cm of V] (S) {Synthesize $\cM$};
 \node[sbox, right=0.12cm of V] (Ev) {Evaluate in $\cG$};
 % Feedback below, centered under Validate
-\node[sbox, minimum width=0.9cm, below=0.28cm of V] (FB) {Feedback $\mathcal{F}_k^\ell$};
+\node[sbox, minimum width=0.9cm, below=0.28cm of V] (FB) {Feedback $\mathcal{F}_k$};
 % Inner loop frame
 \begin{scope}[on background layer]
 \node[draw=ilcolor!35, fill=ilcolor!3, rounded corners=5pt, line width=0.55pt,
@@ -306,9 +357,9 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 
 Let $\cC$ denote the space of \emph{pipeline configurations}. Each configuration $c \in \cC$ specifies the full inner-loop setup:
 \begin{equation}
-  c = (p,\, \ell,\, \phi,\, \mathcal{H},\, \iota,\, v)
+  c = (p,\, \phi,\, \mathcal{H},\, \iota,\, v)
 \end{equation}
-where $p$ is the system prompt, $\ell$ is the feedback template, $\phi$ is the feedback construction function, $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
+where $p$ is the system prompt, $\phi$ is the feedback construction function (which content to include, how to frame it, whether to inject adaptive hints), $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
 
 \begin{table}[t]
 \caption{Configuration components modifiable by the researcher. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
@@ -320,8 +371,7 @@ where $p$ is the system prompt, $\ell$ is the feedback template, $\phi$ is the f
  & Scope & Examples \\
 \midrule
 $p$ & System prompt & Hints, worked examples \\
-$\ell$ & Feedback template & Metric subset, framing \\
-$\phi$ & Feedback fn & Derived metrics, trends \\
+$\phi$ & Feedback fn & Metric subset, framing, derived metrics, trends \\
 $\mathcal{H}$ & Helper library & Pathfinding, zones \\
 $\iota$ & Iteration logic & $K$, eval seeds, best-of-$n$ \\
 $v$ & Validation & Safety checks, smoke tests \\
@@ -329,7 +379,7 @@ $v$ & Validation & Safety checks, smoke tests \\
 \end{tabular}
 \end{table}
 
-The sparse vs.\ dense comparison of~\cite{gallego2026} corresponds to a single binary choice within the $\ell$ component. Our framework opens the full configuration space to automated search.
+The hand-designed feedback of~\cite{gallego2026} corresponds to a single fixed instantiation of $\phi$. Our framework opens the full configuration space to automated search.
 
 \subsection{Inner Loop (Policy Synthesis)}
 
@@ -339,10 +389,10 @@ Given a configuration $c$, the inner loop executes $K$ iterations of LLM policy 
 \end{equation}
 Each iteration $k$ proceeds in four stages, following~\cite{gallego2026}:
 \begin{enumerate}
-  \item \textbf{Synthesize.} The policy LLM $\cM$ receives the system prompt $p$, the previous policy's source code $\pi_{k-1}$, and feedback $\mathcal{F}_{k-1}^\ell$ constructed according to $(\ell, \phi)$. It generates a new Python policy function $\pi_k$ that has access to full environment state and the helper library $\mathcal{H}$.
+  \item \textbf{Synthesize.} The policy LLM $\cM$ receives the system prompt $p$, the previous policy's source code $\pi_{k-1}$, and feedback $\mathcal{F}_{k-1}$ constructed by $\phi$. It generates a new Python policy function $\pi_k$ that has access to full environment state and the helper library $\mathcal{H}$.
   \item \textbf{Validate.} The generated code undergoes AST-based safety checks (blocking dangerous operations such as file I/O and network access) followed by a short smoke test. Failures trigger re-generation (up to $R$ retries), with the error message appended to the prompt.
   \item \textbf{Evaluate.} All $N$ agents execute the same policy $\pi_k$ in self-play over $|S|$ random seeds. The evaluation yields the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$.
-  \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$ according to the template $\ell$. Under sparse feedback, $\cM$ sees only the scalar reward; under dense feedback, it additionally receives all social metrics with natural-language definitions.
+  \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$, packaging the previous policy's source code together with the scalar reward, the social metrics vector, their natural-language definitions, and any adaptive diagnostics that $\phi$ injects.
 \end{enumerate}
 
 The inner loop output is evaluated on held-out seeds via a fixed ground-truth objective:
@@ -405,7 +455,7 @@ Table~\ref{tab:analogy} formalizes the correspondence between autoresearch for L
  & Autoresearch & This work \\
 \midrule
 Modifiable & \texttt{train.py} & Inner-loop codebase \\
-artifact & (model + optimizer) & $(p, \ell, \phi, \mathcal{H}, \iota, v)$ \\
+artifact & (model + optimizer) & $(p, \phi, \mathcal{H}, \iota, v)$ \\
 \addlinespace
 Frozen & \texttt{prepare.py} & Environment $\cG$, \\
 infrastructure & (data, tokenizer, eval) & eval $\Phi$, LLM $\cM$ \\
@@ -467,7 +517,7 @@ For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $
 Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}. We additionally test with Gemma 4 26B-A4B-IT (Google), a smaller open-weight model, to probe the framework's behavior when the policy synthesizer has substantially lower capability (Appendix~\ref{app:gemma}).
 
 \paragraph{Baselines.}
-The hand-designed dense feedback (reward + social metrics) configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \ell, \phi, \mathcal{H}, \iota, v)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method (each GEPA step costs ${\sim}3$ policy evaluations, comparable to our inner loop's $K{+}1{=}4$).
+The hand-designed feedback configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \phi, \mathcal{H}, \iota, v)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method (each GEPA step costs ${\sim}3$ policy evaluations, comparable to our inner loop's $K{+}1{=}4$).
 
 \paragraph{Inner loop parameters.}
 $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated over $|S|{=}5$--$12$ random seeds (researcher-configurable). The researcher ran $J{=}3$--$17$ outer iterations per run (mean: 8.3), with a keep rate of 18\%--100\% (mean: 63\%).
@@ -477,7 +527,7 @@ $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated ov
 Table~\ref{tab:results} presents the main results, comparing autoresearch against the hand-designed baseline of~\cite{gallego2026} and GEPA prompt optimization~\cite{agrawal2026}.
 
 \begin{table}[t]
-\caption{Results. Mean\,{\scriptsize/\,max} across 2 runs per condition (4 for Cleanup baselines). Baseline: unmodified pipeline with dense feedback from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
+\caption{Results. Mean\,{\scriptsize/\,max} across 2 runs per condition (4 for Cleanup baselines). Baseline: unmodified pipeline from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
 \label{tab:results}
 \centering
 \footnotesize
@@ -550,7 +600,26 @@ Despite fully independent runs, the researcher converges on the same core strate
 In Gathering, the researcher discovers BFS-Voronoi territory partitioning and respawn-timer awareness (Listings~\ref{lst:helper-vor},~\ref{lst:gather-gemini}), with no role differentiation---optimization is purely spatial (who collects which apples) and temporal (respawn-aware positioning).
 
 \paragraph{Common failure modes.}
-Several patterns led to discarded experiments across all runs: (1)~\emph{over-prescription}---adding too many strategic hints confuses the policy LLM, causing generation failures; (2)~\emph{iteration regression}---$K{=}4$ or $K{=}5$ inner iterations often cause catastrophic regression as the LLM ``over-refines'' a working policy; (3)~\emph{feedback overload}---dense per-agent diagnostics cause over-correction rather than gradual improvement; (4)~\emph{variance exposure}---identical configurations can yield $U{=}3.2$ then $U{=}0.09$ on different seeds, requiring multi-seed evaluation for stable signals (per-run $K, |S|$ in Table~\ref{tab:iota}).
+Several patterns led to discarded experiments across all runs: (1)~\emph{over-prescription}---adding too many strategic hints confuses the policy LLM, causing generation failures; (2)~\emph{iteration regression}---$K{=}4$ or $K{=}5$ inner iterations often cause catastrophic regression as the LLM ``over-refines'' a working policy; (3)~\emph{feedback overload}---verbose per-agent diagnostics cause over-correction rather than gradual improvement; (4)~\emph{variance exposure}---identical configurations can yield $U{=}3.2$ then $U{=}0.09$ on different seeds, requiring multi-seed evaluation for stable signals (per-run $K, |S|$ in Table~\ref{tab:iota}).
+
+%% ============================================================
+\section{Related Work}
+%% ============================================================
+
+\paragraph{Sequential social dilemmas.}
+SSDs were introduced by Leibo et al.~\cite{leibo2017} (Gathering) and extended to public-goods settings by Hughes et al.~\cite{hughes2018} (Cleanup); Perolat et al.~\cite{perolat2017} formalized the social outcome metrics $(U, E, S, P)$ used here. Subsequent work studies inequity aversion, intrinsic motivation, and reputational mechanisms for promoting cooperation in MARL agents. We complement this line by automating the search for cooperative \emph{programs} rather than evolving neural policies, and by treating the welfare objective $\Phi$ as a designable parameter that the outer agent optimizes for---obtaining qualitatively different cooperative behaviors (static role assignment vs.\ duty rotation) under different objectives without changing the environment.
+
+\paragraph{LLMs for policy and program synthesis.}
+FunSearch~\cite{romera2024} evolves programs for combinatorial discovery; Eureka~\cite{ma2024} synthesizes reward functions from environment source code; Voyager~\cite{wang2024} and Code as Policies~\cite{liang2023} generate executable skill code for single-agent embodied control; ReEvo~\cite{ye2024} evolves heuristics with reflective feedback. These works target single-agent settings or non-strategic optimization. Gallego~\cite{gallego2026}, on which our inner loop is based, extended LLM program synthesis to the multi-agent SSD setting, where one program must coordinate $N$ self-play copies. Our contribution is one level above: rather than tuning the synthesizer for one task, we let an outer agent rewrite the synthesis pipeline itself.
+
+\paragraph{LLM reflection and prompt optimization.}
+Reflexion~\cite{shinn2023}, Self-Refine~\cite{madaan2023}, OPRO~\cite{yang2024}, and GEPA~\cite{agrawal2026} demonstrate that structured verbal feedback loops improve LLM outputs; ERL~\cite{shi2026} internalizes such reflection via self-distillation. These methods optimize the prompt or the model's reasoning trajectory in isolation. Our framework instead modifies the entire surrounding pipeline---system prompt, feedback construction, helper library, iteration logic, validation---making prompt optimization (cf.\ GEPA) one component of a strictly larger search space. The empirical gap is large: Section~\ref{sec:experiments} shows full-pipeline autoresearch achieving $3{\times}$ higher efficiency in Cleanup and $37\%$ higher in Gathering than GEPA at matched compute, with run-to-run spread an order of magnitude tighter on the harder fairness objective.
+
+\paragraph{Automated AI research.}
+A small but growing body of work delegates the design of ML pipelines to LLM coding agents. Karpathy's autoresearch~\cite{karpathy2026} runs a coding agent that modifies \texttt{train.py} for nanoGPT pretraining and is rewarded for validation loss. Our system shares this autoresearch architecture---coding agent + frozen evaluation harness + diff-based history---but targets a different inner loop (multi-agent policy synthesis instead of single-model pretraining) and a different objective (multi-agent social welfare instead of validation bits-per-byte). To our knowledge this is the first instantiation of the autoresearch paradigm in a multi-agent decision-making domain.
+
+\paragraph{Automated mechanism and information design.}
+Classical automated mechanism design~\cite{conitzer2002} computes optimal allocation rules for self-interested agents under explicit incentive constraints, while information design~\cite{kamenica2011} studies how a principal commits to a signaling policy that shapes a receiver's behavior. Our outer agent solves a related but distinct problem: $\cM$ is not strategically deceptive (it follows instructions) but is \emph{boundedly rational}, so the researcher must decide what information, helpers, and structure to expose so that $\cM$ writes policies achieving the principal's welfare goal. Section~\ref{sec:experiments} shows that the pipelines $\cR$ produces are genuinely a function of the welfare objective, supporting this information-design framing empirically.
 
 %% ============================================================
 \section{Discussion and Conclusion}
@@ -667,7 +736,7 @@ We test the framework with Gemma 4 26B-A4B-IT (Google), a 26B-parameter open-wei
 \paragraph{Results.} Table~\ref{tab:gemma} presents the best configurations discovered. Under efficiency optimization, the researcher achieves $U{=}0.87$---a dramatic recovery from the broken baseline but far below frontier models ($U{\approx}3.2$). The researcher compensates for the model's limited capability by reducing inner-loop iterations to $K{=}1$ (avoiding the regression that plagued $K{\geq}2$ runs) and providing highly structured worked examples with explicit cleaning-role assignment.
 
 \begin{table}[h]
-\caption{Autoresearch with Gemma 4 26B-A4B-IT. Single run per condition. Baseline: dense feedback pipeline from~\cite{gallego2026}.}
+\caption{Autoresearch with Gemma 4 26B-A4B-IT. Single run per condition. Baseline: pipeline from~\cite{gallego2026}.}
 \label{tab:gemma}
 \centering
 \small
@@ -701,7 +770,7 @@ On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$
 \label{app:artifacts}
 %% ============================================================
 
-The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \ell, \phi, \mathcal{H}, \iota, v)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering).
+The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \phi, \mathcal{H}, \iota, v)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering).
 
 \subsection{Helper library $\mathcal{H}$: coordination primitives}
 \label{app:art-helpers}
@@ -815,7 +884,7 @@ The Gathering prompt evolves along a different axis (no maximin, no rotation). I
 \subsection{Feedback $\phi$: adaptive diagnostics}
 \label{app:art-feedback}
 
-The baseline feedback function (\cite{gallego2026}, dense mode) shows reward + four social metrics with definitions and stops there. The researcher turns it into a state machine: it inspects the latest metrics and conditionally injects different hints. Two different runs produced two qualitatively different diagnostics --- the same metric ($\bar r_k$ or $\min_i R_i$) is repurposed to either \emph{stabilize} a working policy or \emph{redirect} a failing one.
+The baseline feedback function from~\cite{gallego2026} shows reward + four social metrics with definitions and stops there. The researcher turns it into a state machine: it inspects the latest metrics and conditionally injects different hints. Two different runs produced two qualitatively different diagnostics --- the same metric ($\bar r_k$ or $\min_i R_i$) is repurposed to either \emph{stabilize} a working policy or \emph{redirect} a failing one.
 
 \begin{lstlisting}[style=pythonpolicy, caption={Adaptive feedback diagnostics. \emph{Top}: efficiency-optimized run (exp1) -- a stability guard prevents iter-3 regression once $U$ is high. \emph{Bottom}: maximin-optimized run (exp5) -- two fairness diagnostics that fire when the worst-off agent loses reward.}, label={lst:feedback-adapt}]
 # --- Cleanup, Phi_U feedback (exp1, pipeline/feedback.py final) ---
@@ -882,7 +951,7 @@ The maximin Gemini run is the most informative case: the researcher discovered t
   \item \emph{Helpers do the algebra; prompts pick the strategy class.} The researcher uses helpers (\ref{lst:helper-zone},~\ref{lst:helper-vor}) to put non-trivial primitives at $\cM$'s fingertips, and the prompt (\ref{lst:prompt-min}) to tell $\cM$ \emph{which} primitive to compose. Neither is sufficient alone --- prompts without supporting helpers produced policies that ``mention rotation'' but failed to implement it; helpers without prompt updates often went unused.
   \item \emph{Feedback is the only adaptive component.} $p$, $\mathcal{H}$, and $\iota$ are static within a run; $\phi$ is the only place where the researcher gets to change what $\cM$ sees \emph{during} the inner loop, and it uses thresholded diagnostics (Listing~\ref{lst:feedback-adapt}) to do so. This is what mostly drives the run-to-run variance reduction.
   \item \emph{The same artifact has different content under each objective.} The Cleanup prompt under $\Phi_U$ omits ``rotation'' and ``maximin'' entirely; the same prompt under $\Phi_{\min}$ devotes its entire opening section to it. The configuration $c$ is genuinely a function of the welfare objective $\Phi$, not a fixed pipeline parameterized by it --- consistent with the information-design framing of Section~3.
-  \item \emph{The researcher's edits are short and targeted.} The full diff between the dense-feedback baseline and the best maximin Gemini configuration totals ${\sim}300$ added lines spread over four files; ${\sim}80$ of them appear in the listings above. The remaining content is API documentation and worked examples, included for completeness but not strategically novel.
+  \item \emph{The researcher's edits are short and targeted.} The full diff between the baseline pipeline and the best maximin Gemini configuration totals ${\sim}300$ added lines spread over four files; ${\sim}80$ of them appear in the listings above. The remaining content is API documentation and worked examples, included for completeness but not strategically novel.
 \end{itemize}
 
 %% ============================================================
