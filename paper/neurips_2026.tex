@@ -441,53 +441,8 @@ At each outer iteration $j$, the researcher $\cR$ receives:
 
 The researcher proposes a new configuration $c_j$ by generating code modifications. Concretely, $\cR$ is a coding agent (Claude Code CLI) that operates on a real software repository: it reads and edits Python source files, runs shell commands, inspects evaluation outputs, and commits changes to a dedicated git branch---the same workflow a human researcher would follow. This mirrors the autoresearch setup, where an AI coding agent modifies \texttt{train.py} and observes validation loss; here, the researcher modifies the inner-loop codebase and observes social welfare.
 
-\subsection{Structural Analogy}
-
-Table~\ref{tab:analogy} formalizes the correspondence between autoresearch for LLM pretraining and our two-level system.
-
-\begin{table}[t]
-\caption{Structural analogy between autoresearch~\cite{karpathy2026} for LLM pretraining and our framework for multi-agent policy synthesis.}
-\label{tab:analogy}
-\centering
-\small
-\begin{tabular}{@{}lll@{}}
-\toprule
- & Autoresearch & This work \\
-\midrule
-Modifiable & \texttt{train.py} & Inner-loop codebase \\
-artifact & (model + optimizer) & $(p, \phi, \mathcal{H}, \iota, v)$ \\
-\addlinespace
-Frozen & \texttt{prepare.py} & Environment $\cG$, \\
-infrastructure & (data, tokenizer, eval) & eval $\Phi$, LLM $\cM$ \\
-\addlinespace
-Metric & val\_bpb $\downarrow$ & $\Phi$ (social welfare) $\uparrow$ \\
-\addlinespace
-Budget & 5 min wall clock & $K$ iters $\times$ $|S|$ seeds \\
-\addlinespace
-Agent & AI coding agent & Researcher $\cR$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-The key structural property shared by both systems: the agent modifies \emph{how learning happens} (the pipeline/training code), not the learned artifact directly (the policy/model weights). The output of each outer iteration is a \emph{reusable configuration}---transferable across policy LLMs, games, and random seeds---rather than a single policy.
-
-\subsection{Design Principles}
-
-\paragraph{Separation of concerns.}
-The researcher $\cR$ and the synthesizer $\cM$ are distinct LLM calls with distinct roles. $\cR$ reasons about \emph{what information and tools help $\cM$ write better policies}; $\cM$ reasons about \emph{what policy to write given its current context}. Using different underlying models ($\cR \neq \cM$) avoids conflation and enables cross-model experiments.
-
-\paragraph{Read-only environment.}
-The researcher can read the environment source code to understand game mechanics but cannot modify the simulator. This prevents the trivial solution of making the game easier and cleanly separates mechanism design from environment design.
-
-\paragraph{Fixed compute budget.}
-Each inner loop runs for exactly $K$ iterations with $|S|$ seeds. The researcher cannot inflate performance by running more iterations, but can change what happens \emph{within} those $K$ iterations (e.g., best-of-$n$ sampling, varying the prompt structure mid-run).
-
-\paragraph{Diff-based history.}
-The researcher sees code diffs $\Delta_j$ from previous experiments alongside their outcomes. This enables causal reasoning about which modifications drove which improvements, mirroring autoresearch's experiment logs.
-
-%% ============================================================
-\section{Connection to Automated Mechanism Design}
-%% ============================================================
+\subsection{Connection to Automated Mechanism Design}
+\label{sec:mechdesign}
 
 The two-level structure admits a mechanism design interpretation. The researcher $\cR$ acts as a \emph{mechanism designer}: it controls the information structure (what metrics to reveal, how to frame them), the action space (what helper functions are available), and the incentive structure (how feedback is presented) under which the policy synthesizer $\cM$ operates. The synthesizer acts as the \emph{agent} within the designed mechanism.
 
@@ -628,7 +583,7 @@ Classical automated mechanism design~\cite{conitzer2002} computes optimal alloca
 We have presented a two-level framework where an AI coding agent autonomously discovers pipeline configurations that improve the output of an inner-loop LLM system. Applied to multi-agent policy synthesis in social dilemmas, the researcher agent reliably exceeds hand-designed baselines across 12 independent runs, and converges on qualitatively similar strategies within each game--objective condition. The framework requires no domain-specific scaffolding: the agent operates on a standard software repository using the same tools (file editing, shell commands, git) available to a human researcher.
 
 \paragraph{Mechanism design in action.}
-Our results empirically support the mechanism design interpretation of Section~3. The researcher acts as an information designer: under $\Phi_U$, it reveals efficiency-oriented information (waste counts, zone assignments) that guides $\cM$ toward productive but unequal role allocation (Listing~\ref{lst:eff-gemini}). Under $\Phi_{\min}$, it additionally reveals fairness-oriented structure---rotation schedules and per-agent equity feedback (Listings~\ref{lst:prompt-min},~\ref{lst:feedback-adapt})---guiding $\cM$ toward egalitarian coordination. The striking absence of a fairness--efficiency tradeoff with Gemini suggests that in public goods provision, the mechanism design problem has a cooperative optimum where both objectives align---the researcher discovers this independently.
+Our results empirically support the mechanism design interpretation of Section~\ref{sec:mechdesign}. The researcher acts as an information designer: under $\Phi_U$, it reveals efficiency-oriented information (waste counts, zone assignments) that guides $\cM$ toward productive but unequal role allocation (Listing~\ref{lst:eff-gemini}). Under $\Phi_{\min}$, it additionally reveals fairness-oriented structure---rotation schedules and per-agent equity feedback (Listings~\ref{lst:prompt-min},~\ref{lst:feedback-adapt})---guiding $\cM$ toward egalitarian coordination. The striking absence of a fairness--efficiency tradeoff with Gemini suggests that in public goods provision, the mechanism design problem has a cooperative optimum where both objectives align---the researcher discovers this independently.
 
 \paragraph{Two types of dilemma.}
 The Cleanup--Gathering contrast reveals a structural insight about social dilemmas: \emph{provision} dilemmas (asymmetric costs, one agent's contribution benefits all) require explicit fairness mechanisms, while \emph{restraint} dilemmas (symmetric costs, each agent faces the same temptation) achieve fairness naturally when coordination improves. This distinction, well-known in the common-pool resource literature, is rediscovered here by an autonomous AI agent---suggesting it is a robust structural feature of these environments.
@@ -640,8 +595,7 @@ Our system is fully autonomous by design, but its architecture offers natural af
 Our experiments use only 2 replications per condition, yielding high uncertainty on some estimates (e.g., Sonnet $\Phi_{\min}$: $U{=}2.57$/$2.93$). The two SSDs are small gridworld environments; scaling to larger, more complex games remains open. The researcher runs are not fully controlled---the number of outer iterations varies from 3 to 17 (mean 8.3)---making direct comparison across conditions approximate. The GEPA comparison uses a single run per condition; additional replications would strengthen confidence in the comparison.
 
 \paragraph{Future work.}
-Five directions emerge: (1)~\emph{new domains}---apply the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; (2)~\emph{ablation}---freeze all configuration components except one to isolate the relative importance of prompt, feedback, helpers, and iteration logic; (3)~\emph{adversarial objectives}---set $\Phi = R_0$ (agent~0's reward only) to test whether the researcher discovers exploitative pipeline configurations, connecting to the reward hacking analysis of~\cite{gallego2026}; (4)~\emph{cross-game transfer}---run the best Cleanup configuration on Gathering and vice versa, testing game-generality; (5)~\emph{heterogeneous policies}---extend to settings where agents run different code, enabling richer role specialization. Code is available at \url{https://github.com/vicgalle/llm-policies-social-dilemmas}.
-
+Five directions emerge: (1)~\emph{new domains}---apply the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; (2)~\emph{ablation}---freeze all configuration components except one to isolate the relative importance of prompt, feedback, helpers, and iteration logic; (3)~\emph{adversarial objectives}---set $\Phi = R_0$ (agent~0's reward only) to test whether the researcher discovers exploitative pipeline configurations, connecting to the reward hacking analysis of~\cite{gallego2026}; (4)~\emph{cross-game transfer}---run the best Cleanup configuration on Gathering and vice versa, testing game-generality; (5)~\emph{heterogeneous policies}---extend to settings where agents run different code, enabling richer role specialization.
 
 \bibliographystyle{unsrt}
 \bibliography{references}
@@ -876,7 +830,7 @@ IMPORTANT:
 - NEVER use BEAM (action 6) -- it destroys both agents' rewards.
 \end{lstlisting}
 
-Two things stand out. First, the researcher writes the formula it expects $\cM$ to use almost verbatim --- \texttt{(agent\_id + env.\_step\_count // SHIFT) \% env.n\_agents < NUM\_CLEANERS} --- and the policy in Listing~\ref{lst:min-gemini} uses essentially this template. Second, the researcher \emph{teaches by counter-example}: the explicit ``8 agents earn +200, 2 earn -100, maximin = -100'' makes the failure mode of $\Phi_U$-style static roles (Listing~\ref{lst:eff-gemini}) concretely visible to $\cM$. This is the information-design move predicted by the mechanism-design framing in Section~3.
+Two things stand out. First, the researcher writes the formula it expects $\cM$ to use almost verbatim --- \texttt{(agent\_id + env.\_step\_count // SHIFT) \% env.n\_agents < NUM\_CLEANERS} --- and the policy in Listing~\ref{lst:min-gemini} uses essentially this template. Second, the researcher \emph{teaches by counter-example}: the explicit ``8 agents earn +200, 2 earn -100, maximin = -100'' makes the failure mode of $\Phi_U$-style static roles (Listing~\ref{lst:eff-gemini}) concretely visible to $\cM$. This is the information-design move predicted by the mechanism-design framing in Section~\ref{sec:mechdesign}.
 
 The Gathering prompt evolves along a different axis (no maximin, no rotation). Its researcher-added ``Key Strategic Insights'' section instead emphasizes \emph{(i)~self-play implies never beam} and \emph{(ii)~Voronoi partition each step}, exactly matching what the policy in Listing~\ref{lst:gather-gemini} implements.
 
@@ -950,7 +904,7 @@ The maximin Gemini run is the most informative case: the researcher discovered t
 \begin{itemize}
   \item \emph{Helpers do the algebra; prompts pick the strategy class.} The researcher uses helpers (\ref{lst:helper-zone},~\ref{lst:helper-vor}) to put non-trivial primitives at $\cM$'s fingertips, and the prompt (\ref{lst:prompt-min}) to tell $\cM$ \emph{which} primitive to compose. Neither is sufficient alone --- prompts without supporting helpers produced policies that ``mention rotation'' but failed to implement it; helpers without prompt updates often went unused.
   \item \emph{Feedback is the only adaptive component.} $p$, $\mathcal{H}$, and $\iota$ are static within a run; $\phi$ is the only place where the researcher gets to change what $\cM$ sees \emph{during} the inner loop, and it uses thresholded diagnostics (Listing~\ref{lst:feedback-adapt}) to do so. This is what mostly drives the run-to-run variance reduction.
-  \item \emph{The same artifact has different content under each objective.} The Cleanup prompt under $\Phi_U$ omits ``rotation'' and ``maximin'' entirely; the same prompt under $\Phi_{\min}$ devotes its entire opening section to it. The configuration $c$ is genuinely a function of the welfare objective $\Phi$, not a fixed pipeline parameterized by it --- consistent with the information-design framing of Section~3.
+  \item \emph{The same artifact has different content under each objective.} The Cleanup prompt under $\Phi_U$ omits ``rotation'' and ``maximin'' entirely; the same prompt under $\Phi_{\min}$ devotes its entire opening section to it. The configuration $c$ is genuinely a function of the welfare objective $\Phi$, not a fixed pipeline parameterized by it --- consistent with the information-design framing of Section~\ref{sec:mechdesign}.
   \item \emph{The researcher's edits are short and targeted.} The full diff between the baseline pipeline and the best maximin Gemini configuration totals ${\sim}300$ added lines spread over four files; ${\sim}80$ of them appear in the listings above. The remaining content is API documentation and worked examples, included for completeness but not strategically novel.
 \end{itemize}
 
