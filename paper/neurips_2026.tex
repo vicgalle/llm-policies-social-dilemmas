@@ -419,9 +419,9 @@ The inner loop output is evaluated on held-out seeds via a fixed ground-truth ob
   \Phi(c) = \textsc{Eval}(\pi^*_c;\; \cG,\; S_{\text{held-out}})
   \label{eq:phi}
 \end{equation}
-where $\Phi$ maps from social outcomes to a scalar. We consider two objectives:
+where $\Phi$ maps from social outcomes to a scalar. We consider two alternative objectives to maximize:
 \begin{align}
-  \Phi_U &= U & \text{(utilitarian efficiency)} \label{eq:eff}\\
+  \Phi_U &= U = \frac{1}{H}\sum_{i=1}^{N} R_i & \text{(utilitarian efficiency)} \label{eq:eff}\\
   \Phi_{\min} &= \min_i R_i & \text{(Rawlsian maximin)} \label{eq:rawls}
 \end{align}
 
@@ -430,7 +430,7 @@ where $\Phi$ maps from social outcomes to a scalar. We consider two objectives:
 The researcher agent $\cR$ iteratively modifies the pipeline configuration. Following the autoresearch paradigm~\cite{karpathy2026}, $\cR$ operates on the inner-loop codebase as a modifiable artifact, proposing changes, observing outcomes, and refining. The procedure is formalized in Algorithm~\ref{alg:outer}.
 
 At each outer iteration $j$, the researcher $\cR$ receives: i) the \textbf{full source code} of the current configuration $c_{j-1}$ (prompts, feedback construction, helpers, iteration logic); ii) the \textbf{experiment history}: for each prior iteration, the code diff $\Delta_i$, ground-truth score $\Phi_i$, and social metrics vector $\bm_i$; iii) the \textbf{environment source code} (read-only), enabling the researcher to reason about game mechanics.
-The researcher proposes a new configuration $c_j$ by generating code modifications. Concretely, $\cR$ is a coding agent (Claude Code CLI) that operates on a real software repository: it reads and edits Python source files, runs shell commands, inspects evaluation outputs, and commits changes to a dedicated git branch, following the same workflow a human researcher would follow. This mirrors the original autoresearch setup \cite{karpathy2026}, where an AI coding agent modifies \texttt{train.py} and observes validation loss; here, the researcher modifies the inner-loop codebase and observes social welfare.
+The researcher proposes a new configuration $c_j$ by generating code modifications. Concretely, $\cR$ is a coding agent (Claude Code CLI) that operates on a real software repository: it reads and edits Python source files, runs shell commands, inspects evaluation outputs, and commits changes to a dedicated git branch, following the same workflow a human researcher would follow.
 
 \subsection{Connection to Automated Mechanism Design}
 \label{sec:mechdesign}
