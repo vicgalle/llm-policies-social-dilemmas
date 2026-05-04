@@ -248,11 +248,11 @@ A frozen LLM $\cM$ acts as the \emph{policy synthesizer}. Given a system prompt 
 \]
 where $\pi_k$ is the previous policy (its source code) and $\mathcal{F}_k$ is the evaluation feedback. All $N$ agents execute the same program $\pi_k$ in self-play. We stress that this is \emph{symmetric}, not \emph{behaviorally homogeneous}: since $\pi_k$ takes \texttt{agent\_id} as an argument, a single shared program can induce distinct per-agent behaviors (cleaner vs.\ gatherer assignment, time-rotated duty cycles, partitioned territories; see the synthesized policies in Appendix~\ref{app:policies}). What is shared is the source code; the sampled action distributions can differ across agents. Evaluation over a set of random seeds $S$ yields the mean per-agent return $\bar r_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. Each generated policy passes an AST-based safety check (blocking \texttt{eval}, file I/O, network access) followed by a short smoke test; failures trigger regeneration (up to $R$ attempts) with the error message appended to the prompt.
 
-\paragraph{Feedback.} The hand-designed feedback used by Gallego~\cite{gallego2026} as our starting point packages the previous policy's source code together with all available evaluation signals:
+\paragraph{Feedback.} We package the previous policy's source code together with all available evaluation signals:
 \begin{equation}
   \mathcal{F}_k = \big(\textrm{code}(\pi_k),\; \bar r_k,\; \bm_k,\; \mathbf{d}\big),
 \end{equation}
-where $\mathbf{d}$ contains natural-language definitions of each social metric. Exposing the full social-metrics vector (rather than the scalar reward alone) disambiguates distinct failure modes that share the same average return (e.g., under- vs.\ over-cleaning in Cleanup) and consistently improves cooperative outcomes. On Cleanup, this baseline feedback reaches $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. The choice of feedback content is a single design decision within a much larger pipeline configuration space; our two-level framework (Section~\ref{sec:framework}) opens the full space to automated search.
+where $\mathbf{d}$ contains natural-language definitions of each social metric. The LLM consumes $\mathcal{F}_k$ to revise and improve the policy. This is a starting point; the choice of feedback content is a single design decision within a much larger pipeline configuration space: our two-level framework (Section~\ref{sec:framework}) opens the full space to automated search.
 
 %% ============================================================
 \section{Two-Level Framework}
