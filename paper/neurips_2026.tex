@@ -379,7 +379,7 @@ Let $\cC$ denote the space of \emph{pipeline configurations}. Each configuration
 \begin{equation}
   c = (p,\, \phi,\, \mathcal{H},\, \iota)
 \end{equation}
-where $p$ is the system prompt, $\phi$ is the feedback construction function (which metrics and diagnostics to include, how to frame it, whether to inject adaptive hints and thresholds, etc), $\mathcal{H}$ is the helper function library (auxiliary functions for pathfinding, getting aggregates of useful environemnt quantities, etc.), and $\iota$ specifies the iteration logic (number of inner iterations $K$, sampling strategy). The validation pipeline (AST safety checks and smoke test) is part of the frozen inner-loop infrastructure rather than a configurable component, the researcher cannot modify it in our experiments. Table~\ref{tab:config} provides concrete examples.
+where $p$ is the system prompt, $\phi$ is the feedback construction function (which metrics and diagnostics to include, how to frame it, whether to inject adaptive hints and thresholds, etc), $\mathcal{H}$ is the helper function library (auxiliary functions for pathfinding, getting aggregates of useful environemnt quantities, etc.), and $\iota$ specifies the iteration logic (number of inner iterations $K$, sampling strategy). Table~\ref{tab:config} provides concrete examples. The validation pipeline is part of the frozen inner-loop infrastructure rather than a configurable component, the researcher cannot modify it in our experiments to prevent reward hacking.
 
 \begin{table}[t]
 \caption{Configuration components modifiable by the researcher, with concrete edits that $\cR$ made in our runs. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
