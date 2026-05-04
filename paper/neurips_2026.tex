@@ -622,6 +622,23 @@ Cleaning cost economics & 2/4 & 3/4 \\
 \label{fig:eff_eq}
 \end{figure}
 
+\paragraph{Inner-loop averages confirm a broad-based improvement.}
+Figures~\ref{fig:efficiency} and~\ref{fig:maximin} report the metric of the \emph{kept} inner-loop output ($\pi^*_c$) at each outer iteration. A natural concern is that this could overstate pipeline quality if the researcher is benefitting from variance: with $K$ inner iterations per outer step, a single lucky generation could carry the curve while the rest of the inner trajectory is noise. Figures~\ref{fig:efficiency_avg} and~\ref{fig:maximin_avg} replot the same runs with the metric averaged across \emph{all} inner iterations of each outer step. The trajectories ramp at essentially the same rate, with only mild attenuation: Cleanup mean efficiency still climbs to $\bar U \approx 2.5$--$3.0$ (vs.\ $3.1$--$3.2$ for the kept policy), Gathering still saturates at $\bar U \approx 2.5$, and Cleanup mean maximin still reaches $\overline{\min_i R_i} \approx 200$--$275$ (vs.\ $179$--$290$). The whole inner-loop output distribution improves, not just its tail, consistent with the interpretation that the researcher is shaping the synthesizer's behavior rather than amplifying lucky draws.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.79\textwidth]{./images/fig1b_efficiency_trajectory_avg.png}
+\caption{Mean efficiency $\bar U$ \emph{averaged across all inner iterations} of each outer step (compare Figure~\ref{fig:efficiency}, which shows the kept policy only). \emph{Left}: Cleanup ($N{=}10$); \emph{right}: Gathering ($N{=}4$). The trajectories track Figure~\ref{fig:efficiency} closely, indicating that the researcher's gains come from improving the entire inner-loop output distribution, not just the best of $K$ samples.}
+\label{fig:efficiency_avg}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.79\columnwidth]{./images/fig2b_maximin_trajectory_avg.png}
+\caption{Mean maximin $\overline{\min_i R_i}$ \emph{averaged across all inner iterations} of each outer step for the 4 Cleanup $\Phi_{\min}$ runs (compare Figure~\ref{fig:maximin}). The deeply negative baselines lift to $\sim$200--275 mean maximin, only mildly below the kept-policy values of Figure~\ref{fig:maximin}. The horizontal dashed line marks $\overline{\min_i R_i} = 0$.}
+\label{fig:maximin_avg}
+\end{figure}
+
 \subsection{Smaller Open-Weight Model: Gemma 4 26B}
 \label{app:gemma}
 

@@ -3,8 +3,12 @@
 
 Reads results.tsv files from all 12 experiment directories and produces:
   - Figure 1: Efficiency trajectory (running best) across researcher iterations
+  - Figure 1b: Same as Figure 1, but using the mean efficiency across the
+    inner-loop iterations of each researcher step (instead of the final iter).
   - Figure 2: Maximin trajectory for the 4 maximin-targeted runs
+  - Figure 2b: Same as Figure 2, but using the mean maximin across iterations.
   - Figure 3: Final efficiency vs equality (bar chart) by condition
+  - Figure 3b: Same as Figure 3, but bars summarise trajectory means.
   - Figure 4: Researcher behavior summary (iterations & keep rate)
 
 Usage:
@@ -12,6 +16,7 @@ Usage:
 """
 
 import csv
+import json
 import os
 from pathlib import Path
 
@@ -91,6 +96,93 @@ def running_best(values: list[float], maximize: bool = True) -> list[float]:
     return out
 
 
+# ── Trajectory loading (per-iteration metrics within each researcher step) ─
+
+def _load_trajectory(run_dir: Path) -> list[dict] | None:
+    """Return the per-iteration trajectory for a single inner-loop run.
+
+    Prefer metrics.json (has top-level 'trajectory'); fall back to history.json
+    (each entry has a 'metrics' subdict). Returns None if neither is usable.
+    """
+    m_path = run_dir / "metrics.json"
+    if m_path.exists():
+        try:
+            with open(m_path) as f:
+                d = json.load(f)
+            traj = d.get("trajectory")
+            if traj:
+                return traj
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    h_path = run_dir / "history.json"
+    if h_path.exists():
+        try:
+            with open(h_path) as f:
+                d = json.load(f)
+            if isinstance(d, list) and d:
+                # Convert history entries to trajectory format
+                traj = []
+                for e in d:
+                    m = e.get("metrics", {})
+                    traj.append({
+                        "iteration": e.get("iteration"),
+                        "reward_avg": e.get("reward_avg", 0.0),
+                        **m,
+                    })
+                return traj
+        except (json.JSONDecodeError, OSError):
+            pass
+    return None
+
+
+def load_trajectories(exp_key: str, tsv_rows: list[dict]) -> list[list[dict] | None]:
+    """Match each TSV row to its corresponding inner-loop trajectory.
+
+    Walks runs/*/ in chronological order, loads each trajectory, and assigns
+    them to TSV rows by matching the row's final efficiency to the
+    trajectory's last iteration efficiency (within tolerance). Scans forward
+    only — preserves chronological order and handles extra/aborted run dirs.
+    """
+    base = BASE / EXPERIMENTS[exp_key]["dir"] / "autoresearch" / "runs"
+    if not base.exists():
+        return [None] * len(tsv_rows)
+
+    candidates = []
+    for sub in sorted(base.iterdir()):
+        if not sub.is_dir():
+            continue
+        traj = _load_trajectory(sub)
+        if traj:
+            candidates.append(traj)
+
+    matched: list[list[dict] | None] = []
+    cursor = 0
+    for row in tsv_rows:
+        target_eff = float(row["efficiency"])
+        chosen = None
+        scan = cursor
+        while scan < len(candidates):
+            last = candidates[scan][-1]
+            if abs(float(last.get("efficiency", float("nan"))) - target_eff) < 5e-3:
+                chosen = candidates[scan]
+                cursor = scan + 1
+                break
+            scan += 1
+        matched.append(chosen)
+    return matched
+
+
+def _mean_field(traj: list[dict] | None, field: str) -> float | None:
+    """Mean of `field` across all iterations in `traj`. None if unavailable."""
+    if not traj:
+        return None
+    vals = [t[field] for t in traj if field in t and t[field] is not None]
+    if not vals:
+        return None
+    return float(np.mean(vals))
+
+
 # ── Load all data ──────────────────────────────────────────────────────────
 data = {}
 for key in EXPERIMENTS:
@@ -101,6 +193,20 @@ for key in EXPERIMENTS:
     eqs = [float(r["equality"]) for r in rows]
     maxs = [float(r["maximin"]) for r in rows] if "maximin" in rows[0] else None
     statuses = [r["status"] for r in rows]
+
+    # Per-row trajectory (one inner-loop run per researcher iteration)
+    trajectories = load_trajectories(key, rows)
+    mean_effs = [_mean_field(t, "efficiency") for t in trajectories]
+    mean_eqs = [_mean_field(t, "equality") for t in trajectories]
+    mean_maxs = [_mean_field(t, "maximin") for t in trajectories]
+    # Fall back to TSV value where the trajectory is missing, so plots stay continuous
+    mean_effs = [m if m is not None else effs[i] for i, m in enumerate(mean_effs)]
+    mean_eqs = [m if m is not None else eqs[i] for i, m in enumerate(mean_eqs)]
+    if maxs is not None:
+        mean_maxs = [m if m is not None else maxs[i] for i, m in enumerate(mean_maxs)]
+    else:
+        mean_maxs = [m for m in mean_maxs]  # may be all None
+
     data[key] = {
         "iters": iters,
         "efficiency": effs,
@@ -109,8 +215,28 @@ for key in EXPERIMENTS:
         "status": statuses,
         "running_best_eff": running_best(effs),
         "running_best_max": running_best(maxs) if maxs else None,
+        "trajectories": trajectories,
+        "mean_efficiency": mean_effs,
+        "mean_equality": mean_eqs,
+        "mean_maximin": mean_maxs,
+        "running_best_mean_eff": running_best(mean_effs),
+        "running_best_mean_max": (
+            running_best([m for m in mean_maxs if m is not None])
+            if any(m is not None for m in mean_maxs) else None
+        ),
         **meta,
     }
+    # running_best_mean_max needs to align with iters even if some are None
+    if any(m is not None for m in mean_maxs):
+        rb = []
+        best = -np.inf
+        for m in mean_maxs:
+            if m is not None:
+                best = max(best, m)
+            rb.append(best if best != -np.inf else None)
+        data[key]["running_best_mean_max"] = rb
+    else:
+        data[key]["running_best_mean_max"] = None
 
 OUT_DIR = Path(__file__).parent / "figures"
 OUT_DIR.mkdir(exist_ok=True)
@@ -382,6 +508,256 @@ def plot_efficiency_equality_bars():
     print(f"  Saved fig3_efficiency_equality")
 
 
+# ── Figure 1b: Efficiency trajectory using AVG-across-iterations metric ───
+def plot_efficiency_trajectory_avg():
+    """Identical to fig1 but each researcher step shows the trajectory mean."""
+    fig, (ax_c, ax_g) = plt.subplots(1, 2, figsize=(5.5, 3.0),
+                                      gridspec_kw={"width_ratios": [2.5, 1.5]},
+                                      sharey=True)
+
+    MARKERS_GATH = {"Gemini": "s", "Sonnet": "D"}
+    legend_entries = {}
+    run_counter = {}
+
+    for key, d in data.items():
+        cond = (d["game"], d["llm"], d["target"])
+        run_counter.setdefault(cond, 0)
+        run_counter[cond] += 1
+        run_num = run_counter[cond]
+
+        color = COLORS[cond]
+        ls = LINESTYLES.get(run_num, "-")
+        ax = ax_c if d["game"] == "Cleanup" else ax_g
+
+        target_lbl = "$\\Phi_U$" if d["target"] == "eff" else "$\\Phi_{\\min}$"
+        label_str = f"{d['llm']}, {target_lbl}"
+        if cond not in legend_entries:
+            legend_entries[cond] = label_str
+            lbl = label_str
+        else:
+            lbl = None
+
+        # Running best of the trajectory-mean efficiency
+        ax.plot(d["iters"], d["running_best_mean_eff"], color=color, ls=ls,
+                lw=1.5, label=lbl, zorder=3)
+
+        mk = MARKERS_GATH.get(d["llm"], "o") if d["game"] == "Gathering" else "o"
+        for i, (eff, st) in enumerate(zip(d["mean_efficiency"], d["status"])):
+            if st in ("keep", "baseline"):
+                ax.scatter(i, eff, marker=mk, s=16, color=color,
+                           edgecolors=color, zorder=2)
+            else:
+                ax.scatter(i, eff, marker=mk, facecolors="white",
+                           edgecolors=color, s=8, linewidths=0.4,
+                           zorder=2, alpha=0.35)
+
+    bl_gem = BASELINES[("Cleanup", "Gemini", "eff")]
+    bl_son = BASELINES[("Cleanup", "Sonnet", "eff")]
+    ax_c.axhline(bl_gem["mean"], color=COLORS[("Cleanup", "Gemini", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+    ax_c.axhline(bl_son["mean"], color=COLORS[("Cleanup", "Sonnet", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+    ax_c.text(17.3, bl_gem["mean"], "BL (Gem)", fontsize=5.5,
+              color=COLORS[("Cleanup", "Gemini", "eff")], ha="left", va="center", alpha=0.7)
+    ax_c.text(17.3, bl_son["mean"], "BL (Son)", fontsize=5.5,
+              color=COLORS[("Cleanup", "Sonnet", "eff")], ha="left", va="center", alpha=0.7)
+
+    bl_gem_g = BASELINES[("Gathering", "Gemini", "eff")]
+    bl_son_g = BASELINES[("Gathering", "Sonnet", "eff")]
+    ax_g.axhline(bl_gem_g["mean"], color=COLORS[("Gathering", "Gemini", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+    ax_g.axhline(bl_son_g["mean"], color=COLORS[("Gathering", "Sonnet", "eff")],
+                 ls=":", lw=0.8, alpha=0.5, zorder=0)
+
+    ax_c.set_xlabel("Researcher iteration")
+    ax_c.set_ylabel("Mean efficiency ($\\overline{U}$)")
+    ax_c.set_title("Cleanup ($N{=}10$)", fontsize=9)
+    ax_c.set_xlim(-0.5, 17.5)
+    ax_c.set_ylim(-0.5, 3.6)
+    ax_c.xaxis.set_major_locator(ticker.MultipleLocator(4))
+    ax_c.legend(loc="center right", framealpha=0.9, fontsize=7)
+
+    ax_g.set_xlabel("Researcher iteration")
+    ax_g.set_title("Gathering ($N{=}4$)", fontsize=9)
+    ax_g.set_xlim(-0.5, 5.5)
+    ax_g.xaxis.set_major_locator(ticker.MultipleLocator(1))
+    ax_g.legend(loc="lower right", framealpha=0.9, fontsize=7)
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig1b_efficiency_trajectory_avg.png")
+    fig.savefig(OUT_DIR / "fig1b_efficiency_trajectory_avg.svg")
+    plt.close(fig)
+    print(f"  Saved fig1b_efficiency_trajectory_avg")
+
+
+# ── Figure 2b: Maximin trajectory using AVG-across-iterations metric ──────
+def plot_maximin_trajectory_avg():
+    """Identical to fig2 but each researcher step shows the trajectory mean."""
+    fig, ax = plt.subplots(figsize=(5.5, 3.2))
+
+    maximin_keys = [k for k, d in data.items() if d["target"] == "max"]
+    run_counter = {}
+
+    for key in maximin_keys:
+        d = data[key]
+        if d["running_best_mean_max"] is None:
+            continue
+        cond = (d["game"], d["llm"], d["target"])
+        run_counter.setdefault(cond, 0)
+        run_counter[cond] += 1
+        run_num = run_counter[cond]
+
+        color = COLORS[cond]
+        ls = LINESTYLES.get(run_num, "-")
+
+        label_str = f"{d['llm']} (run {run_num})"
+        ax.plot(d["iters"], d["running_best_mean_max"], color=color, ls=ls,
+                lw=1.5, label=label_str, zorder=3)
+
+        for i, (val, st) in enumerate(zip(d["mean_maximin"], d["status"])):
+            if val is None:
+                continue
+            if st in ("keep", "baseline"):
+                ax.scatter(i, val, marker="o", s=18, color=color, zorder=2)
+            else:
+                ax.scatter(i, val, marker="o", facecolors="white",
+                           edgecolors=color, s=18, linewidths=0.7, zorder=2)
+
+    ax.axhline(0, color="gray", ls=":", lw=0.8, alpha=0.7)
+    ax.text(0.5, 5, "$\\min_i R_i = 0$", fontsize=7, color="gray", va="bottom")
+
+    bl_mean = np.mean([-98.8, -83.8, -188.6, -59.0])
+    ax.axhline(bl_mean, color="gray", ls=":", lw=0.7, alpha=0.4, zorder=0)
+    ax.text(17.3, bl_mean, "BL", fontsize=5.5,
+            color="gray", ha="left", va="center", alpha=0.6)
+
+    ax.set_xlabel("Researcher iteration")
+    ax.set_ylabel("Mean maximin ($\\overline{\\min_i R_i}$)")
+    ax.set_xlim(-0.5, 17.5)
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(2))
+    ax.legend(loc="lower right", framealpha=0.9)
+    fig.savefig(OUT_DIR / "fig2b_maximin_trajectory_avg.png")
+    fig.savefig(OUT_DIR / "fig2b_maximin_trajectory_avg.svg")
+    plt.close(fig)
+    print(f"  Saved fig2b_maximin_trajectory_avg")
+
+
+# ── Figure 3b: Three-panel bar chart using AVG-across-iterations metric ───
+def plot_efficiency_equality_bars_avg():
+    """Identical to fig3 but bars use trajectory means.
+
+    For each condition: pick the researcher iter with the best mean-efficiency
+    (or mean-maximin, for max-targeted runs) and report the mean U/E/maximin
+    of that iter's trajectory. For Cleanup-eff conditions whose trajectories
+    don't carry maximin, the maximin panel falls back to MAXIMIN_AT_BEST_EFF
+    (the same hand-curated re-evaluations used by fig3).
+    """
+    conditions = [
+        ("Gem\n$\\Phi_U$",        "Cleanup",    "Gemini", "eff"),
+        ("Son\n$\\Phi_U$",        "Cleanup",    "Sonnet", "eff"),
+        ("Gem\n$\\Phi_{\\min}$",  "Cleanup",    "Gemini", "max"),
+        ("Son\n$\\Phi_{\\min}$",  "Cleanup",    "Sonnet", "max"),
+        ("Gem\n(Gath)",            "Gathering",  "Gemini", "eff"),
+        ("Son\n(Gath)",            "Gathering",  "Sonnet", "eff"),
+    ]
+
+    eff_means, eff_errs = [], []
+    eq_means, eq_errs = [], []
+    max_means, max_errs = [], []
+
+    for label, game, llm, target in conditions:
+        runs = [d for d in data.values()
+                if d["game"] == game and d["llm"] == llm and d["target"] == target]
+
+        best_effs, best_eqs, best_maxs = [], [], []
+        for r in runs:
+            mean_eff = r["mean_efficiency"]
+            mean_eq = r["mean_equality"]
+            mean_max = r["mean_maximin"]
+
+            best_idx = int(np.argmax(mean_eff))
+            best_effs.append(mean_eff[best_idx])
+            best_eqs.append(mean_eq[best_idx])
+
+            if game == "Cleanup" and target == "eff":
+                # Trajectory has no maximin for these — reuse MAXIMIN_AT_BEST_EFF
+                # (post-hoc re-evaluations of best-efficiency policies).
+                pass  # filled in below
+            elif target == "max":
+                # For maximin-targeted runs, use mean maximin at the best mean-maximin iter
+                clean_max = [m for m in mean_max if m is not None]
+                if clean_max:
+                    best_max_idx = int(np.argmax([
+                        m if m is not None else -np.inf for m in mean_max
+                    ]))
+                    best_maxs.append(mean_max[best_max_idx])
+            else:
+                if mean_max[best_idx] is not None:
+                    best_maxs.append(mean_max[best_idx])
+
+        eff_means.append(np.mean(best_effs))
+        eff_errs.append(np.std(best_effs) if len(best_effs) > 1 else 0)
+        eq_means.append(np.mean(best_eqs))
+        eq_errs.append(np.std(best_eqs) if len(best_eqs) > 1 else 0)
+
+        if game == "Cleanup" and target == "eff":
+            if llm == "Gemini":
+                maxs = [MAXIMIN_AT_BEST_EFF["exp1"], MAXIMIN_AT_BEST_EFF["exp2"]]
+            else:
+                maxs = [MAXIMIN_AT_BEST_EFF["exp3"], MAXIMIN_AT_BEST_EFF["exp4"]]
+            max_means.append(np.mean(maxs))
+            max_errs.append(np.std(maxs) if len(maxs) > 1 else 0)
+        elif best_maxs:
+            max_means.append(np.mean(best_maxs))
+            max_errs.append(np.std(best_maxs) if len(best_maxs) > 1 else 0)
+        else:
+            max_means.append(0.0)
+            max_errs.append(0.0)
+
+    x = np.arange(len(conditions))
+    width = 0.6
+    colors = [COLORS[(c[1], c[2], c[3])] for c in conditions]
+
+    fig, (ax_u, ax_e, ax_m) = plt.subplots(1, 3, figsize=(7.0, 2.8),
+                                             gridspec_kw={"width_ratios": [1, 1, 1.15]})
+
+    ax_u.bar(x, eff_means, width, yerr=eff_errs, color=colors,
+             edgecolor="white", linewidth=0.5, capsize=3, zorder=3)
+    ax_u.set_ylabel("Mean efficiency ($\\overline{U}$)")
+    ax_u.set_ylim(0, 3.8)
+    ax_u.set_title("(a) Mean efficiency", fontsize=9)
+    ax_u.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.4)
+
+    ax_e.bar(x, eq_means, width, yerr=eq_errs, color=colors,
+             edgecolor="white", linewidth=0.5, capsize=3, zorder=3)
+    ax_e.set_ylabel("Mean equality ($\\overline{E}$)")
+    ax_e.set_ylim(0, 1.15)
+    ax_e.set_title("(b) Mean equality", fontsize=9)
+    ax_e.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.4)
+
+    ax_m.bar(x, max_means, width, yerr=max_errs, color=colors,
+             edgecolor="white", linewidth=0.5, capsize=3, zorder=3)
+    ax_m.set_ylabel("Mean maximin ($\\overline{\\min_i R_i}$)")
+    ax_m.set_title("(c) Mean maximin", fontsize=9)
+    ax_m.axhline(0, color="gray", ls=":", lw=0.7, alpha=0.5)
+    ax_m.axvline(3.5, color="gray", ls="--", lw=0.5, alpha=0.4)
+
+    for ax in (ax_u, ax_e, ax_m):
+        ax.set_xticks(x)
+        ax.set_xticklabels([c[0] for c in conditions], fontsize=7)
+
+    ax_u.text(1.5, 3.65, "Cleanup", ha="center", fontsize=7, color="gray")
+    ax_u.text(4.5, 3.65, "Gathering", ha="center", fontsize=7, color="gray")
+    ax_e.text(1.5, 1.10, "Cleanup", ha="center", fontsize=7, color="gray")
+    ax_e.text(4.5, 1.10, "Gathering", ha="center", fontsize=7, color="gray")
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "fig3b_efficiency_equality_avg.png")
+    fig.savefig(OUT_DIR / "fig3b_efficiency_equality_avg.svg")
+    plt.close(fig)
+    print(f"  Saved fig3b_efficiency_equality_avg")
+
+
 # ── Figure 4: Researcher behavior (iterations & keep rate) ────────────────
 def plot_researcher_behavior():
     """Compact summary of researcher behavior across all runs."""
@@ -613,8 +989,11 @@ def plot_efficiency_equality_scatter():
 if __name__ == "__main__":
     print("Generating paper figures...")
     plot_efficiency_trajectory()
+    plot_efficiency_trajectory_avg()
     plot_maximin_trajectory()
+    plot_maximin_trajectory_avg()
     plot_efficiency_equality_bars()
+    plot_efficiency_equality_bars_avg()
     plot_researcher_behavior()
     plot_combined_cleanup()
     plot_efficiency_equality_scatter()
