@@ -424,6 +424,7 @@ where $\Phi$ maps from social outcomes to a scalar. We consider two alternative 
   \Phi_U &= U = \frac{1}{H}\sum_{i=1}^{N} R_i & \text{(utilitarian efficiency)} \label{eq:eff}\\
   \Phi_{\min} &= \min_i R_i & \text{(Rawlsian maximin)} \label{eq:rawls}
 \end{align}
+$\Phi_U$ rewards collective throughput and is indifferent to how reward is distributed across agents, whereas$\Phi_{\min}$ instead optimizes for the worst-off agent, pressuring the researcher toward configurations that distribute the cost of cooperation.
 
 \subsection{Outer Loop (Automated Research)}
 
@@ -457,23 +458,21 @@ A crucial distinction from classical mechanism design: $\cM$ follows instruction
 We conduct 12 autonomous researcher runs across a factorial design. The researcher agent $\cR$ is Claude Opus 4.6, invoked via the Claude Code CLI as a coding agent. Each run operates on a dedicated git branch of a real Python codebase: $\cR$ edits source files in \texttt{pipeline/}, executes evaluation scripts, reads metric outputs, and iterates, without human intervention.
 
 \paragraph{Design.}
-For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $=$ 8 runs. For Gathering: $2$ policy LLMs $\times$ $1$ objective $\times$ $2$ replications $=$ 4 runs. Maximin runs are unnecessary for Gathering because efficiency optimization alone achieves equality $E > 0.94$ (the game's symmetric cost structure makes fairness a free byproduct of coordination).
+For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $=$ 8 runs. For Gathering: $2$ policy LLMs $\times$ $1$ objective $\times$ $2$ replications $=$ 4 runs. Maximin runs are unnecessary for Gathering because efficiency optimization alone achieves close to perfect equality.
 
 \paragraph{Models.}
-Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}. We additionally test with Gemma 4 26B-A4B-IT (Google), a smaller open-weight model, to probe the framework's behavior when the policy synthesizer has substantially lower capability (Appendix~\ref{app:gemma}).
+Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic), to recent state-of-the-art LLMs. Both use extended thinking. We additionally test with Gemma 4 26B-A4B-IT (Google), a smaller open-weight model, to probe the framework's behavior when the policy synthesizer has substantially lower capability (Appendix~\ref{app:gemma}).
 
 \paragraph{Baselines.}
-The hand-designed feedback configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \phi, \mathcal{H}, \iota)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method (each GEPA step costs ${\sim}3$ policy evaluations, comparable to our inner loop's $K{+}1{=}4$).
+The hand-designed feedback configuration from prior work~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet. We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \phi, \mathcal{H}, \iota)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method, so all in all both methods use a comparable number of environment evaluations.
 
-\paragraph{Inner loop parameters.}
-$K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated over $|S|{=}5$--$12$ random seeds (researcher-configurable). The researcher ran $J{=}3$--$17$ outer iterations per run (mean: 8.3), with a keep rate of 18\%--100\% (mean: 63\%).
 
 \subsection{Results}
 
-Table~\ref{tab:results} presents the main results, comparing autoresearch against the hand-designed baseline of~\cite{gallego2026} and GEPA prompt optimization~\cite{agrawal2026}.
+Table~\ref{tab:results} presents the main results, comparing our autoresearch framework against the hand-designed baseline of~\cite{gallego2026} and GEPA~\cite{agrawal2026}.
 
 \begin{table}[t]
-\caption{Results. Mean\,{\scriptsize/\,max} across 2 runs per condition (4 for Cleanup baselines). Baseline: unmodified pipeline from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
+\caption{Results. Mean\,{\scriptsize/\,max} across the runs per condition. Baseline: unmodified, hand-designed pipeline from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
 \label{tab:results}
 \centering
 \footnotesize
@@ -481,11 +480,11 @@ Table~\ref{tab:results} presents the main results, comparing autoresearch agains
 \toprule
 Policy LLM & Target & $U$ & $E$ & $\min_i R_i$ \\
 \midrule
-\multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- Baseline}} \\
+\multicolumn{5}{@{}l}{\emph{Cleanup --- Baseline}} \\
 Gemini 3.1 Pro & --- & 1.93{\scriptsize/2.70} & 0.17{\scriptsize/0.62} & $-$159{\scriptsize/$-$84} \\
 Sonnet 4.6 & --- & 0.86{\scriptsize/1.56} & $-$0.02{\scriptsize/0.25} & $-$151{\scriptsize/$-$59} \\
 \addlinespace
-\multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- GEPA~\cite{agrawal2026}}} \\
+\multicolumn{5}{@{}l}{\emph{Cleanup --- GEPA~\cite{agrawal2026}}} \\
 \multirow{2}{*}{Gemini 3.1 Pro}
   & $\Phi_U$ & 1.34{\scriptsize/1.37} & $-$0.10{\scriptsize/$-$0.05} & $-$149{\scriptsize/$-$126} \\ 
   & $\Phi_{\min}$ & 1.76{\scriptsize/2.76} & 0.90{\scriptsize/0.96} & 143{\scriptsize/245} \\
@@ -494,7 +493,7 @@ Sonnet 4.6 & --- & 0.86{\scriptsize/1.56} & $-$0.02{\scriptsize/0.25} & $-$151{\
   & $\Phi_U$ & 1.04{\scriptsize/1.20} & $-$0.59{\scriptsize/$-$0.21} & $-$164{\scriptsize/$-$126} \\
   & $\Phi_{\min}$ & $-$0.63{\scriptsize/1.60} & 0.77{\scriptsize/1.00} & $-$147{\scriptsize/6} \\
 \addlinespace
-\multicolumn{5}{@{}l}{\emph{Cleanup ($N{=}10$) --- Autoresearch}} \\
+\multicolumn{5}{@{}l}{\emph{Cleanup --- Two-level Autoresearch}} \\
 \multirow{2}{*}{Gemini 3.1 Pro}
   & $\Phi_U$ & \textbf{3.20}{\scriptsize/3.25} & 0.55{\scriptsize/0.61} & $-$211{\scriptsize/$-$182} \\
   & $\Phi_{\min}$ & 3.16{\scriptsize/3.19} & \textbf{0.98}{\scriptsize/0.98} & \textbf{290}{\scriptsize/296} \\
@@ -503,15 +502,15 @@ Sonnet 4.6 & --- & 0.86{\scriptsize/1.56} & $-$0.02{\scriptsize/0.25} & $-$151{\
   & $\Phi_U$ & \textbf{3.12}{\scriptsize/3.14} & 0.66{\scriptsize/0.70} & $-$196{\scriptsize/$-$146} \\
   & $\Phi_{\min}$ & 2.57{\scriptsize/2.93} & \textbf{0.91}{\scriptsize/0.97} & \textbf{179}{\scriptsize/200} \\
 \midrule
-\multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- Baseline}} \\
+\multicolumn{5}{@{}l}{\emph{Gathering --- Baseline}} \\
 Gemini 3.1 Pro & --- & 2.04{\scriptsize/2.42} & 0.90{\scriptsize/0.98} & 412{\scriptsize/571} \\
 Sonnet 4.6 & --- & 0.03{\scriptsize/0.03} & 0.54{\scriptsize/0.54} & 0{\scriptsize/0} \\
 \addlinespace
-\multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- GEPA~\cite{agrawal2026}}} \\
+\multicolumn{5}{@{}l}{\emph{Gathering --- GEPA~\cite{agrawal2026}}} \\
 Gemini 3.1 Pro & $\Phi_U$ & 2.08{\scriptsize/2.35} & 0.94{\scriptsize/0.96} & 436{\scriptsize/518} \\  
 Sonnet 4.6 & $\Phi_U$ & 1.20{\scriptsize/1.23} & 0.63{\scriptsize/0.71} & 86{\scriptsize/123} \\
 \addlinespace
-\multicolumn{5}{@{}l}{\emph{Gathering ($N{=}4$) --- Autoresearch}} \\
+\multicolumn{5}{@{}l}{\emph{Gathering --- Two-level Autoresearch}} \\
 Gemini 3.1 Pro & $\Phi_U$ & 2.49{\scriptsize/2.51} & 0.98{\scriptsize/0.98} & 582{\scriptsize/582} \\
 Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize/2.52} & 0.96{\scriptsize/0.98} & 576{\scriptsize/597} \\
 \bottomrule
