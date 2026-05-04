@@ -246,7 +246,7 @@ A frozen LLM $\cM$ acts as the \emph{policy synthesizer}. Given a system prompt 
 \[
   \pi_{k+1} = \cM\!\left(p,\; q(\pi_k, \mathcal{F}_k)\right),
 \]
-where $\pi_k$ is the previous policy (its source code) and $\mathcal{F}_k$ is the evaluation feedback. All $N$ agents execute the same policy in homogeneous self-play, and evaluation over a set of random seeds $S$ yields the mean per-agent return $\bar r_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. Each generated policy passes an AST-based safety check (blocking \texttt{eval}, file I/O, network access) followed by a short smoke test; failures trigger regeneration (up to $R$ attempts) with the error message appended to the prompt.
+where $\pi_k$ is the previous policy (its source code) and $\mathcal{F}_k$ is the evaluation feedback. All $N$ agents execute the same program $\pi_k$ in self-play. We stress that this is \emph{symmetric}, not \emph{behaviorally homogeneous}: since $\pi_k$ takes \texttt{agent\_id} as an argument, a single shared program can induce distinct per-agent behaviors (cleaner vs.\ gatherer assignment, time-rotated duty cycles, partitioned territories; see the synthesized policies in Appendix~\ref{app:policies}). What is shared is the source code; the sampled action distributions can differ across agents. Evaluation over a set of random seeds $S$ yields the mean per-agent return $\bar r_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. Each generated policy passes an AST-based safety check (blocking \texttt{eval}, file I/O, network access) followed by a short smoke test; failures trigger regeneration (up to $R$ attempts) with the error message appended to the prompt.
 
 \paragraph{Feedback.} The hand-designed feedback used by Gallego~\cite{gallego2026} as our starting point packages the previous policy's source code together with all available evaluation signals:
 \begin{equation}
@@ -411,7 +411,7 @@ Each iteration $k$ proceeds in four stages, following~\cite{gallego2026}:
 \begin{enumerate}
   \item \textbf{Synthesize.} The policy LLM $\cM$ receives the system prompt $p$, the previous policy's source code $\pi_{k-1}$, and feedback $\mathcal{F}_{k-1}$ constructed by $\phi$. It generates a new Python policy function $\pi_k$ that has access to full environment state and the helper library $\mathcal{H}$.
   \item \textbf{Validate.} The generated code undergoes AST-based safety checks (blocking dangerous operations such as file I/O and network access) followed by a short smoke test. Failures trigger re-generation (up to $R$ retries), with the error message appended to the prompt.
-  \item \textbf{Evaluate.} All $N$ agents execute the same policy $\pi_k$ in self-play over $|S|$ random seeds. The evaluation yields the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$.
+  \item \textbf{Evaluate.} All $N$ agents execute the same policy $\pi_k$ in self-play over $|S|$ random seeds (note the policy is conditional on \texttt{agent\_id}). The evaluation yields the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$.
   \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$, packaging the previous policy's source code together with the scalar reward, the social metrics vector, their natural-language definitions, and any adaptive diagnostics that $\phi$ injects.
 \end{enumerate}
 
@@ -585,7 +585,7 @@ Our system is fully autonomous by design, but its architecture offers natural af
 
 
 \paragraph{Future work.}
-Five directions emerge: (1)~\emph{new domains}---apply the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; (2)~\emph{ablation}---freeze all configuration components except one to isolate the relative importance of prompt, feedback, helpers, and iteration logic; (3)~\emph{adversarial objectives}---set $\Phi = R_0$ (agent~0's reward only) to test whether the researcher discovers exploitative pipeline configurations, connecting to the reward hacking analysis of~\cite{gallego2026}; (4)~\emph{cross-game transfer}---run the best Cleanup configuration on Gathering and vice versa, testing game-generality; (5)~\emph{heterogeneous policies}---extend to settings where agents run different code, enabling richer role specialization.
+Several directions emerge.  First, we are interested in applying the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; next, adversarial objectives can be intriguing, to test whether the researcher discovers exploitative pipeline configurations, exposing reward hacking risks; and asymmetric programs: extend to settings where agents run \emph{different} source code (the present setup is symmetric in code but already supports heterogeneous behavior via \texttt{agent\_id}; relaxing the shared-program constraint enables richer per-agent specialization and partial-information settings).
 
 \bibliographystyle{unsrt}
 \bibliography{references}
