@@ -259,7 +259,7 @@ where $\mathbf{d}$ contains natural-language definitions of each social metric. 
 \label{sec:framework}
 %% ============================================================
 
-We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The key insight is that the entire inner-loop codebase is a designable artifact that an AI agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
+We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The fundamental insight is that the entire inner-loop codebase is a designable artifact that a code-based agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
 
 \begin{figure}[t]
 \centering
@@ -293,7 +293,7 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 % 2. Pipeline
 \node[mbox=pipcolor, below=0.42cm of R] (P) {%
   \textbf{Pipeline} $c_j$%
-  \;\;{\scriptsize $p,\;\phi,\;\mathcal{H},\;\iota,\;v$}};
+  \;\;{\scriptsize $p,\;\phi,\;\mathcal{H},\;\iota$}};
 % 3. Inner loop sub-nodes — center Validate under Pipeline
 \node[sbox, below=0.8cm of P] (V) {Validate};
 \node[sbox, left=0.12cm of V] (S) {Synthesize $\cM$};
@@ -377,9 +377,9 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 
 Let $\cC$ denote the space of \emph{pipeline configurations}. Each configuration $c \in \cC$ specifies the full inner-loop setup:
 \begin{equation}
-  c = (p,\, \phi,\, \mathcal{H},\, \iota,\, v)
+  c = (p,\, \phi,\, \mathcal{H},\, \iota)
 \end{equation}
-where $p$ is the system prompt, $\phi$ is the feedback construction function (which metrics and diagnostics to include, how to frame it, whether to inject adaptive hints), $\mathcal{H}$ is the helper function library, $\iota$ specifies the iteration logic (number of iterations $K$, sampling strategy, temperature schedule), and $v$ is the validation pipeline. Table~\ref{tab:config} provides concrete examples.
+where $p$ is the system prompt, $\phi$ is the feedback construction function (which metrics and diagnostics to include, how to frame it, whether to inject adaptive hints and thresholds, etc), $\mathcal{H}$ is the helper function library (auxiliary functions for pathfinding, getting aggregates of useful environemnt quantities, etc.), and $\iota$ specifies the iteration logic (number of inner iterations $K$, sampling strategy). The validation pipeline (AST safety checks and smoke test) is part of the frozen inner-loop infrastructure rather than a configurable component, the researcher cannot modify it in our experiments. Table~\ref{tab:config} provides concrete examples.
 
 \begin{table}[t]
 \caption{Configuration components modifiable by the researcher, with concrete edits that $\cR$ made in our runs. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
@@ -394,7 +394,6 @@ $p$ & System prompt & Multi-section strategic briefing with explicit duty-rotati
 $\phi$ & Feedback fn & Thresholded diagnostics: ``FAIRNESS ALERT'' fires when $\min_i R_i {<} 0$; ``DO NOT REGRESS'' guard fires when $U {\geq} 2.5$ (App.~\ref{app:art-feedback}, Listing~\ref{lst:feedback-adapt}) \\
 $\mathcal{H}$ & Helper library & BFS-Voronoi territories with respawn-timer awareness; band-based apple zoning by \texttt{agent\_id} (App.~\ref{app:art-helpers}, Listings~\ref{lst:helper-vor},~\ref{lst:helper-zone}) \\
 $\iota$ & Iteration logic & Per-condition $K{\in}\{2,3\}$; $|S|$ walked $5{\to}8{\to}12$ for variance control; thinking budget $10$--$32$k (App.~\ref{app:art-config}, Table~\ref{tab:iota}) \\
-$v$ & Validation & AST blocks \texttt{eval}/file I/O/network; 50-step smoke test; retry $\leq R$ on failure \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -464,7 +463,7 @@ For Cleanup: $2$ policy LLMs $\times$ $2$ objectives $\times$ $2$ replications $
 Policy synthesizer $\cM$: Gemini 3.1 Pro (Google) or Claude Sonnet 4.6 (Anthropic). Both use extended thinking. These are the same models evaluated in~\cite{gallego2026}. We additionally test with Gemma 4 26B-A4B-IT (Google), a smaller open-weight model, to probe the framework's behavior when the policy synthesizer has substantially lower capability (Appendix~\ref{app:gemma}).
 
 \paragraph{Baselines.}
-The hand-designed feedback configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \phi, \mathcal{H}, \iota, v)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method (each GEPA step costs ${\sim}3$ policy evaluations, comparable to our inner loop's $K{+}1{=}4$).
+The hand-designed feedback configuration from~\cite{gallego2026} serves as the initial pipeline $c_0$ for all runs. On Cleanup ($N{=}10$), this baseline achieves $U{=}1.93$/$2.70$ (mean/max) with Gemini and $U{=}0.86$/$1.56$ with Sonnet across 4 runs each. We additionally compare against GEPA~\cite{agrawal2026}, an automated prompt optimization method that iteratively refines the system prompt via LLM reflection. GEPA optimizes only the system prompt $p$, whereas our researcher modifies the full pipeline $(p, \phi, \mathcal{H}, \iota)$. We give GEPA a matched compute budget: the same number of optimization steps as outer iterations used by our method (each GEPA step costs ${\sim}3$ policy evaluations, comparable to our inner loop's $K{+}1{=}4$).
 
 \paragraph{Inner loop parameters.}
 $K{=}3$ synthesis iterations (or $K{=}2$ if the researcher elects), evaluated over $|S|{=}5$--$12$ random seeds (researcher-configurable). The researcher ran $J{=}3$--$17$ outer iterations per run (mean: 8.3), with a keep rate of 18\%--100\% (mean: 63\%).
@@ -560,7 +559,7 @@ SSDs were introduced by Leibo et al.~\cite{leibo2017} (Gathering) and extended t
 FunSearch~\cite{romera2024} evolves programs for combinatorial discovery; Eureka~\cite{ma2024} synthesizes reward functions from environment source code; Voyager~\cite{wang2024} and Code as Policies~\cite{liang2023} generate executable skill code for single-agent embodied control; ReEvo~\cite{ye2024} evolves heuristics with reflective feedback. These works target single-agent settings or non-strategic optimization. Gallego~\cite{gallego2026}, on which our inner loop is based, extended LLM program synthesis to the multi-agent SSD setting, where one program must coordinate $N$ self-play copies. Our contribution is one level above: rather than tuning the synthesizer for one task, we let an outer agent rewrite the synthesis pipeline itself.
 
 \paragraph{LLM reflection and prompt optimization.}
-Reflexion~\cite{shinn2023}, Self-Refine~\cite{madaan2023}, OPRO~\cite{yang2024}, and GEPA~\cite{agrawal2026} demonstrate that structured verbal feedback loops improve LLM outputs; ERL~\cite{shi2026} internalizes such reflection via self-distillation. These methods optimize the prompt or the model's reasoning trajectory in isolation. Our framework instead modifies the entire surrounding pipeline (system prompt, feedback construction, helper library, iteration logic, validation) making prompt optimization one component of a strictly larger search space. The empirical gap is large: Section~\ref{sec:experiments} shows full-pipeline autoresearch achieving $3{\times}$ higher efficiency in Cleanup and $37\%$ higher in Gathering than GEPA at matched compute, with run-to-run spread an order of magnitude tighter on the harder fairness objective.
+Reflexion~\cite{shinn2023}, Self-Refine~\cite{madaan2023}, OPRO~\cite{yang2024}, and GEPA~\cite{agrawal2026} demonstrate that structured verbal feedback loops improve LLM outputs; ERL~\cite{shi2026} internalizes such reflection via self-distillation. These methods optimize the prompt or the model's reasoning trajectory in isolation. Our framework instead modifies the entire surrounding pipeline (system prompt, feedback construction, helper library, iteration logic) making prompt optimization one component of a strictly larger search space. The empirical gap is large: Section~\ref{sec:experiments} shows full-pipeline autoresearch achieving $3{\times}$ higher efficiency in Cleanup and $37\%$ higher in Gathering than GEPA at matched compute, with run-to-run spread an order of magnitude tighter on the harder fairness objective.
 
 \paragraph{Automated AI research.}
 A small but growing body of work delegates the design of ML pipelines to LLM coding agents. Karpathy's autoresearch~\cite{karpathy2026} runs a coding agent that modifies \texttt{train.py} for nanoGPT pretraining and is rewarded for validation loss. Our system shares this autoresearch architecture (coding agent + frozen evaluation harness + diff-based history) but targets a different inner loop (multi-agent policy synthesis instead of single-model pretraining) and a different objective (multi-agent social welfare instead of validation bits-per-byte). To our knowledge this is the first instantiation of the autoresearch paradigm in a multi-agent decision-making domain.
@@ -714,7 +713,7 @@ On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$
 \label{app:artifacts}
 %% ============================================================
 
-The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \phi, \mathcal{H}, \iota, v)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering).
+The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \phi, \mathcal{H}, \iota)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering).
 
 \subsection{Helper library $\mathcal{H}$: coordination primitives}
 \label{app:art-helpers}
