@@ -622,10 +622,49 @@ Cleaning cost economics & 2/4 & 3/4 \\
 \label{fig:eff_eq}
 \end{figure}
 
-\section{Compute Requirements}
+\subsection{Smaller Open-Weight Model: Gemma 4 26B}
+\label{app:gemma}
+
+We test the framework with Gemma 4 26B-A4B-IT (Google), a 26B-parameter open-weight model substantially smaller than the frontier models in the main experiments. We run three experiment runs: two on Cleanup optimizing efficiency and maximin respectively, and one on Gathering optimizing efficiency. As with the other synthetizer models, all with Opus 4.6 as the researcher $\cR$.
+
+\paragraph{Setup.} In all three experiments, Gemma starts from complete failure: the baseline pipeline produces $U{=}{-}10.0$ on Cleanup (agents CLEAN-spam without collecting apples) and $U{=}0.0$ on Gathering (broken BFS calls), compared to $U{=}1.93$/$0.86$ (Gemini/Sonnet on Cleanup) and $U{=}2.04$/$0.03$ (Gemini/Sonnet on Gathering). The researcher ran $J{=}10$--$18$ outer iterations per condition.
+
+\paragraph{Results.} Table~\ref{tab:gemma} presents the best configurations discovered. Under efficiency optimization, the researcher achieves $U{=}0.87$, a dramatic recovery from the broken baseline but far below frontier models ($U{\approx}3.2$). The researcher compensates for the model's limited capability by reducing inner-loop iterations to $K{=}1$ (avoiding the regression that plagued $K{\geq}2$ runs) and providing highly structured worked examples with explicit cleaning-role assignment.
+
+\begin{table}[h]
+\caption{Autoresearch with Gemma 4 26B-A4B-IT. Single run per condition. Baseline: pipeline from~\cite{gallego2026}.}
+\label{tab:gemma}
+\centering
+\small
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+Game & Target & $U$ & $E$ & $\min_i R_i$ & Keep rate \\
+\midrule
+\multirow{3}{*}{\rotatebox[origin=c]{0}{\scriptsize Cleanup}}
+& Baseline & $-$10.0 & 1.00\textsuperscript{$\dagger$} & $-$1000 & --- \\
+& $\Phi_U$ & 0.87 & $-$1.11 & $-$371 & 6/19 \\
+& $\Phi_{\min}$ & \textbf{1.71} & \textbf{0.94} & \textbf{137} & 9/17 \\
+\addlinespace
+\multirow{2}{*}{\rotatebox[origin=c]{0}{\scriptsize Gathering}}
+& Baseline & 0.0 & 1.00\textsuperscript{$\dagger$} & 0 & --- \\
+& $\Phi_U$ & \textbf{2.44} & \textbf{0.98} & \textbf{580} & 4/11 \\
+\bottomrule
+\multicolumn{6}{@{}l}{\textsuperscript{$\dagger$}\scriptsize Equality is trivially 1.0 because all agents receive near-zero reward.}
+\end{tabular}
+\end{table}
+
+\paragraph{Maximin optimization rescues efficiency.}
+Strikingly, under maximin optimization the researcher achieves \emph{higher} efficiency ($U{=}1.71$) than under direct efficiency optimization ($U{=}0.87$), alongside strong equality ($E{=}0.94$) and positive worst-off welfare ($\min_i R_i{=}137$). This reversal, absent in frontier models where both objectives yield $U{\approx}3.1$--$3.2$, occurs because the maximin objective forces the researcher toward coordination mechanisms (rotating cleaning duties, index-based apple assignment) that simultaneously improve collective output. Under efficiency-only optimization, the researcher converges on a local optimum that a 26B model can implement but that caps performance well below the frontier.
+
+This suggests that \emph{for models below a capability threshold, fairness objectives may serve as better optimization targets for overall social welfare than direct efficiency maximization}. The structured coordination enforced by the maximin objective provides a scaffold that compensates for the weaker model's difficulty implementing complex strategies from strategic hints alone.
+
+\paragraph{Gathering: full recovery on a simpler game.}
+On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$ with $E{=}0.98$ and $\min_i R_i{=}580$, after 10 outer iterations (4 kept). These values nearly match frontier models (Gemini: $U{=}2.49$, Sonnet: $U{=}2.52$; Table~\ref{tab:results}). The researcher discovers the same Voronoi partitioning and respawn-aware camping strategies found in the main experiments, and increases inner-loop iterations to $K{=}5$ to allow sufficient refinement. The contrast with Cleanup suggests that the researcher can fully compensate for model weakness on simpler coordination tasks (4 agents, symmetric costs) but not on harder provision dilemmas (10 agents, asymmetric costs).
+
+\subsection{Compute Requirements}
 \label{app:compute}
 
-Table~\ref{tab:compute} reports wall-clock time for all 12 autonomous runs and the 6 GEPA comparison runs. \emph{Inner loop} measures total time spent on policy LLM generation and environment simulation across all evaluations; \emph{total} (estimated from run-directory timestamps) additionally includes the researcher agent's analysis, code editing, and decision-making between evaluations.
+Table~\ref{tab:compute} reports wall-clock time for all 12 autoresearch runs. \emph{Inner loop} measures total time spent on policy LLM generation and environment simulation across all evaluations; \emph{total} (estimated from run-directory timestamps) additionally includes the researcher agent's analysis, code editing, and decision-making between evaluations.
 
 \begin{table}[h]
 \caption{Wall-clock time per autonomous run. Evals: total inner loop evaluations including initial baseline. Per eval: mean wall-clock per single evaluation. Total: end-to-end including researcher overhead.}
@@ -653,53 +692,12 @@ Gemini & $\Phi_U$ & 3 & 0.9 & 19 & 1.1 \\
 Sonnet & $\Phi_U$ & 4 & 2.3 & 35 & 3.4 \\
 \midrule
 \multicolumn{2}{@{}l}{All 12 runs} & 100 & 36.6 & 22 & 62.2 \\
-\addlinespace
-\multicolumn{2}{@{}l}{GEPA (6 runs)} & 6 & 5.0 & 50 & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Cost breakdown.}
-Each inner loop evaluation involves $K{=}2$--$3$ policy LLM generation calls (each ${\sim}$2k input tokens, ${\sim}$1.5k output tokens) followed by multi-seed simulation (5--12 seeds, ${\sim}$15--30s total). Policy LLM generation dominates inner loop time (86--97\%), with Sonnet evaluations taking ${\sim}2{\times}$ longer than Gemini due to extended thinking. The researcher agent (Claude Opus 4.6, running via Claude Code CLI) accounts for 41\% of total wall-clock time (25.6h of the 62.2h total across all 12 runs), spent reading results, editing pipeline source files, and planning modifications. In monetary terms, the researcher agent is the dominant cost: each outer iteration consumes ${\sim}$50--100k context tokens in the Opus session, whereas each inner loop evaluation uses only ${\sim}$5--10k policy LLM tokens. The 6 GEPA comparison runs required 5.0h of compute with no researcher agent, operating at lower cost per run but achieving substantially lower performance (Table~\ref{tab:results}).
-
-\section{Smaller Open-Weight Model: Gemma 4 26B}
-\label{app:gemma}
-
-We test the framework with Gemma 4 26B-A4B-IT (Google), a 26B-parameter open-weight model substantially smaller than the frontier models in the main experiments. We run three experiments---two on Cleanup ($N{=}10$) optimizing efficiency and maximin respectively, and one on Gathering ($N{=}4$) optimizing efficiency---all with Opus 4.6 as the researcher $\cR$.
-
-\paragraph{Setup.} In all three experiments, Gemma starts from complete failure: the baseline pipeline produces $U{=}{-}10.0$ on Cleanup (agents CLEAN-spam without collecting apples) and $U{=}0.0$ on Gathering (broken BFS calls), compared to $U{=}1.93$/$0.86$ (Gemini/Sonnet on Cleanup) and $U{=}2.04$/$0.03$ (Gemini/Sonnet on Gathering). The researcher ran $J{=}10$--$18$ outer iterations per condition.
-
-\paragraph{Results.} Table~\ref{tab:gemma} presents the best configurations discovered. Under efficiency optimization, the researcher achieves $U{=}0.87$---a dramatic recovery from the broken baseline but far below frontier models ($U{\approx}3.2$). The researcher compensates for the model's limited capability by reducing inner-loop iterations to $K{=}1$ (avoiding the regression that plagued $K{\geq}2$ runs) and providing highly structured worked examples with explicit cleaning-role assignment.
-
-\begin{table}[h]
-\caption{Autoresearch with Gemma 4 26B-A4B-IT. Single run per condition. Baseline: pipeline from~\cite{gallego2026}.}
-\label{tab:gemma}
-\centering
-\small
-\begin{tabular}{@{}llcccc@{}}
-\toprule
-Game & Target & $U$ & $E$ & $\min_i R_i$ & Keep rate \\
-\midrule
-\multirow{3}{*}{\rotatebox[origin=c]{0}{\scriptsize Cleanup}}
-& Baseline & $-$10.0 & 1.00\textsuperscript{$\dagger$} & $-$1000 & --- \\
-& $\Phi_U$ & 0.87 & $-$1.11 & $-$371 & 6/19 \\
-& $\Phi_{\min}$ & \textbf{1.71} & \textbf{0.94} & \textbf{137} & 9/17 \\
-\addlinespace
-\multirow{2}{*}{\rotatebox[origin=c]{0}{\scriptsize Gathering}}
-& Baseline & 0.0 & 1.00\textsuperscript{$\dagger$} & 0 & --- \\
-& $\Phi_U$ & \textbf{2.44} & \textbf{0.98} & \textbf{580} & 4/11 \\
-\bottomrule
-\multicolumn{6}{@{}l}{\textsuperscript{$\dagger$}\scriptsize Equality is trivially 1.0 because all agents receive near-zero reward.}
-\end{tabular}
-\end{table}
-
-\paragraph{Maximin optimization rescues efficiency.}
-Strikingly, under maximin optimization the researcher achieves \emph{higher} efficiency ($U{=}1.71$) than under direct efficiency optimization ($U{=}0.87$), alongside strong equality ($E{=}0.94$) and positive worst-off welfare ($\min_i R_i{=}137$). This reversal---absent in frontier models, where both objectives yield $U{\approx}3.1$--$3.2$---occurs because the maximin objective forces the researcher toward coordination mechanisms (rotating cleaning duties, index-based apple assignment) that simultaneously improve collective output. Under efficiency-only optimization, the researcher converges on a local optimum---static role assignment with 25\% dedicated cleaners---that a 26B model can implement but that caps performance well below the frontier.
-
-This suggests that \emph{for models below a capability threshold, fairness objectives may serve as better optimization targets for overall social welfare than direct efficiency maximization}. The structured coordination enforced by the maximin objective provides a scaffold that compensates for the weaker model's difficulty implementing complex strategies from strategic hints alone.
-
-\paragraph{Gathering: full recovery on a simpler game.}
-On Gathering ($N{=}4$), the researcher brings Gemma from $U{=}0.0$ to $U{=}2.44$ with $E{=}0.98$ and $\min_i R_i{=}580$, after 10 outer iterations (4 kept). These values nearly match frontier models (Gemini: $U{=}2.49$, Sonnet: $U{=}2.52$; Table~\ref{tab:results}). The researcher discovers the same Voronoi partitioning and respawn-aware camping strategies found in the main experiments, and increases inner-loop iterations to $K{=}5$ to allow sufficient refinement. The contrast with Cleanup---where Gemma peaks at $U{=}0.87$/$1.71$ versus frontier $U{\approx}3.2$---suggests that the researcher can fully compensate for model weakness on simpler coordination tasks (4 agents, symmetric costs) but not on harder provision dilemmas (10 agents, asymmetric costs).
+Each inner loop evaluation involves $K{=}2$--$3$ policy LLM generation calls (each ${\sim}$2k input tokens, ${\sim}$1.5k output tokens) followed by multi-seed simulation (5--12 seeds, ${\sim}$15--30s total). Policy LLM generation dominates inner loop time (86--97\%), with Sonnet evaluations taking ${\sim}2{\times}$ longer than Gemini due to extended thinking. The researcher agent (Claude Opus 4.6, running via Claude Code CLI) accounts for 41\% of total wall-clock time (25.6h of the 62.2h total across all 12 runs), spent reading results, editing pipeline source files, and planning modifications. In monetary terms, the researcher agent is the dominant cost: each outer iteration consumes ${\sim}$50--100k context tokens in the Opus session, whereas each inner loop evaluation uses only ${\sim}$5--10k policy LLM tokens.
 
 %% ============================================================
 \section{Researcher-Authored Pipeline Artifacts}
@@ -770,7 +768,7 @@ def nearest_respawning_apple(env, agent_id, zones=None, max_timer=10):
     return best_pos
 \end{lstlisting}
 
-The choice of helper depends on the dilemma's geometry: row-bands suffice when fairness is the main concern (Cleanup maximin) but full BFS-Voronoi is needed when wall-aware territory ownership matters (Gathering). The researcher does not fix this in advance --- it picks the simpler primitive whenever it works.
+The choice of helper depends on the dilemma's geometry: row-bands suffice when fairness is the main concern (Cleanup maximin) but full BFS-Voronoi is needed when wall-aware territory ownership matters (Gathering). The researcher does not fix this in advance, it picks the simpler primitive whenever it works.
 
 \subsection{System prompt $p$: from neutral framing to strategic briefing}
 \label{app:art-prompts}
@@ -812,7 +810,7 @@ IMPORTANT:
 - NEVER use BEAM (action 6) -- it destroys both agents' rewards.
 \end{lstlisting}
 
-Two things stand out. First, the researcher writes the formula it expects $\cM$ to use almost verbatim --- \texttt{(agent\_id + env.\_step\_count // SHIFT) \% env.n\_agents < NUM\_CLEANERS} --- and the policy in Listing~\ref{lst:min-gemini} uses essentially this template. Second, the researcher \emph{teaches by counter-example}: the explicit ``8 agents earn +200, 2 earn -100, maximin = -100'' makes the failure mode of $\Phi_U$-style static roles (Listing~\ref{lst:eff-gemini}) concretely visible to $\cM$. This is the information-design move predicted by the mechanism-design framing in Section~\ref{sec:mechdesign}.
+Two things stand out. First, the researcher writes the formula it expects $\cM$ to use almost verbatim ( \texttt{(agent\_id + env.\_step\_count // SHIFT) \% env.n\_agents < NUM\_CLEANERS} ) and the policy in Listing~\ref{lst:min-gemini} uses essentially this template. Second, the researcher \emph{teaches by counter-example}: the explicit ``8 agents earn +200, 2 earn -100, maximin = -100'' makes the failure mode of $\Phi_U$-style static roles (Listing~\ref{lst:eff-gemini}) concretely visible to $\cM$. This is the information-design move predicted by the mechanism-design framing in Section~\ref{sec:mechdesign}.
 
 The Gathering prompt evolves along a different axis (no maximin, no rotation). Its researcher-added ``Key Strategic Insights'' section instead emphasizes \emph{(i)~self-play implies never beam} and \emph{(ii)~Voronoi partition each step}, exactly matching what the policy in Listing~\ref{lst:gather-gemini} implements.
 
@@ -820,7 +818,7 @@ The Gathering prompt evolves along a different axis (no maximin, no rotation). I
 \subsection{Feedback $\phi$: adaptive diagnostics}
 \label{app:art-feedback}
 
-The baseline feedback function from~\cite{gallego2026} shows reward + four social metrics with definitions and stops there. The researcher turns it into a state machine: it inspects the latest metrics and conditionally injects different hints. Two different runs produced two qualitatively different diagnostics --- the same metric ($\bar r_k$ or $\min_i R_i$) is repurposed to either \emph{stabilize} a working policy or \emph{redirect} a failing one.
+The baseline feedback function from~\cite{gallego2026} shows reward + four social metrics with definitions and stops there. The researcher turns it into a state machine: it inspects the latest metrics and conditionally injects different hints. Two different runs produced two qualitatively different diagnostics: the same metric ($\bar r_k$ or $\min_i R_i$) is repurposed to either \emph{stabilize} a working policy or \emph{redirect} a failing one.
 
 \begin{lstlisting}[style=pythonpolicy, caption={Adaptive feedback diagnostics. \emph{Top}: efficiency-optimized run (exp1) -- a stability guard prevents iter-3 regression once $U$ is high. \emph{Bottom}: maximin-optimized run (exp5) -- two fairness diagnostics that fire when the worst-off agent loses reward.}, label={lst:feedback-adapt}]
 # --- Cleanup, Phi_U feedback (exp1, pipeline/feedback.py final) ---
@@ -884,9 +882,9 @@ The maximin Gemini run is the most informative case: the researcher discovered t
 \label{app:art-cross}
 
 \begin{itemize}
-  \item \emph{Helpers do the algebra; prompts pick the strategy class.} The researcher uses helpers (\ref{lst:helper-zone},~\ref{lst:helper-vor}) to put non-trivial primitives at $\cM$'s fingertips, and the prompt (\ref{lst:prompt-min}) to tell $\cM$ \emph{which} primitive to compose. Neither is sufficient alone --- prompts without supporting helpers produced policies that ``mention rotation'' but failed to implement it; helpers without prompt updates often went unused.
+  \item \emph{Helpers do the algebra; prompts pick the strategy class.} The researcher uses helpers (\ref{lst:helper-zone},~\ref{lst:helper-vor}) to put non-trivial primitives at $\cM$'s fingertips, and the prompt (\ref{lst:prompt-min}) to tell $\cM$ \emph{which} primitive to compose. Prompts without supporting helpers produced policies that ``mention rotation'' but failed to implement it; helpers without prompt updates often went unused.
   \item \emph{Feedback is the only adaptive component.} $p$, $\mathcal{H}$, and $\iota$ are static within a run; $\phi$ is the only place where the researcher gets to change what $\cM$ sees \emph{during} the inner loop, and it uses thresholded diagnostics (Listing~\ref{lst:feedback-adapt}) to do so. This is what mostly drives the run-to-run variance reduction.
-  \item \emph{The same artifact has different content under each objective.} The Cleanup prompt under $\Phi_U$ omits ``rotation'' and ``maximin'' entirely; the same prompt under $\Phi_{\min}$ devotes its entire opening section to it. The configuration $c$ is genuinely a function of the welfare objective $\Phi$, not a fixed pipeline parameterized by it --- consistent with the information-design framing of Section~\ref{sec:mechdesign}.
+  \item \emph{The same artifact has different content under each objective.} The Cleanup prompt under $\Phi_U$ omits ``rotation'' and ``maximin'' entirely; the same prompt under $\Phi_{\min}$ devotes its entire opening section to it. The configuration $c$ is genuinely a function of the welfare objective $\Phi$, not a fixed pipeline parameterized by it. This is consistent with the information-design framing of Section~\ref{sec:mechdesign}.
   \item \emph{The researcher's edits are short and targeted.} The full diff between the baseline pipeline and the best maximin Gemini configuration totals ${\sim}300$ added lines spread over four files; ${\sim}80$ of them appear in the listings above. The remaining content is API documentation and worked examples, included for completeness but not strategically novel.
 \end{itemize}
 
@@ -900,7 +898,7 @@ The code excerpts below are verbatim outputs of the policy synthesizer $\cM$, ta
 \subsection{Cleanup, $\Phi_U$ (Gemini): static interleaved roles + dynamic threshold}
 \label{app:policy-eff-gemini}
 
-Best run: $U{=}3.25$, $E{=}0.61$, $\min_i R_i{=}-182$. The synthesizer assigns \emph{permanent} cleaning roles via $\texttt{agent\_id} \bmod n {<} \tau$, where the threshold $\tau$ depends smoothly on the current waste fraction. Higher pollution recruits more cleaners, but the \emph{identity} of each cleaner is fixed --- agents 0--$\tau{-}1$ always pay the cost. This drives $U$ to its ceiling but leaves equality at $0.61$ and pushes the worst-off agent to $\min_i R_i{=}{-}182$.
+Best run: $U{=}3.25$, $E{=}0.61$, $\min_i R_i{=}-182$. The synthesizer assigns \emph{permanent} cleaning roles via $\texttt{agent\_id} \bmod n {<} \tau$, where the threshold $\tau$ depends smoothly on the current waste fraction. Higher pollution recruits more cleaners, but the \emph{identity} of each cleaner is fixed: agents 0--$\tau{-}1$ always pay the cost. This drives $U$ to its ceiling but leaves equality at $0.61$ and pushes the worst-off agent to $\min_i R_i{=}{-}182$.
 
 \begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_U$ -- Gemini 3.1 Pro. Static role assignment with waste-tiered threshold (verbatim, abridged).}, label={lst:eff-gemini}]
 def policy(env, agent_id) -> int:
@@ -994,7 +992,7 @@ def policy(env, agent_id) -> int:
 \subsection{Cleanup, $\Phi_{\min}$ (Sonnet): independent rediscovery of duty rotation}
 \label{app:policy-min-sonnet}
 
-Best run: $U{=}2.93$, $E{=}0.83$, $\min_i R_i{=}154$. Run with a different policy LLM (Sonnet 4.6) and on a different outer-loop trajectory, the synthesizer arrives at the \emph{same} structural insight as the Gemini maximin run: a phase counter $(\texttt{agent\_id} + \texttt{step}/50) \bmod n$ rotates which 2 of the 10 agents clean at any given time, and a \emph{separate} 200-step zone counter rotates which 5-row band each collector sweeps. The two rotation periods (50 and 200 steps) ensure every agent visits every cleaning slot \emph{and} every apple zone within one episode --- a structural fairness invariant the researcher discovered without any explicit instruction to ``rotate.''
+Best run: $U{=}2.93$, $E{=}0.83$, $\min_i R_i{=}154$. Run with a different policy LLM (Sonnet 4.6) and on a different outer-loop trajectory, the synthesizer arrives at the \emph{same} structural insight as the Gemini maximin run: a phase counter $(\texttt{agent\_id} + \texttt{step}/50) \bmod n$ rotates which 2 of the 10 agents clean at any given time, and a \emph{separate} 200-step zone counter rotates which 5-row band each collector sweeps. The two rotation periods (50 and 200 steps) ensure every agent visits every cleaning slot and every apple zone within one episode, resulting in a structural fairness invariant the researcher discovered without any explicit instruction to ``rotate.''
 
 \begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_{\min}$ -- Sonnet 4.6. Phase-rotated cleaning + zone-rotated collection (verbatim, abridged).}, label={lst:min-sonnet}]
 def policy(env, agent_id) -> int:
@@ -1046,7 +1044,7 @@ def policy(env, agent_id) -> int:
 \subsection{Gathering (Gemini): wall-aware Voronoi + spatiotemporal targeting}
 \label{app:policy-gather}
 
-Best run: $U{=}2.47$, $E{=}0.98$, $\min_i R_i{=}580$. In Gathering, where costs are symmetric, no role differentiation is needed: the entire optimization is spatial and temporal. The synthesizer (i)~partitions cells into BFS-Voronoi territories owned by individual agents, (ii)~runs a single centralized BFS from its own position to score every reachable cell with exact wall-aware distances, and (iii)~for both alive and respawning apples in its territory, computes the \emph{earliest collection time} $\max(\texttt{walk\_dist},\, \texttt{respawn\_timer})$ and targets the minimum. When the agent must wait on a dead apple, it steps onto a \emph{non-spawn} adjacent cell rather than blocking a respawn point. This single sort key --- $\max(\textrm{distance}, \textrm{timer})$ --- subsumes both ``go to nearest apple'' and ``camp respawn'' as special cases.
+Best run: $U{=}2.47$, $E{=}0.98$, $\min_i R_i{=}580$. In Gathering, where costs are symmetric, no role differentiation is needed: the entire optimization is spatial and temporal. The synthesizer (i)~partitions cells into BFS-Voronoi territories owned by individual agents, (ii)~runs a single centralized BFS from its own position to score every reachable cell with exact wall-aware distances, and (iii)~for both alive and respawning apples in its territory, computes the \emph{earliest collection time} $\max(\texttt{walk\_dist},\, \texttt{respawn\_timer})$ and targets the minimum. When the agent must wait on a dead apple, it steps onto a \emph{non-spawn} adjacent cell rather than blocking a respawn point. This single sort key  ($\max(\textrm{distance}, \textrm{timer})$)  subsumes both ``go to nearest apple'' and ``camp respawn'' as special cases.
 
 \begin{lstlisting}[style=pythonpolicy, caption={Gathering -- Gemini 3.1 Pro. Voronoi territories + spatiotemporal priority targeting (verbatim, abridged).}, label={lst:gather-gemini}]
 def policy(env, agent_id) -> int:
@@ -1106,9 +1104,9 @@ Several patterns are visible across these four listings (and confirmed by inspec
 
 \begin{itemize}
   \item \emph{Role assignment encodes the welfare objective.} Static \texttt{agent\_id < $\tau$} (Listing~\ref{lst:eff-gemini}) maximizes $U$ but harms $\min_i R_i$. Time-rotated \texttt{(agent\_id + step//$T$) \% n} (Listings~\ref{lst:min-gemini},~\ref{lst:min-sonnet}) maximizes $\min_i R_i$ at $\le 1\%$ efficiency cost (Gemini).
-  \item \emph{Convergent rediscovery across LLMs.} Gemini and Sonnet, on independent runs, both arrive at the \texttt{(id + phase) \% n} duty-rotation idiom with similar phase lengths ($T \approx 50$ steps) under maximin --- and both omit it under efficiency.
+  \item \emph{Convergent rediscovery across LLMs.} Gemini and Sonnet, on independent runs, both arrive at the \texttt{(id + phase) \% n} duty-rotation idiom with similar phase lengths ($T \approx 50$ steps) under maximin,  and both omit it under efficiency.
   \item \emph{Game structure dictates strategy class.} Cleanup policies are dominated by role-assignment logic (cleaner vs. gatherer); Gathering policies are dominated by territory partitioning and respawn-timer reasoning, with no role differentiation at all. The researcher does not need to be told which class of strategy to write.
-  \item \emph{Earliest-collection-time as a unifying score.} The Gathering policy's $\max(\text{walk}, \text{timer})$ key (Listing~\ref{lst:gather-gemini}) is structurally identical across the 4 Gathering runs (both Gemini and Sonnet), differing only in how the Voronoi diagram is computed --- Manhattan approximation, fully BFS-based, or cached helper.
+  \item \emph{Earliest-collection-time as a unifying score.} The Gathering policy's $\max(\text{walk}, \text{timer})$ key (Listing~\ref{lst:gather-gemini}) is structurally identical across the 4 Gathering runs (both Gemini and Sonnet), differing only in how the Voronoi diagram is computed, e.g. by Manhattan approximation, fully BFS-based, or cached helper.
 \end{itemize}
 
 
