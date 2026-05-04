@@ -472,7 +472,7 @@ The hand-designed feedback configuration from prior work~\cite{gallego2026} serv
 Table~\ref{tab:results} presents the main results, comparing our autoresearch framework against the hand-designed baseline of~\cite{gallego2026} and GEPA~\cite{agrawal2026}.
 
 \begin{table}[t]
-\caption{Results. Mean\,{\scriptsize/\,max} across the runs per condition. Baseline: unmodified, hand-designed pipeline from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
+\caption{Results. Mean\,{\scriptsize/\,max} across the runs per condition. \textbf{Bold} marks the best mean per metric within each Policy LLM $\times$ Game sub-block. Baseline: unmodified, hand-designed pipeline from~\cite{gallego2026}. GEPA: automated prompt optimization~\cite{agrawal2026} with matched compute budget.}
 \label{tab:results}
 \centering
 \footnotesize
@@ -511,8 +511,8 @@ Gemini 3.1 Pro & $\Phi_U$ & 2.08{\scriptsize/2.35} & 0.94{\scriptsize/0.96} & 43
 Sonnet 4.6 & $\Phi_U$ & 1.20{\scriptsize/1.23} & 0.63{\scriptsize/0.71} & 86{\scriptsize/123} \\
 \addlinespace
 \multicolumn{5}{@{}l}{\emph{Gathering --- Two-level Autoresearch}} \\
-Gemini 3.1 Pro & $\Phi_U$ & 2.49{\scriptsize/2.51} & 0.98{\scriptsize/0.98} & 582{\scriptsize/582} \\
-Sonnet 4.6 & $\Phi_U$ & 2.52{\scriptsize/2.52} & 0.96{\scriptsize/0.98} & 576{\scriptsize/597} \\
+Gemini 3.1 Pro & $\Phi_U$ & \textbf{2.49}{\scriptsize/2.51} & \textbf{0.98}{\scriptsize/0.98} & \textbf{582}{\scriptsize/582} \\
+Sonnet 4.6 & $\Phi_U$ & \textbf{2.52}{\scriptsize/2.52} & \textbf{0.96}{\scriptsize/0.98} & \textbf{576}{\scriptsize/597} \\
 \bottomrule
 \end{tabular}
 \end{table}
