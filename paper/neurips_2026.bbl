@@ -1,0 +1,123 @@
+\begin{thebibliography}{10}
+
+\bibitem{leibo2017}
+Joel~Z Leibo, Vinicius Zambaldi, Marc Lanctot, Janusz Marecki, and Thore
+  Graepel.
+\newblock Multi-agent reinforcement learning in sequential social dilemmas.
+\newblock In {\em Proc.\ 16th Conference on Autonomous Agents and MultiAgent
+  Systems}, pages 464--473, 2017.
+
+\bibitem{busoniu2008}
+Lucian Bu{\c{s}}oniu, Robert Babu{\v{s}}ka, and Bart De~Schutter.
+\newblock A comprehensive survey of multiagent reinforcement learning.
+\newblock {\em IEEE Transactions on Systems, Man, and Cybernetics, Part C
+  (Applications and Reviews)}, 38(2):156--172, 2008.
+
+\bibitem{gallego2026}
+V{\'\i}ctor Gallego.
+\newblock Cooperation and exploitation in llm policy synthesis for sequential
+  social dilemmas.
+\newblock {\em arXiv preprint arXiv:2603.19453}, 2026.
+
+\bibitem{karpathy2026}
+Andrej Karpathy.
+\newblock autoresearch: {AI} agents running research on single-{GPU} nanochat
+  training automatically.
+\newblock \url{https://github.com/karpathy/autoresearch}, 2026.
+
+\bibitem{hughes2018}
+Edward Hughes, Joel~Z Leibo, Matthew Phillips, Karl Tuyls, Edgar~A
+  Due{\~n}ez-Guzm{\'a}n, Antonio Garc{\'\i}a~Casta{\~n}eda, Iain Dunning, Tina
+  Zhu, Kevin~R McKee, R.~Koster, Heather Roff, and Thore Graepel.
+\newblock Inequity aversion improves cooperation in intertemporal social
+  dilemmas.
+\newblock In {\em Neural Information Processing Systems}, 2018.
+
+\bibitem{perolat2017}
+Julien Perolat, Joel~Z Leibo, Vinicius Zambaldi, Charles Beattie, Karl Tuyls,
+  and Thore Graepel.
+\newblock A multi-agent reinforcement learning model of common-pool resource
+  appropriation.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~30, 2017.
+
+\bibitem{conitzer2002}
+Vincent Conitzer and Tuomas Sandholm.
+\newblock Complexity of mechanism design.
+\newblock In {\em Proc.\ 18th Conference on Uncertainty in Artificial
+  Intelligence}, pages 103--110, 2002.
+
+\bibitem{kamenica2011}
+Emir Kamenica and Matthew Gentzkow.
+\newblock Bayesian persuasion.
+\newblock {\em American Economic Review}, 101(6):2590--2615, 2011.
+
+\bibitem{agrawal2026}
+Lakshya~A Agrawal et~al.
+\newblock {GEPA}: Reflective prompt evolution can outperform reinforcement
+  learning.
+\newblock {\em arXiv preprint arXiv:2507.19457}, 2026.
+
+\bibitem{romera2024}
+Bernardino Romera-Paredes, Mohammadamin Barekatain, Alexander Novikov, Matej
+  Balog, M~Pawan Kumar, Emilien Dupont, Francisco~JR Ruiz, Jordan~S Ellenberg,
+  Pengming Wang, Omar Fawzi, et~al.
+\newblock Mathematical discoveries from program search with large language
+  models.
+\newblock {\em Nature}, 625(7995):468--475, 2024.
+
+\bibitem{ma2024}
+Yecheng~Jason Ma, William Liang, Guanzhi Wang, De-An Huang, Osbert Bastani,
+  Dinesh Jayaraman, Yuke Zhu, Linxi Fan, and Anima Anandkumar.
+\newblock Eureka: Human-level reward design via coding large language models.
+\newblock In {\em The Twelfth International Conference on Learning
+  Representations}, 2024.
+
+\bibitem{wang2024}
+Guanzhi Wang, Yuqi Xie, Yunfan Jiang, Ajay Mandlekar, Chaowei Xiao, Yuke Zhu,
+  Linxi Fan, and Anima Anandkumar.
+\newblock Voyager: An open-ended embodied agent with large language models.
+\newblock {\em Transactions on Machine Learning Research}, 2024.
+
+\bibitem{liang2023}
+Jacky Liang, Wenlong Huang, Fei Xia, Peng Xu, Karol Hausman, Brian Ichter, Pete
+  Florence, and Andy Zeng.
+\newblock Code as policies: Language model programs for embodied control.
+\newblock In {\em 2023 IEEE International Conference on Robotics and Automation
+  (ICRA)}, pages 9493--9500, 2023.
+
+\bibitem{ye2024}
+Haoran Ye, Jiarui Wang, Zhiguang Cao, Federico Berto, Chuanbo Hua, Haeyeon Kim,
+  Jinkyoo Park, and Guojie Song.
+\newblock {ReEvo}: Large language models as hyper-heuristics with reflective
+  evolution.
+\newblock In {\em The Thirty-eighth Annual Conference on Neural Information
+  Processing Systems}, 2024.
+
+\bibitem{shinn2023}
+Noah Shinn, Federico Cassano, Ashwin Gopinath, Karthik Narasimhan, and Shunyu
+  Yao.
+\newblock Reflexion: language agents with verbal reinforcement learning.
+\newblock In {\em Thirty-seventh Conference on Neural Information Processing
+  Systems}, 2023.
+
+\bibitem{madaan2023}
+Aman Madaan, Niket Tandon, Prakhar Gupta, Skyler Hallinan, Luyu Gao, Sarah
+  Wiegreffe, Uri Alon, Nouha Dziri, Shrimai Prabhumoye, Yiming Yang, et~al.
+\newblock Self-refine: Iterative refinement with self-feedback.
+\newblock In {\em Thirty-seventh Conference on Neural Information Processing
+  Systems}, 2023.
+
+\bibitem{yang2024}
+Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc~V Le, Denny Zhou, and
+  Xinyun Chen.
+\newblock Large language models as optimizers.
+\newblock In {\em The Twelfth International Conference on Learning
+  Representations}, 2024.
+
+\bibitem{shi2026}
+Taiwei Shi, Sihao Chen, Bowen Jiang, Linxin Song, Longqi Yang, and Jieyu Zhao.
+\newblock Experiential reinforcement learning.
+\newblock {\em arXiv preprint arXiv:2602.13949}, 2026.
+
+\end{thebibliography}

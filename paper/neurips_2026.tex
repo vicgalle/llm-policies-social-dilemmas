@@ -655,6 +655,36 @@ Figures~\ref{fig:efficiency} and~\ref{fig:maximin} report the metric of the \emp
 \label{fig:maximin_avg}
 \end{figure}
 
+\subsection{Discard Taxonomy}
+\label{app:discards}
+\begin{table}[!h]
+\caption{Discard taxonomy across 12 main-experiment runs (100 outer iterations). The four named-mode categories (iteration regression, over-prescription, feedback overload, variance probe) correspond to the failure patterns described in Section~\ref{sec:experiments}; ``pure $J$-regression'' captures iterations where $\mathcal{R}$'s edit underperformed the running best $J^*$ without an identifiable named cause.}
+\label{tab:discards}
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Category & Count & Share of discards \\
+\midrule
+Kept ($J_j > J^* + \tau$) & 47 & --- \\
+Baselines (unmodified pipeline, $j{=}0$) & 7 & --- \\
+\midrule
+\textbf{Discarded} ($J_j \le J^*$) & \textbf{46} & \textbf{100\%} \\
+\quad pure $J$-regression (no identified failure mode) & 20 & 43\% \\
+\quad iteration regression (\textit{e.g.}, $K{\in}\{4,5\}$ over-refinement) & 11 & 24\% \\
+\quad over-prescription (verbose hints / restrictive worked examples) & 8 & 17\% \\
+\quad feedback overload (verbose diagnostics, anti-regression guards) & 4 & 9\% \\
+\quad variance probe (deliberate re-run at fixed $c$ to gauge seed noise) & 3 & 7\% \\
+\midrule
+Total outer iterations logged & 100 & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A natural question raised by Figure~\ref{fig:efficiency} is how much of the open-circle ``discard'' mass is genuine exploration that regresses on $J$ versus iterations that fail for reasons unrelated to the objective. Aggregating across all 12 main-experiment runs (Table~\ref{tab:discards}), $\mathcal{R}$ ran 100 outer iterations: 7 baselines (the unmodified pipeline at $j{=}0$ for each run, plus two re-baselines), 47 kept ($J_j > J^* + \tau$ with $\tau{=}0$), and 46 discarded. No outer iteration was discarded for AST safety or smoke-test failure; those events occur \emph{inside} the inner loop and are absorbed by the regeneration mechanism (up to $R$ retries with the error message appended to the prompt, Section~\ref{sec:framework}). All 46 discards are therefore regressions on $J$; we further classify them by which of the failure modes in Section~\ref{sec:experiments} (``Common failure modes'') we can identify from the researcher's logged description and the per-iteration metric trajectory.
+
+Three observations follow. First, no discards are generation/validation failures at the outer loop, confirming that the AST-and-smoke-test guard plus regeneration-on-error is a non-leaky boundary between inner-loop code-validity issues and outer-loop strategy decisions. Second, the named failure modes from Section~\ref{sec:experiments} account for $23/46$ ($50\%$) of discards; the remaining $20/46$ ($43\%$) are ``pure'' regressions on $J$ where $\mathcal{R}$ tried an intuitively plausible modification (a new helper, a reworded hint, a different $|S|$) that simply underperformed the running best. Third, the researcher occasionally elects to spend an iteration on a deliberate variance probe (re-running the same $c$ on a different seed set) --- these constitute $3/46$ of discards and reflect $\mathcal{R}$ actively reasoning about evaluator noise rather than only chasing $J$. The breakdown by cell is qualitatively consistent: under $\Phi_U$ on Cleanup, iteration regression ($7/22$) and feedback overload ($4/22$) dominate, matching the volatility of high-$U$ Cleanup policies; under $\Phi_{\min}$ on Cleanup, pure $J$-regression dominates ($12/21$), reflecting the broader plateau of competitive maximin configurations $\mathcal{R}$ explores before locking in a rotation template; Gathering is sparser ($3$ discards across $4$ runs), consistent with that game's faster saturation.
+
 \subsection{Smaller Open-Weight Model: Gemma 4 26B}
 \label{app:gemma}
 
