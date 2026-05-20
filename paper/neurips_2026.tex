@@ -7,7 +7,7 @@
 % The authors should use one of these tracks.
 % Before accepting by the NeurIPS conference, select one of the options below.
 % 0. "default" for submission
-\usepackage[dblblindworkshop]{neurips_2026}
+\usepackage[dblblindworkshop, final]{neurips_2026}
 % the "default" option is equal to the "main" option, which is used for the Main Track with double-blind reviewing.
 % 1. "main" option is used for the Main Track
 %  \usepackage[main]{neurips_2026}
@@ -157,13 +157,10 @@
 
 
 \author{%
-  David S.~Hippocampus\thanks{Use footnote for providing further information
-    about author (webpage, alternative address)---\emph{not} for acknowledging
-    funding agencies.} \\
-  Department of Computer Science\\
-  Cranberry-Lemon University\\
-  Pittsburgh, PA 15213 \\
-  \texttt{hippo@cs.cranberry-lemon.edu} \\
+  Víctor Gallego \\
+  Komorebi AI Technologies\\
+  Madrid, Spain \\
+  \texttt{victor.gallego@komorebi.ai} \\
   % examples of more authors
   % \And
   % Coauthor \\
@@ -230,12 +227,14 @@ We study two canonical SSDs that capture complementary dilemma types.
 Both games use $8$--$9$ discrete actions (movement, rotation, beam, stand, optionally clean) and episodes of $H{=}1000$ steps. The two dilemmas differ in cost structure: asymmetric provision (cleaners pay, all benefit) vs.\ symmetric restraint (every agent faces the same temptation), a distinction that drives our experimental findings.
 
 \paragraph{Social metrics.} Following Perolat et al.~\cite{perolat2017}, let $R_i = \sum_{t=0}^{H-1} r_i^t$ denote agent $i$'s episode return. We evaluate four social outcomes:
-\begin{align}
+\begin{align*}
 U &= \tfrac{1}{H}\sum_{i=1}^{N} R_i & \text{(efficiency)} \\
 E &= 1 - \frac{\sum_{i,j} |R_i - R_j|}{2N \sum_i R_i} & \text{(equality)} \\
-S &= \tfrac{1}{N}\sum_{i=1}^{N} \bar t_i & \text{(sustainability)} \\
+S &= \tfrac{1}{N}\sum_{i=1}^{N} \bar t_i & \text{(sustainability)} 
+\end{align*}
+\begin{align*}
 P &= \tfrac{1}{H}\sum_{t=0}^{H-1} \big|\{i : \textrm{active}_i^t\}\big| & \text{(peace)}
-\end{align}
+\end{align*}
 where $\bar t_i$ is the mean timestep at which agent $i$ collects positive reward (higher $\Rightarrow$ resources preserved later) and $\textrm{active}_i^t$ indicates that agent $i$ is not tagged out at step $t$. We additionally consider the \emph{maximin} (Rawlsian) welfare criterion $\min_i R_i$, which optimizes the worst-off agent's return and serves as the second objective in our experiments.
 
 \subsection{Iterative LLM Policy Synthesis}
@@ -258,9 +257,6 @@ where $\mathbf{d}$ contains natural-language definitions of each social metric. 
 \section{Two-Level Framework}
 \label{sec:framework}
 %% ============================================================
-
-We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The fundamental insight is that the entire inner-loop codebase is a designable artifact that a code-based agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
-
 \begin{figure}[t]
 \centering
 \begin{minipage}[t]{0.45\linewidth}
@@ -373,6 +369,9 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 \end{algorithm}
 \end{minipage}
 \end{figure}
+We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomously discovers configurations that optimize the output of an inner-loop system. While we instantiate this for multi-agent policy synthesis, the architecture is general: any pipeline where an LLM generates artifacts, evaluates them, and iterates can serve as the inner loop. The fundamental insight is that the entire inner-loop codebase is a designable artifact that a code-based agent can search over. Figure~\ref{fig:framework} illustrates the architecture.
+
+
 
 \subsection{Configuration Space}
 
