@@ -311,10 +311,10 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 \end{scope}
 % 4. Metrics
 \node[mbox=metcolor, below=0.42cm of IL] (M) {%
-  Metrics:\; $\Phi_j$,\; $\mathbf{m}_j$,\; $\Delta_j$};
+  Metrics:\; $J_j$,\; $\mathbf{m}_j$,\; $\Delta_j$};
 % 5. Decision
 \node[mbox=deccolor, below=0.38cm of M] (D) {%
-  $\Phi_j > \Phi^*$\,?\;\;%
+  $J_j > J^* + \tau$\,?\;\;%
   {\scriptsize\textcolor{metcolor!80!black}{\textbf{keep}}%
    \;$\mid$\;%
    \textcolor{deccolor!80!black}{\textbf{discard}}}};
@@ -353,21 +353,22 @@ We introduce a two-level system where a \emph{researcher agent} $\cR$ autonomous
 \label{alg:outer}
 \begin{algorithmic}[1]
 \footnotesize
-\Require Game $\cG$, policy synthesizer $\cM$, researcher $\cR$, system prompt $p_{\cR}$, initial config $c_0$, outer iterations $J$, ground-truth objective $\Phi$, held-out seeds $S_{\textrm{ho}}$
+\Require Game $\cG$, policy synthesizer $\cM$, researcher $\cR$, system prompt $p_{\cR}$, initial config $c_0$, outer iterations $J_{\max}$, welfare objective $\Phi$, held-out seeds $S_{\textrm{ho}}$, keep threshold $\tau \geq 0$
 \Ensure Best configuration $c^*$, best policy $\pi^*$
 \State $\pi^*_0 \leftarrow \textsc{InnerLoop}(\cM, \cG, c_0)$
-\State $\Phi_0 \leftarrow \textsc{Eval}(\pi^*_0;\, \cG,\, S_{\textrm{ho}})$
-\State $\textit{history} \leftarrow \{(c_0, \Phi_0, \bm_0, \varnothing)\}$
-\For{$j = 1, \dots, J$}
-  \State $c_j \leftarrow \cR\!\left(p_{\cR},\, \textsc{code}(c_{j-1}),\, \textit{history}\right)$
+\State $J_0 \leftarrow \Phi(\textsc{Eval}(\pi^*_0;\, \cG,\, S_{\textrm{ho}}))$
+\State $c^* \leftarrow c_0,\; J^* \leftarrow J_0$ \hfill {\scriptsize\textit{// running best}}
+\State $\textit{history} \leftarrow \{(c_0, J_0, \bm_0, \varnothing)\}$
+\For{$j = 1, \dots, J_{\max}$}
+  \State $c_j \leftarrow \cR\!\left(p_{\cR},\, \textsc{code}(c^*),\, \textit{history}\right)$
   \State \textbf{if} $\neg\,\textsc{ValidateConfig}(c_j)$ \textbf{then} retry $\leq R$
   \State $\pi^*_j \leftarrow \textsc{InnerLoop}(\cM, \cG, c_j)$
-  \State $\Phi_j \leftarrow \textsc{Eval}(\pi^*_j;\, \cG,\, S_{\textrm{ho}})$
-  \State $\Delta_j \leftarrow \textsc{Diff}(c_{j-1}, c_j)$ \hfill {\scriptsize\textit{// code diff}}
-  \State $\textit{history} \leftarrow \textit{history} \cup \{(c_j, \Phi_j, \bm_j, \Delta_j)\}$
+  \State $J_j \leftarrow \Phi(\textsc{Eval}(\pi^*_j;\, \cG,\, S_{\textrm{ho}}))$
+  \State $\Delta_j \leftarrow \textsc{Diff}(c^*, c_j)$ \hfill {\scriptsize\textit{// code diff}}
+  \State \textbf{if} $J_j > J^* + \tau$ \textbf{then keep:} $c^* \leftarrow c_j,\; J^* \leftarrow J_j$;\; \textbf{else discard} \hfill {\scriptsize\textit{// $\tau=0$ in our runs}}
+  \State $\textit{history} \leftarrow \textit{history} \cup \{(c_j, J_j, \bm_j, \Delta_j)\}$
 \EndFor
-\State $j^* \leftarrow \arg\max_j \Phi_j$
-\State \Return $c_{j^*},\, \pi^*_{j^*}$
+\State \Return $c^*,\, \pi^*_{c^*}$
 \end{algorithmic}
 \end{algorithm}
 \end{minipage}
@@ -414,23 +415,23 @@ Each iteration $k$ proceeds in four stages, following~\cite{gallego2026}:
   \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$, packaging the previous policy's source code together with the scalar reward, the social metrics vector, their natural-language definitions, and any adaptive diagnostics that $\phi$ injects.
 \end{enumerate}
 
-The inner loop output is evaluated on held-out seeds via a fixed ground-truth objective:
+The inner loop output is scored on held-out seeds via the configuration-level map
 \begin{equation}
-  \Phi(c) = \textsc{Eval}(\pi^*_c;\; \cG,\; S_{\text{held-out}})
-  \label{eq:phi}
+  J(c) = \Phi\!\left(\textsc{Eval}(\pi^*_c;\; \cG,\; S_{\text{held-out}})\right),
+  \label{eq:J}
 \end{equation}
-where $\Phi$ maps from social outcomes to a scalar. We consider two alternative objectives to maximize:
+where $\textsc{Eval}$ returns the per-agent returns of $\pi^*_c$ in $\cG$ averaged over the held-out seeds, and $\Phi$ is a fixed welfare functional that aggregates those returns into a scalar. We consider two alternative welfare functionals:
 \begin{align}
   \Phi_U &= U = \frac{1}{H}\sum_{i=1}^{N} R_i & \text{(utilitarian efficiency)} \label{eq:eff}\\
   \Phi_{\min} &= \min_i R_i & \text{(Rawlsian maximin)} \label{eq:rawls}
 \end{align}
-$\Phi_U$ rewards collective throughput and is indifferent to how reward is distributed across agents, whereas$\Phi_{\min}$ instead optimizes for the worst-off agent, pressuring the researcher toward configurations that distribute the cost of cooperation.
+$\Phi_U$ rewards collective throughput and is indifferent to how reward is distributed across agents, whereas $\Phi_{\min}$ instead optimizes for the worst-off agent, pressuring the researcher toward configurations that distribute the cost of cooperation. The researcher's goal is to maximize $J(c)$ for a chosen $\Phi$; we use $\Phi$ to denote the welfare objective throughout, and $J$ for the per-configuration scalar score returned by held-out evaluation.
 
 \subsection{Outer Loop (Automated Research)}
 
 The researcher agent $\cR$ iteratively modifies the pipeline configuration. Following the autoresearch paradigm~\cite{karpathy2026}, $\cR$ operates on the inner-loop codebase as a modifiable artifact, proposing changes, observing outcomes, and refining. The procedure is formalized in Algorithm~\ref{alg:outer}.
 
-At each outer iteration $j$, the researcher $\cR$ receives: i) the \textbf{full source code} of the current configuration $c_{j-1}$ (prompts, feedback construction, helpers, iteration logic); ii) the \textbf{experiment history}: for each prior iteration, the code diff $\Delta_i$, ground-truth score $\Phi_i$, and social metrics vector $\bm_i$; iii) the \textbf{environment source code} (read-only), enabling the researcher to reason about game mechanics.
+At each outer iteration $j$, the researcher $\cR$ receives: i) the \textbf{full source code} of the current running-best configuration $c^*$ (prompts, feedback construction, helpers, iteration logic); ii) the \textbf{experiment history}: for each prior iteration, the code diff $\Delta_i$, ground-truth score $J_i$, social metrics vector $\bm_i$, and whether the iteration was kept or discarded; iii) the \textbf{environment source code} (read-only), enabling the researcher to reason about game mechanics. Discarded iterations are reverted on disk (\texttt{git checkout -- pipeline/}) so that the next proposal $c_{j+1}$ is constructed on top of $c^*$, not on top of $c_j$.
 The researcher proposes a new configuration $c_j$ by generating code modifications. Concretely, $\cR$ is a coding agent (Claude Code CLI) that operates on a real software repository: it reads and edits Python source files, runs shell commands, inspects evaluation outputs, and commits changes to a dedicated git branch, following the same workflow a human researcher would follow.
 
 \subsection{Connection to Automated Mechanism Design}
@@ -440,7 +441,7 @@ The two-level structure admits a mechanism design interpretation. The researcher
 
 This connects to the automated mechanism design literature~\cite{conitzer2002}, where a principal designs rules to induce desired behavior from self-interested agents. In our setting:
 \begin{itemize}
-  \item The \textbf{principal} is the researcher $\cR$, optimizing the ground-truth objective $\Phi$.
+  \item The \textbf{principal} is the researcher $\cR$, optimizing the ground-truth score $J$ induced by the welfare objective $\Phi$.
   \item The \textbf{agent} is the synthesizer $\cM$, optimizing per-agent reward as instructed.
   \item The \textbf{mechanism} is the configuration $c$: prompts, feedback, helpers, iteration logic.
   \item The \textbf{outcome} is the social welfare of the resulting multi-agent policy $\pi^*_c$.
@@ -523,7 +524,7 @@ Every run improves substantially regardless of starting point (Figure~\ref{fig:e
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.79\textwidth]{images/fig1_efficiency_trajectory.png}
-\caption{Efficiency ($U$) across researcher iterations for all 12 runs. \emph{Left}: Cleanup with 8 runs across 2 LLMs $\times$ 2 objectives (solid lines = kept experiments, open circles = discarded). Dashed horizontal line: hand-designed baseline from~\cite{gallego2026}. All runs converge to $U \approx 3.1$--$3.2$ despite diverse starting points. \emph{Right}: Gathering with 4 runs (2 per LLM). All converge to $U \approx 2.5$ within 2--4 iterations despite baselines ranging from $0.03$ to $2.42$.}
+\caption{Efficiency ($U$) across researcher iterations for all 12 runs. \emph{Left}: Cleanup with 8 runs across 2 LLMs $\times$ 2 objectives. Solid lines connect \emph{kept} iterations (those for which $J_j > J^* + \tau$ strictly exceeded the running-best score; $\tau{=}0$ in our runs); open circles mark \emph{discarded} iterations ($J_j \le J^*$), which are reverted on disk before the next proposal. Dashed horizontal line: hand-designed baseline from~\cite{gallego2026}. All runs converge to $U \approx 3.1$--$3.2$ despite diverse starting points. \emph{Right}: Gathering with 4 runs (2 per LLM). All converge to $U \approx 2.5$ within 2--4 iterations despite baselines ranging from $0.03$ to $2.42$.}
 \label{fig:efficiency}
 \end{figure}
 
@@ -575,7 +576,7 @@ Our results empirically support the mechanism design interpretation of Section~\
 The Cleanup--Gathering contrast reveals a structural insight about social dilemmas: \emph{provision} dilemmas (asymmetric costs, one agent's contribution benefits all) require explicit fairness mechanisms, while \emph{restraint} dilemmas (symmetric costs, each agent faces the same temptation) achieve fairness naturally when coordination improves. This distinction, well-known in the common-pool resource literature, is rediscovered here by an autonomous AI agent, which suggests it is a robust structural feature of these environments.
 
 \paragraph{Human oversight and audit.}
-Our system is fully autonomous by design, but its architecture offers natural affordances for human-in-the-loop oversight. Because the researcher $\cR$ operates on a standard git repository,a domain expert can audit the full history of code diffs $\Delta_j$ alongside their metric outcomes $(\Phi_j, \bm_j)$. The keep/discard decision (Algorithm~\ref{alg:outer}, line~11) is a lightweight intervention point: a human could override the accept threshold, veto modifications that introduce undesirable mechanisms (e.g., exploitative role assignments), or steer the researcher toward under-explored regions of the configuration space by editing the experiment history. More broadly, the separation between the researcher $\cR$ and the frozen evaluation $\Phi$ creates a \emph{delegation boundary}: the human defines \emph{what} to optimize (the welfare objective), while the agent decides \emph{how}. This mirrors the expert-in-the-loop design patterns identified in deployment-oriented work on AI agents for discovery, where trust calibration depends on the legibility of the agent's decision trail rather than on real-time supervision.
+Our system is fully autonomous by design, but its architecture offers natural affordances for human-in-the-loop oversight. Because the researcher $\cR$ operates on a standard git repository, a domain expert can audit the full history of code diffs $\Delta_j$ alongside their metric outcomes $(J_j, \bm_j)$. The keep/discard decision (Algorithm~\ref{alg:outer}, line~11) is a lightweight intervention point: a human could override the accept threshold $\tau$, veto modifications that introduce undesirable mechanisms (e.g., exploitative role assignments), or steer the researcher toward under-explored regions of the configuration space by editing the experiment history. More broadly, the separation between the researcher $\cR$ and the frozen evaluation $\Phi$ creates a \emph{delegation boundary}: the human defines \emph{what} to optimize (the welfare objective), while the agent decides \emph{how}. This mirrors the expert-in-the-loop design patterns identified in deployment-oriented work on AI agents for discovery, where trust calibration depends on the legibility of the agent's decision trail rather than on real-time supervision.
 
 
 \paragraph{Future work.}
@@ -596,7 +597,7 @@ We flag three limitations of the present study, in roughly decreasing order of h
 \begin{enumerate}[leftmargin=*]
   \item \emph{Single researcher LLM.} All main-experiment runs (and the Gemma appendix) use the same researcher $\cR$ (Claude Opus 4.6 via the Claude Code CLI). A researcher ablation across $\cR$-LLMs, in which the same fixed system prompt $p_\cR$ (Appendix~\ref{app:art-r-prompt}) is run with several frontier coding agents, is the single most important follow-up.
   \item \emph{Inner-loop infrastructure is itself a designed artifact.} The line ``$\cR$ uses no task-specific scaffolding'' refers to the researcher's tooling (CLI, git, file edits) and to the fact that the configuration $c{=}(p,\phi,\mathcal{H},\iota)$ starts from a deliberately weak baseline. It does \emph{not} mean the surrounding system is unscoped: the inner-loop validation pipeline (AST safety checks, sandboxed execution, multi-seed evaluation harness), the helper-library skeleton (\texttt{pipeline/helpers.py} starts non-empty), and the orchestrator API (\texttt{run\_inner\_loop.py}) are themselves engineered artifacts that bound what $\cR$ can and cannot do. Generalization of the framework to settings without an equivalent harness is plausible but unevaluated.
-  \item \emph{Gridworld scope.} The inner-loop SSDs are 2D gridworlds with fully-observed integer states, discrete action spaces, and short ($H{=}1000$-step) episodes. The specific mechanisms the researcher discovers (BFS-Voronoi partitioning, time-rotated agent-id phase counters, waste-fraction threshold rules) exploit this structure and are gridworld-shaped; their transfer to higher-dimensional, continuous, or partially-observable multi-agent settings is an open question. The outer-loop \emph{operating conditions} (noisy multi-seed evaluation, code-level edits to a real repository, bounded $\Phi$ queries) are realistic, but the conclusions about which strategies emerge are bounded by the inner-loop benchmark.
+  \item \emph{Gridworld scope.} The inner-loop SSDs are 2D gridworlds with fully-observed integer states, discrete action spaces, and short ($H{=}1000$-step) episodes. The specific mechanisms the researcher discovers (BFS-Voronoi partitioning, time-rotated agent-id phase counters, waste-fraction threshold rules) exploit this structure and are gridworld-shaped; their transfer to higher-dimensional, continuous, or partially-observable multi-agent settings is an open question. The outer-loop \emph{operating conditions} (noisy multi-seed evaluation, code-level edits to a real repository, bounded $J$-query budget) are realistic, but the conclusions about which strategies emerge are bounded by the inner-loop benchmark.
 \end{enumerate}
 
 
@@ -660,7 +661,7 @@ Figures~\ref{fig:efficiency} and~\ref{fig:maximin} report the metric of the \emp
 
 We test the framework with Gemma 4 26B-A4B-IT (Google), a 26B-parameter open-weight model substantially smaller than the frontier models in the main experiments. We run three experiment runs: two on Cleanup optimizing efficiency and maximin respectively, and one on Gathering optimizing efficiency. As with the other synthetizer models, all with Opus 4.6 as the researcher $\cR$.
 
-\paragraph{Setup.} In all three experiments, Gemma starts from complete failure: the baseline pipeline produces $U{=}{-}10.0$ on Cleanup (agents CLEAN-spam without collecting apples) and $U{=}0.0$ on Gathering (broken BFS calls), compared to $U{=}1.93$/$0.86$ (Gemini/Sonnet on Cleanup) and $U{=}2.04$/$0.03$ (Gemini/Sonnet on Gathering). The researcher ran $J{=}10$--$18$ outer iterations per condition.
+\paragraph{Setup.} In all three experiments, Gemma starts from complete failure: the baseline pipeline produces $U{=}{-}10.0$ on Cleanup (agents CLEAN-spam without collecting apples) and $U{=}0.0$ on Gathering (broken BFS calls), compared to $U{=}1.93$/$0.86$ (Gemini/Sonnet on Cleanup) and $U{=}2.04$/$0.03$ (Gemini/Sonnet on Gathering). The researcher ran $J_{\max}{=}10$--$18$ outer iterations per condition.
 
 \paragraph{Results.} Table~\ref{tab:gemma} presents the best configurations discovered. Under efficiency optimization, the researcher achieves $U{=}0.87$, a dramatic recovery from the broken baseline but far below frontier models ($U{\approx}3.2$). The researcher compensates for the model's limited capability by reducing inner-loop iterations to $K{=}1$ (avoiding the regression that plagued $K{\geq}2$ runs) and providing highly structured worked examples with explicit cleaning-role assignment.
 
@@ -792,8 +793,8 @@ Here are categories of modifications to explore:
 For the convergent-discovery claim of Finding~4 to be informative, $p_\cR$ must not itself encode the specific mechanisms that $\cR$ later writes into $p$, $\phi$, $\mathcal{H}$ under $\Phi_{\min}$. Inspecting Listing~\ref{lst:r-prompt}, three absences matter:
 \begin{itemize}
   \item \emph{No rotation formula.} $p_\cR$ never mentions \texttt{(agent\_id + env.\_step\_count // T) \% n}, \texttt{env.\_step\_count}, or any other time-based cycling pattern. The closest item -- ``Mention optimal strategies from the literature (Voronoi partitioning, role assignment)'' -- names \emph{static} role assignment, not time-rotated duty.
-  \item \emph{No objective-conditional guidance.} The strategy-space listing is identical regardless of whether $\cR$ is launched with \texttt{--metric efficiency} or \texttt{--metric maximin}. $p_\cR$ does not tell $\cR$ to behave differently under the two objectives; the only objective-sensitive input is the (scalar) score $\Phi_j$ returned after each inner-loop run.
-  \item \emph{No ``rotation is for fairness.''} $p_\cR$ does not link any strategy to either welfare criterion. The connection ``rotation = fairness = high maximin'' is constructed by $\cR$ from $\Phi_j$ observations across iterations on the branch.
+  \item \emph{No objective-conditional guidance.} The strategy-space listing is identical regardless of whether $\cR$ is launched with \texttt{--metric efficiency} or \texttt{--metric maximin}. $p_\cR$ does not tell $\cR$ to behave differently under the two objectives; the only objective-sensitive input is the (scalar) score $J_j$ returned after each inner-loop run.
+  \item \emph{No ``rotation is for fairness.''} $p_\cR$ does not link any strategy to either welfare criterion. The connection ``rotation = fairness = high maximin'' is constructed by $\cR$ from $J_j$ observations across iterations on the branch.
 \end{itemize}
 The researcher-authored prompt $p$ shown in Listing~\ref{lst:prompt-min} and its Sonnet counterpart, both written under $\Phi_{\min}$, contain all three of these elements; the corresponding $\Phi_U$ prompts do not. The role of $p_\cR$ in the experiment is therefore to define the configuration space and the evaluation harness, not to script the discoveries themselves.
 
