@@ -195,7 +195,7 @@
 
 
 \begin{abstract}
-  We study \emph{two-level autoresearch} for cooperation: an outer-loop AI agent autonomously redesigns the inner-loop pipeline of an LLM policy-synthesis system for multi-agent Sequential Social Dilemmas (SSDs). A \emph{researcher agent} $\cR$ (run as a coding agent) reads the inner-loop source code, edits system prompts, feedback functions, helper libraries, and iteration logic, runs evaluations, and decides what to keep, following the \emph{autoresearch} paradigm. Across two games (Cleanup and Gathering), two policy-synthesizer LLMs, and two welfare objectives (utilitarian efficiency and Rawlsian maximin), the researcher reliably exceeds hand-designed baselines, sharply tightens run-to-run variance, and outperforms prompt-only optimization. The discovered pipelines are objective-dependent: under maximin the researcher independently rediscovers \emph{duty rotation} as a fairness mechanism, supporting an \emph{information-design} reading in which the researcher chooses what to reveal to the boundedly rational synthesizer. Code at \url{https://github.com/anon590/autoresearch-social-dilemmas}.
+  We study \emph{two-level autoresearch} for cooperation: an outer-loop AI agent autonomously redesigns the inner-loop pipeline of an LLM policy-synthesis system for multi-agent Sequential Social Dilemmas (SSDs). A \emph{researcher agent} $\cR$ (run as a coding agent) reads the inner-loop source code, edits system prompts, feedback functions, helper libraries, and iteration logic, runs evaluations, and decides what to keep, following the \emph{autoresearch} paradigm. Across two games (Cleanup and Gathering), two policy-synthesizer LLMs, and two welfare objectives (utilitarian efficiency and Rawlsian maximin), the researcher reliably exceeds hand-designed baselines, sharply tightens run-to-run variance, and outperforms prompt-only optimization. The discovered pipelines are objective-dependent: only under maximin does the researcher independently author synthesizer pipelines that inject an explicit \emph{fairness mechanism}, a class of mechanism absent from its own (objective-agnostic) system prompt and from all efficiency-optimized pipelines. This supports an \emph{information-design} reading in which the researcher chooses what to reveal to the boundedly rational synthesizer as a function of the welfare objective. Code at \url{https://github.com/anon590/autoresearch-social-dilemmas}.
 \end{abstract}
 
 
@@ -209,7 +209,7 @@ This shifts where the design problem lives, rather than removing it. The inner-l
 
 We answer affirmatively with a two-level autoresearch framework. An \emph{outer-loop researcher agent} (Claude Opus 4.6, run as a coding agent) edits the source files of an \emph{inner-loop policy synthesizer} (another LLM), runs evaluations on held-out seeds, and keeps modifications that improve a fixed welfare objective $\Phi$. The outer agent operates on an ordinary git repository (reading code, writing diffs, running shell commands, etc) without task-specific scaffolding, mirroring the autoresearch paradigm of Karpathy~\cite{karpathy2026} for single-GPU LLM pretraining. Although the inner-loop SSDs are gridworld benchmarks rather than physical systems, the outer-loop discovery process itself runs under conditions a deployed discovery agent faces: noisy multi-seed evaluations, stochastic code generation, an LLM-evaluation budget that bounds how often $\Phi$ can be queried, and a heterogeneous code repository the agent must navigate end-to-end on its own.
 
-Our contributions are: i) a general two-level framework that delegates the design of an LLM synthesis pipeline to a coding agent operating on a real software repository (Section~\ref{sec:framework}); ii) the first instantiation of the autoresearch paradigm in a multi-agent decision-making domain, with experiments across two SSDs (Cleanup and Gathering), two policy LLMs, and two welfare objectives (utilitarian efficiency $U$ and Rawlsian maximin $\min_i R_i$) (Section~\ref{sec:experiments}); and iii) a mechanism-design interpretation supported by the qualitatively different pipelines the agent produces under different welfare objectives, including the autonomous discovery of \emph{time-based duty rotation} as a fairness mechanism, never found under efficiency optimization.
+Our contributions are: i) a general two-level framework that delegates the design of an LLM synthesis pipeline to a coding agent operating on a real software repository (Section~\ref{sec:framework}); ii) the first instantiation of the autoresearch paradigm in a multi-agent decision-making domain, with experiments across two SSDs (Cleanup and Gathering), two policy LLMs, and two welfare objectives (utilitarian efficiency $U$ and Rawlsian maximin $\min_i R_i$) (Section~\ref{sec:experiments}); and iii) a mechanism-design interpretation supported by the qualitatively different pipelines the agent produces under different welfare objectives, including the autonomous insertion of explicit fairness mechanisms (usually \emph{time-based duty rotation}) into the researcher-authored synthesizer prompts and helpers, in every maximin run and no efficiency run.
 
 %% ============================================================
 \section{Background}
@@ -536,7 +536,9 @@ For Sonnet, there is a moderate tradeoff: efficiency drops from $3.12$ to $2.57$
 In Cleanup, where cleaning costs are borne asymmetrically (cleaners pay $-1$, free-riders collect apples), baseline equality ranges from $E{=}0.04$ to $0.62$, and maximin optimization is required to reach $E > 0.9$. In Gathering, where all agents face a symmetric landscape, efficiency optimization alone achieves $E > 0.94$ across all 4 runs: no separate maximin runs are needed. This generalizes: in \emph{provision} dilemmas with asymmetric costs, fairness requires designed mechanisms (role rotation, duty sharing); in \emph{restraint} dilemmas with symmetric costs, fairness emerges as a free byproduct of efficient coordination. The researcher independently discovers this, it creates role differentiation pipelines only for Cleanup, and pure spatial-coordination pipelines for Gathering.
 
 \paragraph{Finding 4: Convergent discovery of qualitatively different strategies per objective.}
-Despite fully independent runs, the researcher converges on the same core strategies within each condition (Table~\ref{tab:strategies}, Appendix~\ref{app:additional}). In Cleanup, waste-counting helpers and spatial zone partitioning appear across all runs. The main qualitative difference is \emph{role rotation}, appearing in 4/4 maximin runs (Listings~\ref{lst:min-gemini},~\ref{lst:min-sonnet}) but 0/4 efficiency runs (Listing~\ref{lst:eff-gemini}). Under efficiency optimization, the researcher assigns static cleaning roles (some agents always clean), achieving high collective output at the cost of equality. Under maximin optimization, it discovers rotation as a fairness mechanism. In Gathering, the researcher discovers BFS-Voronoi territory partitioning and respawn-timer awareness (Listings~\ref{lst:helper-vor},~\ref{lst:gather-gemini}), with no role differentiation. Thus, optimization is purely spatial (who collects which apples) and temporal (respawn-aware positioning).
+Despite fully independent runs, the researcher converges on the same core strategies within each condition (Table~\ref{tab:strategies}, Appendix~\ref{app:additional}). In Cleanup, waste-counting helpers and spatial zone partitioning appear across all runs. The qualitative dividing line is the presence of an explicit \emph{fairness mechanism}, which appears in 4/4 maximin runs but 0/4 efficiency runs. In 3/4 maximin runs (both Gemini runs and one Sonnet run, Listings~\ref{lst:min-gemini},~\ref{lst:min-sonnet}) the researcher writes \emph{time-based role rotation} into the synthesizer prompt; in the remaining maximin run the researcher writes a structurally distinct ``collective threshold'' mechanism in which all agents synchronously switch between cleaning and collecting based on \texttt{waste\_fraction(env)} (achieving comparable maximin without an agent-index phase). Under efficiency optimization, the researcher instead writes \emph{static} role assignment (some agents always clean), producing high collective output at the cost of equality (Listing~\ref{lst:eff-gemini}). In Gathering, the researcher discovers BFS-Voronoi territory partitioning and respawn-timer awareness (Listings~\ref{lst:helper-vor},~\ref{lst:gather-gemini}), with no role differentiation: optimization is purely spatial (who collects which apples) and temporal (respawn-aware positioning).
+
+The convergence here is at the level of \emph{which artifacts $\cR$ injects} into $p$, $\phi$, $\mathcal{H}$. Once the researcher-authored prompt contains a rotation template (e.g., Listing~\ref{lst:prompt-min}), the downstream synthesizer's implementation is unsurprising. The non-trivial claim is that $\cR$ writes such a template only under $\Phi_{\min}$, never under $\Phi_U$, despite the researcher system prompt $p_\cR$ being identical across objectives and containing no rotation formula, no objective-conditional guidance, and no link between any strategy class and either welfare criterion (Listing~\ref{lst:r-prompt}, Appendix~\ref{app:art-r-prompt}).
 
 \paragraph{Common failure modes.}
 Several patterns led to discarded autoresearch iterations across all runs: (1)~\emph{over-prescription}: adding too many strategic hints confuses the policy LLM, causing generation failures; (2)~\emph{iteration regression}: $K{=}4$ or $K{=}5$ inner iterations often cause catastrophic regression as the LLM ``over-refines'' a working policy; (3)~\emph{feedback overload}: verbose per-agent diagnostics cause over-correction rather than gradual improvement.
@@ -590,7 +592,7 @@ Several directions emerge.  First, we are interested in applying the two-level f
 \label{app:additional}
 
 \begin{table}[h]
-\caption{Strategies discovered by the researcher in Cleanup across 4 efficiency-optimized and 4 maximin-optimized independent runs.}
+\caption{Strategies discovered by the researcher in Cleanup across 4 efficiency-optimized and 4 maximin-optimized independent runs. The grouped row records any explicit \emph{fairness mechanism}; its two sub-rows decompose this into the dominant variant (time-based role rotation) and the alternative (synchronized whole-population clean/collect switching) found in one Sonnet maximin run.}
 \label{tab:strategies}
 \centering
 \small
@@ -603,7 +605,9 @@ Zone/lane partitioning & 3/4 & 4/4 \\
 Anti-regression feedback & 3/4 & 2/4 \\
 Worked policy examples & 2/4 & 3/4 \\
 Cleaning cost economics & 2/4 & 3/4 \\
-\textbf{Time-based role rotation} & \textbf{0/4} & \textbf{4/4} \\
+\textbf{Explicit fairness mechanism} & \textbf{0/4} & \textbf{4/4} \\
+\quad \emph{of which:} time-based role rotation & 0/4 & 3/4 \\
+\quad \emph{of which:} synchronized clean/collect & 0/4 & 1/4 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -721,7 +725,66 @@ Each inner loop evaluation involves $K{=}2$--$3$ policy LLM generation calls (ea
 \label{app:artifacts}
 %% ============================================================
 
-The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \phi, \mathcal{H}, \iota)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering).
+The previous appendix shows the policies $\pi^*_c$ that the inner loop \emph{outputs}; this one shows the configuration $c = (p, \phi, \mathcal{H}, \iota)$ (Section~\ref{sec:experiments}, Table~\ref{tab:config}) that the researcher $\cR$ \emph{authored} to produce them. Excerpts are taken from the final commit on the dedicated git branch of the corresponding run; we reproduce the prose verbatim, with author commentary in \texttt{[brackets]} and elisions marked \texttt{...}. We organize by artifact type so each subsection makes a within-type contrast (e.g., $\Phi_U$ vs.\ $\Phi_{\min}$, or Cleanup vs.\ Gathering). Subsection~\ref{app:art-r-prompt} comes first because it shows the upstream input that the rest of the appendix is derived from: the prompt $p_\cR$ given to the researcher itself.
+
+\subsection{Researcher system prompt $p_\cR$}
+\label{app:art-r-prompt}
+
+The researcher $\cR$ is a coding agent (Claude Opus 4.6 via the Claude Code CLI) instantiated with a single fixed system prompt that is identical across all experiment runs (it differs only in the game name and the primary-metric flag, which is one of \texttt{efficiency} or \texttt{maximin}). This is the input from which every artifact in the rest of this appendix is derived. Because much of the paper's claim hinges on the asymmetry between \emph{what $p_\cR$ tells $\cR$} and \emph{what $\cR$ in turn writes for $\cM$}, we reproduce the strategically relevant portions of $p_\cR$ verbatim below; the full file is in the released repository under \texttt{autoresearch/program.md}.
+
+\begin{lstlisting}[style=prompttext, caption={Excerpt from $p_\cR$. The remaining parts of $p_\cR$ describe the file layout of the inner-loop pipeline, the evaluation script invocation, the keep/discard rule, and the logging format; none of those add task-specific strategic guidance.}, label={lst:r-prompt}]
+## The metrics
+
+The primary metric is specified at launch via `--metric` (default: `efficiency`).
+The two options are:
+
+**Efficiency** (U): collective apple collection rate across all agents per
+timestep. Higher is better. ...
+
+**Maximin** (Rawlsian welfare): minimum total per-agent return across all
+agents. Higher is better. Inspired by Rawls' difference principle -- a just
+policy maximizes the welfare of the worst-off agent. ...
+
+## Strategy space
+
+Here are categories of modifications to explore:
+
+### Prompt engineering (p)
+- Add strategic hints about the Cleanup dilemma (e.g., "cleaning is a public
+  good -- someone must do it")
+- Add worked examples of sophisticated policies
+- Restructure the API documentation for clarity
+- Add game-theoretic reasoning frameworks
+- Mention optimal strategies from the literature (Voronoi partitioning,
+  role assignment)
+
+### Feedback engineering (l, phi)
+- Show per-agent reward breakdown (not just average)
+- Add derived metrics (e.g., cleaning rate, waste level trends, apple growth)
+- Frame feedback to emphasize cooperation
+- Add temporal analysis ...
+- Show metric trends across iterations ...
+- Provide diagnostic hints based on metrics ...
+
+### Helper functions (H)
+- count_waste(env), waste_fraction(env), bfs_to_waste(env, agent_id),
+  should_clean(env), assign_role(env, agent_id),
+  find_cleaning_position(env, agent_id)
+
+### Iteration logic (iota)
+- Change K (more iterations = more refinement but more cost)
+- Change eval seeds, retry budget, thinking budget
+\end{lstlisting}
+
+\paragraph{What $p_\cR$ does \emph{not} say.}
+For the convergent-discovery claim of Finding~4 to be informative, $p_\cR$ must not itself encode the specific mechanisms that $\cR$ later writes into $p$, $\phi$, $\mathcal{H}$ under $\Phi_{\min}$. Inspecting Listing~\ref{lst:r-prompt}, three absences matter:
+\begin{itemize}
+  \item \emph{No rotation formula.} $p_\cR$ never mentions \texttt{(agent\_id + env.\_step\_count // T) \% n}, \texttt{env.\_step\_count}, or any other time-based cycling pattern. The closest item -- ``Mention optimal strategies from the literature (Voronoi partitioning, role assignment)'' -- names \emph{static} role assignment, not time-rotated duty.
+  \item \emph{No objective-conditional guidance.} The strategy-space listing is identical regardless of whether $\cR$ is launched with \texttt{--metric efficiency} or \texttt{--metric maximin}. $p_\cR$ does not tell $\cR$ to behave differently under the two objectives; the only objective-sensitive input is the (scalar) score $\Phi_j$ returned after each inner-loop run.
+  \item \emph{No ``rotation is for fairness.''} $p_\cR$ does not link any strategy to either welfare criterion. The connection ``rotation = fairness = high maximin'' is constructed by $\cR$ from $\Phi_j$ observations across iterations on the branch.
+\end{itemize}
+The researcher-authored prompt $p$ shown in Listing~\ref{lst:prompt-min} and its Sonnet counterpart, both written under $\Phi_{\min}$, contain all three of these elements; the corresponding $\Phi_U$ prompts do not. The role of $p_\cR$ in the experiment is therefore to define the configuration space and the evaluation harness, not to script the discoveries themselves.
+
 
 \subsection{Helper library $\mathcal{H}$: coordination primitives}
 \label{app:art-helpers}
@@ -1009,7 +1072,12 @@ def policy(env, agent_id) -> int:
 \subsection{Cleanup, $\Phi_{\min}$ (Sonnet): independent rediscovery of duty rotation}
 \label{app:policy-min-sonnet}
 
-Best run: $U{=}2.93$, $E{=}0.83$, $\min_i R_i{=}154$. Run with a different policy LLM (Sonnet 4.6) and on a different outer-loop trajectory, the synthesizer arrives at the \emph{same} structural insight as the Gemini maximin run: a phase counter $(\texttt{agent\_id} + \texttt{step}/50) \bmod n$ rotates which 2 of the 10 agents clean at any given time, and a \emph{separate} 200-step zone counter rotates which 5-row band each collector sweeps. The two rotation periods (50 and 200 steps) ensure every agent visits every cleaning slot and every apple zone within one episode, resulting in a structural fairness invariant the researcher discovered without any explicit instruction to ``rotate.''
+This run was launched on a separate dedicated git branch from the Gemini maximin runs of Listing~\ref{lst:min-gemini} and from $p_\cR$ identical to the one shown in Appendix~\ref{app:art-r-prompt}, with no shared state. The researcher-authored synthesizer prompt $p$ on this branch ended up containing a rotation hint structurally similar to Listing~\ref{lst:prompt-min} but with different phrasing and a different recommended period (\texttt{phase\_length}${\,=\,}100$ in a worked example, vs.\ \texttt{SHIFT}${\,\approx\,}50$ in Listing~\ref{lst:prompt-min}); $\cM$ then chose its own period of $50$. The convergence is therefore at the level of which artifacts $\cR$ injects into $p$, not at the level of $\cM$ inventing rotation from a neutral prompt.
+
+Best run: $U{=}2.93$, $E{=}0.83$, $\min_i R_i{=}154$. The Sonnet synthesizer arrives at the \emph{same} structural insight as the Gemini maximin run: a phase counter $(\texttt{agent\_id} + \texttt{step}/50) \bmod n$ rotates which 2 of the 10 agents clean at any given time, and a \emph{separate} 200-step zone counter rotates which 5-row band each collector sweeps. The two rotation periods (50 and 200 steps) ensure every agent visits every cleaning slot and every apple zone within one episode, resulting in a structural fairness invariant.
+
+\paragraph{An alternative Sonnet maximin run uses a different mechanism.}
+The second Sonnet $\Phi_{\min}$ run took a structurally distinct route. There, $\cR$ never wrote a rotation template into $p$; instead it authored a ``collective threshold'' worked example in which \emph{all} agents synchronously enter a cleaning mode whenever \texttt{waste\_fraction(env)}${\,>\,}0.22$ and a collecting mode when it drops below $0.08$, with no \texttt{agent\_id} phase shift. The resulting synthesizer policy follows this pattern and reaches $\min_i R_i {=} 200$, slightly above the rotation policy of Listing~\ref{lst:min-sonnet}, confirming that the convergence in Table~\ref{tab:strategies} is on the broader \emph{class} (explicit fairness mechanism, 4/4 maximin) rather than on rotation specifically.
 
 \begin{lstlisting}[style=pythonpolicy, caption={Cleanup, $\Phi_{\min}$ -- Sonnet 4.6. Phase-rotated cleaning + zone-rotated collection (verbatim, abridged).}, label={lst:min-sonnet}]
 def policy(env, agent_id) -> int:
@@ -1121,7 +1189,7 @@ Several patterns are visible across these four listings (and confirmed by inspec
 
 \begin{itemize}
   \item \emph{Role assignment encodes the welfare objective.} Static \texttt{agent\_id < $\tau$} (Listing~\ref{lst:eff-gemini}) maximizes $U$ but harms $\min_i R_i$. Time-rotated \texttt{(agent\_id + step//$T$) \% n} (Listings~\ref{lst:min-gemini},~\ref{lst:min-sonnet}) maximizes $\min_i R_i$ at $\le 1\%$ efficiency cost (Gemini).
-  \item \emph{Convergent rediscovery across LLMs.} Gemini and Sonnet, on independent runs, both arrive at the \texttt{(id + phase) \% n} duty-rotation idiom with similar phase lengths ($T \approx 50$ steps) under maximin,  and both omit it under efficiency.
+  \item \emph{Convergent rediscovery across LLMs.} Gemini and Sonnet, on independent runs with separate dedicated git branches, both arrive at the \texttt{(id + phase) \% n} duty-rotation idiom with similar phase lengths ($T \approx 50$ steps) in 3/4 maximin runs, and both omit any explicit fairness mechanism under efficiency. The remaining 1/4 maximin run (Sonnet) converges on a structurally distinct synchronized clean/collect mechanism with comparable maximin (Appendix~\ref{app:policy-min-sonnet}). The point of convergence is the \emph{class} of mechanism ($\cR$ writes an explicit fairness mechanism into $p$ under $\Phi_{\min}$, never under $\Phi_U$), not necessarily the rotation idiom itself.
   \item \emph{Game structure dictates strategy class.} Cleanup policies are dominated by role-assignment logic (cleaner vs. gatherer); Gathering policies are dominated by territory partitioning and respawn-timer reasoning, with no role differentiation at all. The researcher does not need to be told which class of strategy to write.
   \item \emph{Earliest-collection-time as a unifying score.} The Gathering policy's $\max(\text{walk}, \text{timer})$ key (Listing~\ref{lst:gather-gemini}) is structurally identical across the 4 Gathering runs (both Gemini and Sonnet), differing only in how the Voronoi diagram is computed, e.g. by Manhattan approximation, fully BFS-based, or cached helper.
 \end{itemize}
