@@ -247,7 +247,7 @@ A frozen LLM $\cM$ acts as the \emph{policy synthesizer}. Given a system prompt 
 \]
 where $\pi_k$ is the previous policy (its source code) and $\mathcal{F}_k$ is the evaluation feedback. All $N$ agents execute the same program $\pi_k$ in self-play. We stress that this is \emph{symmetric}, not \emph{behaviorally homogeneous}: since $\pi_k$ takes \texttt{agent\_id} as an argument, a single shared program can induce distinct per-agent behaviors (cleaner vs.\ gatherer assignment, time-rotated duty cycles, partitioned territories; see the synthesized policies in Appendix~\ref{app:policies}). What is shared is the source code; the sampled action distributions can differ across agents. Evaluation over a set of random seeds $S$ yields the mean per-agent return $\bar r_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$. Each generated policy passes an AST-based safety check (blocking \texttt{eval}, file I/O, network access) followed by a short smoke test; failures trigger regeneration (up to $R$ attempts) with the error message appended to the prompt.
 
-\paragraph{Feedback.} We package the previous policy's source code together with all available evaluation signals:
+\paragraph{Feedback.} We package the previous policy's code together with all available evaluation signals:
 \begin{equation}
   \mathcal{F}_k = \big(\textrm{code}(\pi_k),\; \bar r_k,\; \bm_k,\; \mathbf{d}\big),
 \end{equation}
@@ -385,7 +385,7 @@ where $p$ is the system prompt, $\phi$ is the feedback construction function (wh
 \caption{Configuration components modifiable by the researcher, with concrete edits that $\cR$ made in our runs. The environment simulator, ground-truth evaluation, and policy LLM weights are frozen.}
 \label{tab:config}
 \centering
-\small
+\footnotesize
 \begin{tabular}{@{}llp{0.60\linewidth}@{}}
 \toprule
  & Scope & Concrete edits by $\cR$ (see appendix) \\
@@ -411,7 +411,7 @@ Each iteration $k$ proceeds in four stages, following~\cite{gallego2026}:
   \item \textbf{Synthesize.} The policy LLM $\cM$ receives the system prompt $p$, the previous policy's source code $\pi_{k-1}$, and feedback $\mathcal{F}_{k-1}$ constructed by $\phi$. It generates a new Python policy function $\pi_k$ that has access to full environment state and the helper library $\mathcal{H}$.
   \item \textbf{Validate.} The generated code undergoes AST-based safety checks (blocking dangerous operations such as file I/O and network access) followed by a short smoke test. Failures trigger re-generation (up to $R$ retries), with the error message appended to the prompt.
   \item \textbf{Evaluate.} All $N$ agents execute the same policy $\pi_k$ in self-play over $|S|$ random seeds (note the policy is conditional on \texttt{agent\_id}). The evaluation yields the mean per-agent reward $\bar{r}_k$ and the social metrics vector $\bm_k = (U_k, E_k, S_k, P_k)$.
-  \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$, packaging the previous policy's source code together with the scalar reward, the social metrics vector, their natural-language definitions, and any adaptive diagnostics that $\phi$ injects.
+  \item \textbf{Feedback.} The feedback function $\phi$ constructs the prompt for the next iteration from $(\pi_k, \bar{r}_k, \bm_k)$, packaging the previous policy's code together with the scalar reward, the social metrics vector, their natural-language definitions, and any adaptive diagnostics that $\phi$ injects.
 \end{enumerate}
 
 The inner loop output is scored on held-out seeds via the configuration-level map
@@ -438,13 +438,7 @@ The researcher proposes a new configuration $c_j$ by generating code modificatio
 
 The two-level structure admits a mechanism design interpretation. The researcher $\cR$ acts as a \emph{mechanism designer}: it controls the information structure (what metrics to reveal, how to frame them), the action space (what helper functions are available), and the incentive structure (how feedback is presented) under which the policy synthesizer $\cM$ operates. The synthesizer acts as the \emph{agent} within the designed mechanism.
 
-This connects to the automated mechanism design literature~\cite{conitzer2002}, where a principal designs rules to induce desired behavior from self-interested agents. In our setting:
-\begin{itemize}
-  \item The \textbf{principal} is the researcher $\cR$, optimizing the ground-truth score $J$ induced by the welfare objective $\Phi$.
-  \item The \textbf{agent} is the synthesizer $\cM$, optimizing per-agent reward as instructed.
-  \item The \textbf{mechanism} is the configuration $c$: prompts, feedback, helpers, iteration logic.
-  \item The \textbf{outcome} is the social welfare of the resulting multi-agent policy $\pi^*_c$.
-\end{itemize}
+This connects to the automated mechanism design literature~\cite{conitzer2002}, where a principal designs rules to induce desired behavior from self-interested agents. In our setting: (i) the \textbf{principal} is the researcher $\cR$, optimizing the ground-truth score $J$ induced by the welfare objective $\Phi$; (ii) the \textbf{agent} is the synthesizer $\cM$, optimizing per-agent reward as instructed; (iii) the \textbf{mechanism} is the configuration $c$: prompts, feedback, helpers, iteration logic; (iv) the \textbf{outcome} is the social welfare of the resulting multi-agent policy $\pi^*_c$.
 
 A crucial distinction from classical mechanism design: $\cM$ follows instructions but has \emph{bounded rationality} in the sense that its ability to synthesize effective policies depends on the information and tools provided. The researcher's task is thus closer to \emph{information design}~\cite{kamenica2011}: choosing what to reveal to help $\cM$ navigate the cooperation--defection tension. Our experiments (Section~\ref{sec:experiments}) show that the researcher designs qualitatively different information structures depending on the welfare objective $\Phi$, supporting this interpretation empirically.
 
@@ -453,7 +447,7 @@ A crucial distinction from classical mechanism design: $\cM$ follows instruction
 \label{sec:experiments}
 %% ============================================================
 
-\subsection{Setup}
+%\subsection{Setup}
 
 We conduct 12 autonomous researcher runs across a factorial design. The researcher agent $\cR$ is Claude Opus 4.6, invoked via the Claude Code CLI as a coding agent. Each run operates on a dedicated git branch of a real Python codebase: $\cR$ edits source files in \texttt{pipeline/}, executes evaluation scripts, reads metric outputs, and iterates, without human intervention.
 
@@ -523,7 +517,7 @@ Every run improves substantially regardless of starting point (Figure~\ref{fig:e
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.79\textwidth]{images/fig1_efficiency_trajectory.png}
-\caption{Efficiency ($U$) across researcher iterations for all 12 runs. \emph{Left}: Cleanup with 8 runs across 2 LLMs $\times$ 2 objectives. Solid lines connect \emph{kept} iterations (those for which $J_j > J^* + \tau$ strictly exceeded the running-best score; $\tau{=}0$ in our runs); open circles mark \emph{discarded} iterations ($J_j \le J^*$), which are reverted on disk before the next proposal. Dashed horizontal line: hand-designed baseline from~\cite{gallego2026}. All runs converge to $U \approx 3.1$--$3.2$ despite diverse starting points. \emph{Right}: Gathering with 4 runs (2 per LLM). All converge to $U \approx 2.5$ within 2--4 iterations despite baselines ranging from $0.03$ to $2.42$.}
+\caption{Efficiency ($U$) across researcher iterations for all 12 runs. \emph{Left}: Cleanup with 8 runs across 2 LLMs $\times$ 2 objectives. Solid lines connect \emph{kept} iterations (those for which $J_j > J^* + \tau$ strictly exceeded the running-best score; $\tau{=}0$ in our runs); open circles mark \emph{discarded} iterations ($J_j \le J^*$), which are reverted on disk before the next proposal. Dashed horizontal line: hand-designed baseline from~\cite{gallego2026}. All runs converge to $U \approx 3.1$--$3.2$ despite diverse starting points. \emph{Right}: Gathering with 4 runs (2 per LLM). All converge to $U \approx 2.5$ within 2--4 iterations.}
 \label{fig:efficiency}
 \end{figure}
 
@@ -569,20 +563,22 @@ Classical automated mechanism design~\cite{conitzer2002} computes optimal alloca
 \section{Discussion and Conclusion}
 %% ============================================================
 
-We have presented a two-level framework where a coding agent autonomously discovers pipeline configurations that improve the output of an inner-loop LLM system. Applied to multi-agent policy synthesis in social dilemmas, the researcher agent reliably exceeds hand-designed baselines across multiple independent runs, and converges on qualitatively similar strategies within each game--objective condition. The framework requires no task-specific scaffolding beyond a standard CLI and git: the agent operates on a standard software repository using the same tools (file editing, shell commands, git) available to a human researcher. The inner-loop validation pipeline, helper-library skeleton, and orchestrator API are themselves deliberately scoped artifacts, however (see Appendix~\ref{sec:limitations}).
+We have presented a two-level framework where a coding agent autonomously discovers pipeline configurations that improve the output of an inner-loop LLM system. Applied to multi-agent policy synthesis in social dilemmas, the researcher agent reliably exceeds hand-designed baselines across multiple independent runs, and converges on qualitatively similar strategies within each game--objective condition. The framework requires no task-specific scaffolding beyond a standard CLI and git: the agent operates on a standard software repository using the same tools (file editing, shell commands, git) available to a human researcher. The inner-loop validation pipeline, helper-library skeleton, and orchestrator API are themselves deliberately scoped artifacts (see App.~\ref{sec:limitations}).
 
 \paragraph{Mechanism design in action.}
-Our results empirically support the mechanism design interpretation of Section~\ref{sec:mechdesign}. The researcher acts as an information designer: under $\Phi_U$, it reveals efficiency-oriented information (waste counts, zone assignments) that guides $\cM$ toward productive but unequal role allocation (Listing~\ref{lst:eff-gemini}). Under $\Phi_{\min}$, it additionally reveals fairness-oriented structure such as rotation schedules and per-agent equity feedback (Listings~\ref{lst:prompt-min},~\ref{lst:feedback-adapt}), guiding $\cM$ toward egalitarian coordination. 
+Our results empirically support the mechanism design interpretation of Section~\ref{sec:mechdesign}. The researcher acts as an information designer: under $\Phi_U$, it reveals efficiency-oriented information (waste counts, zone assignments) that guides $\cM$ toward productive but unequal role allocation (Listing~\ref{lst:eff-gemini}). Under $\Phi_{\min}$, it additionally reveals fairness-oriented structure such as rotation schedules and equity feedback (Listings~\ref{lst:prompt-min},~\ref{lst:feedback-adapt}), guiding $\cM$ toward egalitarian coordination. 
 
+\iffalse
 \paragraph{Two types of dilemma.}
 The Cleanup--Gathering contrast reveals a structural insight about social dilemmas: \emph{provision} dilemmas (asymmetric costs, one agent's contribution benefits all) require explicit fairness mechanisms, while \emph{restraint} dilemmas (symmetric costs, each agent faces the same temptation) achieve fairness naturally when coordination improves. This distinction, well-known in the common-pool resource literature, is rediscovered here by an autonomous AI agent, which suggests it is a robust structural feature of these environments.
+\fi
 
 \paragraph{Human oversight and audit.}
 Our system is fully autonomous by design, but its architecture offers natural affordances for human-in-the-loop oversight. Because the researcher $\cR$ operates on a standard git repository, a domain expert can audit the full history of code diffs $\Delta_j$ alongside their metric outcomes $(J_j, \bm_j)$. The keep/discard decision (Algorithm~\ref{alg:outer}, line~11) is a lightweight intervention point: a human could override the accept threshold $\tau$, veto modifications that introduce undesirable mechanisms (e.g., exploitative role assignments), or steer the researcher toward under-explored regions of the configuration space by editing the experiment history. More broadly, the separation between the researcher $\cR$ and the frozen evaluation $\Phi$ creates a \emph{delegation boundary}: the human defines \emph{what} to optimize (the welfare objective), while the agent decides \emph{how}. This mirrors the expert-in-the-loop design patterns identified in deployment-oriented work on AI agents for discovery, where trust calibration depends on the legibility of the agent's decision trail rather than on real-time supervision.
 
 
 \paragraph{Future work.}
-Several directions emerge.  First, we are interested in applying the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; next, adversarial objectives can be intriguing, to test whether the researcher discovers exploitative pipeline configurations, exposing reward hacking risks; and asymmetric programs: extend to settings where agents run \emph{different} source code (the present setup is symmetric in code but already supports heterogeneous behavior via \texttt{agent\_id}; relaxing the shared-program constraint enables richer per-agent specialization and partial-information settings).
+First, we are interested in applying the two-level framework to other LLM-driven pipelines (code optimization, scientific experiment design, infrastructure tuning), where the same architecture applies with a different inner loop and objective $\Phi$; next, adversarial objectives can be intriguing, to test whether the researcher discovers exploitative pipeline configurations, exposing reward hacking risks; and asymmetric programs: extend to settings where agents run \emph{different} source code (the present setup is symmetric in code but already supports heterogeneous behavior via \texttt{agent\_id}; relaxing the shared-program constraint enables richer per-agent specialization and partial-information settings).
 
 \bibliographystyle{unsrt}
 \bibliography{references}
